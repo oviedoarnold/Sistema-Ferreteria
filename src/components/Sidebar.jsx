@@ -31,10 +31,12 @@ function Sidebar() {
           Ventas
         </li>
 
-        <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-          <FaBox />
-          Inventario
-        </li>
+        <Link to="/products">
+  <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
+    <FaBox />
+    Productos
+  </li>
+</Link>
 
         <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
           <FaUsers />
