@@ -1,31 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useContext } from "react"
 import Swal from "sweetalert2"
+import { ProductContext } from "../context/ProductContext"
 
 function Products() {
 
-  const [products, setProducts] = useState(() => {
-
-  const savedProducts = localStorage.getItem("products")
-
-  return savedProducts
-    ? JSON.parse(savedProducts)
-    : [
-        {
-          id: 1,
-          name: "Martillo",
-          category: "Herramientas",
-          price: 250,
-          stock: 15,
-        },
-        {
-          id: 2,
-          name: "Cemento",
-          category: "Construcción",
-          price: 180,
-          stock: 40,
-        },
-      ]
-})
+  const { products, setProducts } = useContext(ProductContext)
 
   const [name, setName] = useState("")
   const [category, setCategory] = useState("")
@@ -33,20 +12,47 @@ function Products() {
   const [stock, setStock] = useState("")
 
   const [editingId, setEditingId] = useState(null)
-   
+
   const [search, setSearch] = useState("")
-  useEffect(() => {
 
-  localStorage.setItem(
-    "products",
-    JSON.stringify(products)
+  // ESTADO DEL STOCK
+  const getStockStatus = (stock) => {
+
+    if (stock == 0) {
+      return {
+        text: "Agotado",
+        color: "bg-red-500",
+      }
+    }
+
+    if (stock <= 5) {
+      return {
+        text: "Stock Bajo",
+        color: "bg-yellow-500",
+      }
+    }
+
+    return {
+      text: "Disponible",
+      color: "bg-green-500",
+    }
+  }
+
+  // ESTADÍSTICAS
+  const totalProducts = products.length
+
+  const lowStockProducts = products.filter(
+    (product) => product.stock <= 5 && product.stock > 0
+  ).length
+
+  const outOfStockProducts = products.filter(
+    (product) => product.stock == 0
+  ).length
+
+  // FILTRO DE BÚSQUEDA
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(search.toLowerCase())
   )
-
-}, [products])
-
-const filteredProducts = products.filter((product) =>
-  product.name.toLowerCase().includes(search.toLowerCase())
-)
 
   // AGREGAR PRODUCTO
   const handleAddProduct = () => {
@@ -59,23 +65,24 @@ const filteredProducts = products.filter((product) =>
       id: Date.now(),
       name,
       category,
-      price,
-      stock,
+      price: Number(price),
+      stock: Number(stock),
     }
 
     setProducts([...products, newProduct])
 
-Swal.fire({
-  icon: "success",
-  title: "Producto agregado",
-  text: "El producto fue agregado correctamente",
-})
+    Swal.fire({
+      icon: "success",
+      title: "Producto agregado",
+      text: "El producto fue agregado correctamente",
+    })
 
-clearForm()
+    clearForm()
   }
 
   // LIMPIAR FORMULARIO
   const clearForm = () => {
+
     setName("")
     setCategory("")
     setPrice("")
@@ -86,33 +93,32 @@ clearForm()
   // ELIMINAR
   const handleDelete = (id) => {
 
-  Swal.fire({
-    title: "¿Estás seguro?",
-    text: "Este producto será eliminado",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#3085d6",
-    confirmButtonText: "Sí, eliminar",
-    cancelButtonText: "Cancelar",
-  }).then((result) => {
+    Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Este producto será eliminado",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+    }).then((result) => {
 
-    if (result.isConfirmed) {
+      if (result.isConfirmed) {
 
-      const filteredProducts = products.filter(
-        (product) => product.id !== id
-      )
+        const filteredProducts = products.filter(
+          (product) => product.id !== id
+        )
 
-      setProducts(filteredProducts)
+        setProducts(filteredProducts)
 
-      Swal.fire({
-        icon: "success",
-        title: "Producto eliminado",
-        text: "El producto fue eliminado correctamente",
-      })
-    }
-  })
-
+        Swal.fire({
+          icon: "success",
+          title: "Producto eliminado",
+          text: "El producto fue eliminado correctamente",
+        })
+      }
+    })
   }
 
   // EDITAR
@@ -137,8 +143,8 @@ clearForm()
           ...product,
           name,
           category,
-          price,
-          stock,
+          price: Number(price),
+          stock: Number(stock),
         }
       }
 
@@ -147,34 +153,80 @@ clearForm()
 
     setProducts(updatedProducts)
 
-Swal.fire({
-  icon: "success",
-  title: "Producto actualizado",
-  text: "Los cambios fueron guardados",
-})
+    Swal.fire({
+      icon: "success",
+      title: "Producto actualizado",
+      text: "Los cambios fueron guardados",
+    })
 
-clearForm()
+    clearForm()
   }
 
   return (
+
     <div>
 
+      {/* BUSCADOR */}
 
       <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
 
-  <input
-    type="text"
-    placeholder="Buscar producto..."
-    className="w-full border p-3 rounded-lg"
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-  />
+        <input
+          type="text"
+          placeholder="Buscar producto..."
+          className="w-full border p-3 rounded-lg"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-</div>
+      </div>
 
-<h1 className="text-3xl font-bold text-gray-700 mb-6">
-  Productos
-</h1>
+      {/* TITULO */}
+
+      <h1 className="text-3xl font-bold text-gray-700 mb-6">
+        Productos
+      </h1>
+
+      {/* ESTADÍSTICAS */}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm">
+
+          <h2 className="text-gray-500">
+            Total Productos
+          </h2>
+
+          <p className="text-3xl font-bold mt-2">
+            {totalProducts}
+          </p>
+
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm">
+
+          <h2 className="text-gray-500">
+            Stock Bajo
+          </h2>
+
+          <p className="text-3xl font-bold mt-2 text-yellow-500">
+            {lowStockProducts}
+          </p>
+
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm">
+
+          <h2 className="text-gray-500">
+            Agotados
+          </h2>
+
+          <p className="text-3xl font-bold mt-2 text-red-500">
+            {outOfStockProducts}
+          </p>
+
+        </div>
+
+      </div>
 
       {/* FORMULARIO */}
 
@@ -288,6 +340,10 @@ clearForm()
               </th>
 
               <th className="text-left p-4">
+                Estado
+              </th>
+
+              <th className="text-left p-4">
                 Acciones
               </th>
 
@@ -319,6 +375,25 @@ clearForm()
 
                   <td className="p-4">
                     {product.stock}
+                  </td>
+
+                  <td className="p-4">
+
+                    <span
+                      className={`
+                        ${getStockStatus(product.stock).color}
+                        text-white
+                        px-3
+                        py-1
+                        rounded-full
+                        text-sm
+                      `}
+                    >
+
+                      {getStockStatus(product.stock).text}
+
+                    </span>
+
                   </td>
 
                   <td className="p-4 flex gap-2">

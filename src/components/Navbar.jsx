@@ -18,7 +18,7 @@ function Navbar() {
     <div className="bg-white shadow-sm p-4 flex justify-between items-center">
 
       <h1 className="text-2xl font-bold text-gray-700">
-        Dashboard
+        Ferretería Isaac
       </h1>
 
       <div className="flex items-center gap-4">
