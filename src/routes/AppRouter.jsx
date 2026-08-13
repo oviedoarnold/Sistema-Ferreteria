@@ -10,6 +10,7 @@ import Products from "../pages/Products"
 import POS from "../pages/POS"
 import SalesHistory from "../pages/SalesHistory"
 import Clients from "../pages/Clients"
+import Suppliers from "../pages/Suppliers"
 import MainLayout from "../layouts/MainLayout"
 
 
@@ -100,6 +101,20 @@ function AppRouter() {
             </ProtectedRoute>
           }
           />
+        {/* PROVEEDORES */}
+
+        <Route
+          path="/suppliers"
+          element={
+            <ProtectedRoute>
+
+              <MainLayout>
+                <Suppliers />
+              </MainLayout>
+
+            </ProtectedRoute>
+          }
+        />
      
       </Routes>
 

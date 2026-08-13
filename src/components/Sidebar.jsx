@@ -1,105 +1,46 @@
-import {
-  FaHome,
-  FaCashRegister,
-  FaBox,
-  FaUsers,
-  FaTruck,
-  FaChartBar,
-  FaHistory,
-} from "react-icons/fa"
-
-import { Link } from "react-router-dom"
+import { NavLink } from "react-router-dom"
+import { FaHome, FaCashRegister, FaBox, FaUsers, FaTruck, FaHistory } from "react-icons/fa"
 
 function Sidebar() {
-
   return (
+    <aside className="card card-pad" style={{ width: 240, height: '100vh', position: 'fixed' }}>
+      <div style={{ textAlign: 'center', marginBottom: 14 }}>
+        <div className="brand-mark" style={{ display: 'inline-block' }}>🔧</div>
+        <div className="brand-text" style={{ display: 'block' }}><strong>Ferretería Isaac</strong></div>
+      </div>
 
-    <div className="w-64 h-screen bg-gray-900 text-white p-5 fixed">
+      <div className="picker-list">
+        <NavLink to="/dashboard" className="picker-item">
+          <div><FaHome /></div>
+          <div style={{ marginLeft: 8 }}>Dashboard</div>
+        </NavLink>
 
-      <h1 className="text-2xl font-bold mb-10 text-center">
-        Ferretería Isaac
-      </h1>
+        <NavLink to="/pos" className="picker-item">
+          <div><FaCashRegister /></div>
+          <div style={{ marginLeft: 8 }}>Facturación</div>
+        </NavLink>
 
-      <ul className="space-y-3">
+        <NavLink to="/products" className="picker-item">
+          <div><FaBox /></div>
+          <div style={{ marginLeft: 8 }}>Inventario</div>
+        </NavLink>
 
-        {/* DASHBOARD */}
+        <NavLink to="/clients" className="picker-item">
+          <div><FaUsers /></div>
+          <div style={{ marginLeft: 8 }}>Clientes</div>
+        </NavLink>
 
-        <Link to="/dashboard">
+        <NavLink to="/suppliers" className="picker-item">
+          <div><FaTruck /></div>
+          <div style={{ marginLeft: 8 }}>Proveedores</div>
+        </NavLink>
 
-          <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-
-            <FaHome />
-            Dashboard
-
-          </li>
-
-        </Link>
-        
-
-        {/* POS / FACTURACIÓN */}
-
-        <Link to="/pos">
-
-          <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-
-            <FaCashRegister />
-            Facturación
-
-          </li>
-
-        </Link>
-
-        {/* PRODUCTOS */}
-
-        <Link to="/products">
-
-          <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-
-            <FaBox />
-            Inventario
-
-          </li>
-
-        </Link>
-
-        {/* CLIENTES */}
-
-        <Link to="/clients">
-
-        <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-
-          <FaUsers />
-          Clientes
-
-        </li>
-
-        </Link>
-
-        {/* PROVEEDORES */}
-
-        <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-
-          <FaTruck />
-          Proveedores
-
-        </li>
-
-        {/* REPORTES */}
-        <Link to="/sales-history">
-
-          <li className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer">
-
-            <FaHistory />
-
-            Historial Ventas
-
-          </li>
-
-        </Link>
-
-      </ul>
-
-    </div>
+        <NavLink to="/sales-history" className="picker-item">
+          <div><FaHistory /></div>
+          <div style={{ marginLeft: 8 }}>Historial Ventas</div>
+        </NavLink>
+      </div>
+    </aside>
   )
 }
 

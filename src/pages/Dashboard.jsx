@@ -1,68 +1,68 @@
+﻿import { useContext, useMemo } from "react"
+import { ProductContext } from "../context/ProductContext"
+import { SalesContext } from "../context/SalesContext"
+import { ClientsContext } from "../context/ClientsContext"
+
+const money = (n) => `L ${Number(n || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
 function Dashboard() {
-  return (
-    <div>
+  const { products = [] } = useContext(ProductContext)
+  const { sales = [] } = useContext(SalesContext)
+  const { clients = [] } = useContext(ClientsContext)
 
-      <h1 className="text-3xl font-bold text-gray-700 mb-6">
-        Bienvenido al Sistema
-      </h1>
+  const stats = useMemo(() => {
+    const today = new Date().toLocaleDateString("es-HN")
+    const month = new Date().getMonth()
+    const year = new Date().getFullYear()
+    const todaySales = sales.filter((s) => String(s.date || "").includes(today)).reduce((a, s) => a + Number(s.total || 0), 0)
+    const monthSales = sales.filter((s) => {
+      const d = new Date(s.timestamp || s.date)
+      return !Number.isNaN(d.getTime()) && d.getMonth() === month && d.getFullYear() === year
+    }).reduce((a, s) => a + Number(s.total || 0), 0)
+    const low = products.filter((p) => Number(p.stock) > 0 && Number(p.stock) <= Number(p.minStock ?? 5)).length
+    const out = products.filter((p) => Number(p.stock) <= 0).length
+    const receivable = sales.filter((s) => s.paymentType === "credito" || s.type === "credito").filter((s) => s.status !== "pagada").reduce((a, s) => a + Number(s.total || 0), 0)
+    return { todaySales, monthSales, low, out, receivable }
+  }, [products, sales])
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  const topProducts = useMemo(() => {
+    const map = new Map()
+    sales.forEach((s) => (s.items || s.products || []).forEach((i) => {
+      const name = i.name || i.productName || "Producto"
+      const qty = Number(i.qty ?? i.quantity ?? 1)
+      map.set(name, (map.get(name) || 0) + qty)
+    }))
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+  }, [sales])
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h2 className="text-gray-500">
-            Ventas Hoy
-          </h2>
+  const recentSales = [...sales].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 5)
 
-          <p className="text-3xl font-bold mt-2">
-            L 25,000
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h2 className="text-gray-500">
-            Productos
-          </h2>
-
-          <p className="text-3xl font-bold mt-2">
-            1,250
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h2 className="text-gray-500">
-            Clientes
-          </h2>
-
-          <p className="text-3xl font-bold mt-2">
-            320
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h2 className="text-gray-500">
-            Facturas
-          </h2>
-
-          <p className="text-3xl font-bold mt-2">
-            85
-          </p>
-        </div>
-
-      </div>
-
-      <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm">
-        <h2 className="text-2xl font-bold mb-4">
-          Resumen General
-        </h2>
-
-        <p className="text-gray-600">
-          Aquí podrás visualizar estadísticas, ventas,
-          inventario y reportes del sistema.
-        </p>
-      </div>
-
+  return <div className="view active">
+    <div className="view-header"><div><h2>Dashboard</h2><p className="sub">{new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p></div></div>
+    <div className="dash-grid dash-grid-wide">
+      <div className="stat-card orange"><div className="icon">🧾</div><div className="label">Ventas hoy</div><div className="value">{money(stats.todaySales)}</div><div className="sub-val">Total del día</div></div>
+      <div className="stat-card blue"><div className="icon">🛒</div><div className="label">Ventas del mes</div><div className="value">{money(stats.monthSales)}</div><div className="sub-val">Mes actual</div></div>
+      <div className="stat-card warn"><div className="icon">⚠</div><div className="label">Stock bajo</div><div className="value">{stats.low}</div><div className="sub-val">productos</div></div>
+      <div className="stat-card danger"><div className="icon">⚠</div><div className="label">Agotados</div><div className="value">{stats.out}</div><div className="sub-val">productos</div></div>
+      <div className="stat-card warn"><div className="icon">💳</div><div className="label">Por cobrar</div><div className="value">{money(stats.receivable)}</div><div className="sub-val">ventas a crédito</div></div>
+      <div className="stat-card ok"><div className="icon">✓</div><div className="label">Productos</div><div className="value">{products.length}</div><div className="sub-val">{clients.length} clientes</div></div>
     </div>
-  )
+
+    <div className="dash-row">
+      <div className="chart-wrap"><div className="chart-title">Ventas por mes</div><div className="bar-chart">{Array.from({ length: 6 }, (_, idx) => {
+        const d = new Date(); d.setMonth(d.getMonth() - (5 - idx));
+        const total = sales.filter((s) => { const sd = new Date(s.timestamp || s.date); return !Number.isNaN(sd.getTime()) && sd.getMonth() === d.getMonth() && sd.getFullYear() === d.getFullYear() }).reduce((a, s) => a + Number(s.total || 0), 0)
+        const max = Math.max(1, ...sales.map((s) => Number(s.total || 0)))
+        return <div className="bar-col" key={idx}><div className="bar-val">{total ? money(total) : "—"}</div><div className="bar" style={{ height: `${Math.max(4, Math.min(100, (total / max) * 100))}%` }}></div><div className="bar-label">{d.toLocaleDateString("es-HN", { month: "short" })}</div></div>
+      })}</div></div>
+      <div className="chart-wrap"><div className="chart-title">Top productos vendidos</div><div className="dash-mini-list">{topProducts.length ? topProducts.map(([name, qty]) => <div className="dash-mini-row" key={name}><span className="name">{name}</span><span className="val">{qty} u.</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
+    </div>
+
+    <div className="dash-bottom">
+      <div className="chart-wrap"><div className="chart-title">Últimas ventas</div><div className="dash-mini-list">{recentSales.length ? recentSales.map((s) => <div className="dash-mini-row" key={s.id}><span className="name">{s.customer || s.clientName || "Consumidor Final"}</span><span className="val">{money(s.total)}</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
+      <div className="chart-wrap"><div className="chart-title">Clientes</div><div className="dash-mini-list">{clients.slice(0, 5).map((c) => <div className="dash-mini-row" key={c.id}><span className="name">{c.name}</span><span className="val">{c.phone || "—"}</span></div>)}{!clients.length && <div className="empty-state">Sin clientes registrados</div>}</div></div>
+    </div>
+  </div>
 }
 
 export default Dashboard

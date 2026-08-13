@@ -1,57 +1,356 @@
-function InvoiceTemplate({ sale }) {
+const DEFAULT_COMPANY = {
+  name: "Ferretería Isaac",
+
+  address:
+    "Asentamientos Humanos, San Pedro Sula, Cortés",
+
+  phone: "9709-0121",
+
+  currency: "L",
+
+  taxRate: 15,
+}
+
+function formatMoney(
+  value,
+  currency = "L"
+) {
+  return `${currency} ${Number(
+    value || 0
+  ).toLocaleString("es-HN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function InvoiceTemplate({
+  sale,
+}) {
   if (!sale) return null
 
+  const company = {
+    ...DEFAULT_COMPANY,
+    ...(sale.company || {}),
+  }
+
+  const items =
+    sale.items ||
+    sale.products ||
+    []
+
+  const clientName =
+    sale.clientName ||
+    sale.customerName ||
+    sale.customer ||
+    sale.client ||
+    "Consumidor Final"
+
+  const taxRate = Number(
+    sale.taxRate ??
+      company.taxRate ??
+      15
+  )
+
+  const paymentType =
+    sale.paymentType ||
+    sale.type ||
+    "contado"
+
+  const status =
+    sale.status ||
+    (paymentType === "credito"
+      ? "pendiente"
+      : "pagada")
+
   return (
-    <div className="p-6 bg-white text-black w-full">
+    <div className="receipt document-letter">
+      <div className="inv-header">
+        <div className="inv-header-left">
+          <div className="inv-logo">
+            🔧
+          </div>
 
-      {/* ENCABEZADO */}
-      <div className="text-center border-b pb-3 mb-4">
-        <h1 className="text-2xl font-bold">FERRETERÍA ISAAC</h1>
-        <p className="text-sm">Materiales de Construcción y Herramientas</p>
-        <p className="text-xs">San Pedro Sula, Honduras</p>
+          <div>
+            <div className="inv-company-name">
+              {company.name}
+            </div>
+
+            <div className="inv-company-addr">
+              {company.address}
+
+              <br />
+
+              Tel:{" "}
+              {company.phone}
+            </div>
+          </div>
+        </div>
+
+        <div className="inv-doc-type">
+          <div className="inv-doc-label">
+            FACTURA
+          </div>
+
+          <div className="inv-doc-num">
+            {sale.invoiceNumber ||
+              "VISTA PREVIA"}
+          </div>
+        </div>
       </div>
 
-      {/* INFO FACTURA */}
-      <div className="text-sm mb-4">
-        <p><strong>Factura #:</strong> {sale.invoiceNumber}</p>
-        <p><strong>Cliente:</strong> {sale.customer}</p>
-        <p><strong>Fecha:</strong> {sale.date}</p>
+      <div className="inv-stripe" />
+
+      <div className="inv-meta">
+        <div className="inv-meta-block">
+          <div className="inv-meta-label">
+            Detalle de factura
+          </div>
+
+          <div className="inv-meta-row">
+            <span>Fecha</span>
+
+            <b>
+              {sale.date ||
+                new Date().toLocaleDateString(
+                  "es-HN"
+                )}
+            </b>
+          </div>
+
+          <div className="inv-meta-row">
+            <span>
+              Forma de pago
+            </span>
+
+            <b>
+              {paymentType ===
+              "credito"
+                ? "Crédito"
+                : "Contado"}
+            </b>
+          </div>
+
+          {sale.dueDate && (
+            <div className="inv-meta-row">
+              <span>
+                Vencimiento
+              </span>
+
+              <b>
+                {sale.dueDate}
+              </b>
+            </div>
+          )}
+
+          <div className="inv-meta-row">
+            <span>Estado</span>
+
+            <b
+              style={{
+                color:
+                  status ===
+                  "pagada"
+                    ? "var(--teal)"
+                    : "var(--red)",
+              }}
+            >
+              {status ===
+              "pagada"
+                ? "Pagada"
+                : "Pendiente"}
+            </b>
+          </div>
+
+          {sale.soldBy && (
+            <div className="inv-meta-row">
+              <span>
+                Vendedor
+              </span>
+
+              <b>
+                {sale.soldBy}
+              </b>
+            </div>
+          )}
+        </div>
+
+        <div className="inv-meta-block">
+          <div className="inv-meta-label">
+            Cliente
+          </div>
+
+          <div className="inv-client-name">
+            {clientName}
+          </div>
+
+          {(sale.clientPhone ||
+            sale.clientAddress) && (
+            <div className="inv-client-detail">
+              {sale.clientPhone ||
+                ""}
+
+              {sale.clientPhone &&
+                sale.clientAddress && (
+                  <br />
+                )}
+
+              {sale.clientAddress ||
+                ""}
+            </div>
+          )}
+
+          {sale.rtn && (
+            <div
+              className="inv-meta-row"
+              style={{
+                marginTop: 6,
+              }}
+            >
+              <span>RTN</span>
+
+              <b>{sale.rtn}</b>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* TABLA */}
-      <table className="w-full text-sm border">
+      <div className="inv-table-wrap">
+        <table className="inv-table">
         <thead>
-          <tr className="border-b bg-gray-100">
-            <th>Producto</th>
-            <th>Cant</th>
-            <th>Precio</th>
-            <th>Subtotal</th>
-          </tr>
-        </thead>
+  <tr>
+    <th>Producto</th>
+    <th className="r">Cant.</th>
+    <th className="r">Precio unit.</th>
+    <th className="r">Subtotal</th>
+  </tr>
+</thead>
 
-        <tbody>
-          {sale.products.map((p) => (
-            <tr key={p.id} className="text-center border-b">
-              <td>{p.name}</td>
-              <td>{p.quantity}</td>
-              <td>L {p.price}</td>
-              <td>L {p.price * p.quantity}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+<tbody>
+  {items.map((item, index) => {
+    const quantity = Number(
+      item.qty ??
+        item.quantity ??
+        1
+    )
 
-      {/* TOTALES */}
-      <div className="mt-4 text-right text-sm">
-        <p>Subtotal: L {sale.subtotal.toFixed(2)}</p>
-        <p>ISV: L {sale.tax.toFixed(2)}</p>
-        <p className="font-bold text-lg">TOTAL: L {sale.total.toFixed(2)}</p>
+    const price = Number(
+      item.price || 0
+    )
+
+    const lineSubtotal = Number(
+      item.subtotal ??
+        quantity * price
+    )
+
+    return (
+      <tr
+        key={
+          item.productId ??
+          item.id ??
+          `${item.name}-${index}`
+        }
+      >
+        <td>
+          <span className="prod-name">
+            {item.name}
+          </span>
+
+          {item.code && (
+            <span className="prod-code">
+              {item.code}
+            </span>
+          )}
+        </td>
+
+        <td className="r">
+          {quantity}
+        </td>
+
+        <td className="r">
+          {formatMoney(
+            price,
+            company.currency
+          )}
+        </td>
+
+        <td className="r">
+          {formatMoney(
+            lineSubtotal,
+            company.currency
+          )}
+        </td>
+      </tr>
+    )
+  })}
+</tbody>
+        </table>
       </div>
 
-      {/* FOOTER */}
-      <p className="text-center text-xs mt-6">
-        ¡Gracias por su compra!
-      </p>
+      <div className="inv-totals">
+        <div className="inv-totals-row">
+          <span>
+            Subtotal
+          </span>
+
+          <b>
+            {formatMoney(
+              sale.subtotal,
+              company.currency
+            )}
+          </b>
+        </div>
+
+        <div className="inv-totals-row">
+          <span>
+            ISV ({taxRate}%)
+          </span>
+
+          <b>
+            {formatMoney(
+              sale.tax,
+              company.currency
+            )}
+          </b>
+        </div>
+
+        <div className="inv-grand">
+          <span>
+            TOTAL A PAGAR
+          </span>
+
+          <b>
+            {formatMoney(
+              sale.total,
+              company.currency
+            )}
+          </b>
+        </div>
+      </div>
+
+      {status ===
+        "pendiente" && (
+        <div className="inv-pending">
+          PENDIENTE DE PAGO
+        </div>
+      )}
+
+      <div className="inv-footer">
+        <div className="inv-footer-msg">
+          <b>
+            ¡Gracias por su
+            compra!
+          </b>
+
+          Conserve esta factura
+          como comprobante de
+          pago.
+        </div>
+
+        <span className="inv-footer-badge">
+          {sale.invoiceNumber ||
+            "VISTA PREVIA"}
+        </span>
+      </div>
     </div>
   )
 }

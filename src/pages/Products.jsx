@@ -1,432 +1,71 @@
-import { useState, useContext } from "react"
+﻿import { useContext, useEffect, useMemo, useState } from "react"
 import Swal from "sweetalert2"
 import { ProductContext } from "../context/ProductContext"
 
+const emptyForm = { id: null, code: "", name: "", category: "", price: "", costPrice: "", stock: "", minStock: 5, supplierId: "" }
+
 function Products() {
-
-  const { products, setProducts } = useContext(ProductContext)
-
-  const [name, setName] = useState("")
-  const [category, setCategory] = useState("")
-  const [price, setPrice] = useState("")
-  const [stock, setStock] = useState("")
-
-  const [editingId, setEditingId] = useState(null)
-
+  const { products = [], setProducts } = useContext(ProductContext)
+  const [suppliers, setSuppliers] = useState(() => JSON.parse(localStorage.getItem("suppliers") || "[]"))
   const [search, setSearch] = useState("")
+  const [form, setForm] = useState(emptyForm)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  // ESTADO DEL STOCK
-  const getStockStatus = (stock) => {
+  useEffect(() => {
+    const h = (e) => setSuppliers(e.detail || [])
+    window.addEventListener("suppliersUpdated", h)
+    return () => window.removeEventListener("suppliersUpdated", h)
+  }, [])
 
-    if (stock == 0) {
-      return {
-        text: "Agotado",
-        color: "bg-red-500",
-      }
-    }
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return products.filter((p) => [p.name, p.category, p.code].some((v) => String(v || "").toLowerCase().includes(q)))
+  }, [products, search])
 
-    if (stock <= 5) {
-      return {
-        text: "Stock Bajo",
-        color: "bg-yellow-500",
-      }
-    }
+  const lowProducts = products.filter((p) => Number(p.stock) <= Number(p.minStock ?? 5))
+  const outCount = products.filter((p) => Number(p.stock) <= 0).length
 
-    return {
-      text: "Disponible",
-      color: "bg-green-500",
-    }
+  const status = (p) => Number(p.stock) <= 0 ? ["Agotado", "badge-out"] : Number(p.stock) <= Number(p.minStock ?? 5) ? ["Stock bajo", "badge-low"] : ["Disponible", "badge-ok"]
+  const openNew = () => { setForm(emptyForm); setModalOpen(true) }
+  const openEdit = (p) => { setForm({ ...emptyForm, ...p }); setModalOpen(true) }
+
+  const save = () => {
+    const code = form.code.trim()
+    if (!code || !form.name.trim() || !form.category.trim()) { Swal.fire({ icon: "warning", title: "Faltan datos", text: "Código, nombre y categoría son obligatorios" }); return }
+    if (products.some((p) => String(p.code || "").toLowerCase() === code.toLowerCase() && p.id !== form.id)) { Swal.fire({ icon: "error", title: "Producto ya existente", text: `El código ${code} ya está registrado` }); return }
+    if (Number(form.stock) < 0) { Swal.fire({ icon: "warning", title: "Stock inválido" }); return }
+    const data = { ...form, code, name: form.name.trim(), category: form.category.trim(), price: Math.max(0, Number(form.price) || 0), costPrice: Math.max(0, Number(form.costPrice) || 0), stock: Math.max(0, parseInt(form.stock || 0)), minStock: Math.max(0, parseInt(form.minStock || 0)) }
+    if (form.id) setProducts(products.map((p) => p.id === form.id ? { ...p, ...data } : p))
+    else setProducts([...products, { ...data, id: Date.now(), lastPurchaseDate: null }])
+    setModalOpen(false); setForm(emptyForm)
+    Swal.fire({ icon: "success", title: form.id ? "Producto actualizado" : "Producto agregado" })
   }
 
-  // ESTADÍSTICAS
-  const totalProducts = products.length
-
-  const lowStockProducts = products.filter(
-    (product) => product.stock <= 5 && product.stock > 0
-  ).length
-
-  const outOfStockProducts = products.filter(
-    (product) => product.stock == 0
-  ).length
-
-  // FILTRO DE BÚSQUEDA
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(search.toLowerCase())
-  )
-
-  // AGREGAR PRODUCTO
-  const handleAddProduct = () => {
-
-    if (!name || !category || !price || !stock) {
-      return
-    }
-
-    const newProduct = {
-      id: Date.now(),
-      name,
-      category,
-      price: Number(price),
-      stock: Number(stock),
-    }
-
-    setProducts([...products, newProduct])
-
-    Swal.fire({
-      icon: "success",
-      title: "Producto agregado",
-      text: "El producto fue agregado correctamente",
-    })
-
-    clearForm()
+  const remove = async (id) => {
+    const p = products.find((x) => x.id === id)
+    const r = await Swal.fire({ title: `¿Eliminar "${p?.name || "producto"}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar" })
+    if (r.isConfirmed) setProducts(products.filter((x) => x.id !== id))
   }
 
-  // LIMPIAR FORMULARIO
-  const clearForm = () => {
-
-    setName("")
-    setCategory("")
-    setPrice("")
-    setStock("")
-    setEditingId(null)
-  }
-
-  // ELIMINAR
-  const handleDelete = (id) => {
-
-    Swal.fire({
-      title: "¿Estás seguro?",
-      text: "Este producto será eliminado",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar",
-    }).then((result) => {
-
-      if (result.isConfirmed) {
-
-        const filteredProducts = products.filter(
-          (product) => product.id !== id
-        )
-
-        setProducts(filteredProducts)
-
-        Swal.fire({
-          icon: "success",
-          title: "Producto eliminado",
-          text: "El producto fue eliminado correctamente",
-        })
-      }
-    })
-  }
-
-  // EDITAR
-  const handleEdit = (product) => {
-
-    setName(product.name)
-    setCategory(product.category)
-    setPrice(product.price)
-    setStock(product.stock)
-
-    setEditingId(product.id)
-  }
-
-  // ACTUALIZAR
-  const handleUpdate = () => {
-
-    const updatedProducts = products.map((product) => {
-
-      if (product.id === editingId) {
-
-        return {
-          ...product,
-          name,
-          category,
-          price: Number(price),
-          stock: Number(stock),
-        }
-      }
-
-      return product
-    })
-
-    setProducts(updatedProducts)
-
-    Swal.fire({
-      icon: "success",
-      title: "Producto actualizado",
-      text: "Los cambios fueron guardados",
-    })
-
-    clearForm()
-  }
-
-  return (
-
-    <div>
-
-      {/* BUSCADOR */}
-
-      <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
-
-        <input
-          type="text"
-          placeholder="Buscar producto..."
-          className="w-full border p-3 rounded-lg"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-
-      </div>
-
-      {/* TITULO */}
-
-      <h1 className="text-3xl font-bold text-gray-700 mb-6">
-        Productos
-      </h1>
-
-      {/* ESTADÍSTICAS */}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-
-          <h2 className="text-gray-500">
-            Total Productos
-          </h2>
-
-          <p className="text-3xl font-bold mt-2">
-            {totalProducts}
-          </p>
-
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-
-          <h2 className="text-gray-500">
-            Stock Bajo
-          </h2>
-
-          <p className="text-3xl font-bold mt-2 text-yellow-500">
-            {lowStockProducts}
-          </p>
-
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-
-          <h2 className="text-gray-500">
-            Agotados
-          </h2>
-
-          <p className="text-3xl font-bold mt-2 text-red-500">
-            {outOfStockProducts}
-          </p>
-
-        </div>
-
-      </div>
-
-      {/* FORMULARIO */}
-
-      <div className="bg-white p-6 rounded-2xl shadow-sm mb-6">
-
-        <h2 className="text-2xl font-bold mb-4">
-
-          {
-            editingId
-              ? "Editar Producto"
-              : "Nuevo Producto"
-          }
-
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-          <input
-            type="text"
-            placeholder="Nombre"
-            className="border p-3 rounded-lg"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-
-          <input
-            type="text"
-            placeholder="Categoría"
-            className="border p-3 rounded-lg"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
-
-          <input
-            type="number"
-            placeholder="Precio"
-            className="border p-3 rounded-lg"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-
-          <input
-            type="number"
-            placeholder="Stock"
-            className="border p-3 rounded-lg"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-          />
-
-        </div>
-
-        <div className="mt-4 flex gap-4">
-
-          {
-            editingId ? (
-
-              <button
-                onClick={handleUpdate}
-                className="bg-yellow-500 text-white px-5 py-3 rounded-xl hover:bg-yellow-600"
-              >
-                Actualizar
-              </button>
-
-            ) : (
-
-              <button
-                onClick={handleAddProduct}
-                className="bg-blue-600 text-white px-5 py-3 rounded-xl hover:bg-blue-700"
-              >
-                Agregar Producto
-              </button>
-
-            )
-          }
-
-          <button
-            onClick={clearForm}
-            className="bg-gray-500 text-white px-5 py-3 rounded-xl hover:bg-gray-600"
-          >
-            Limpiar
-          </button>
-
-        </div>
-
-      </div>
-
-      {/* TABLA */}
-
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-
-        <table className="w-full">
-
-          <thead className="bg-gray-100">
-
-            <tr>
-
-              <th className="text-left p-4">
-                Producto
-              </th>
-
-              <th className="text-left p-4">
-                Categoría
-              </th>
-
-              <th className="text-left p-4">
-                Precio
-              </th>
-
-              <th className="text-left p-4">
-                Stock
-              </th>
-
-              <th className="text-left p-4">
-                Estado
-              </th>
-
-              <th className="text-left p-4">
-                Acciones
-              </th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {
-              filteredProducts.map((product) => (
-
-                <tr
-                  key={product.id}
-                  className="border-t"
-                >
-
-                  <td className="p-4 font-semibold">
-                    {product.name}
-                  </td>
-
-                  <td className="p-4">
-                    {product.category}
-                  </td>
-
-                  <td className="p-4">
-                    L {product.price}
-                  </td>
-
-                  <td className="p-4">
-                    {product.stock}
-                  </td>
-
-                  <td className="p-4">
-
-                    <span
-                      className={`
-                        ${getStockStatus(product.stock).color}
-                        text-white
-                        px-3
-                        py-1
-                        rounded-full
-                        text-sm
-                      `}
-                    >
-
-                      {getStockStatus(product.stock).text}
-
-                    </span>
-
-                  </td>
-
-                  <td className="p-4 flex gap-2">
-
-                    <button
-                      onClick={() => handleEdit(product)}
-                      className="bg-yellow-400 px-4 py-2 rounded-lg"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg"
-                    >
-                      Eliminar
-                    </button>
-
-                  </td>
-
-                </tr>
-
-              ))
-            }
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-  )
+  return <div className="view active">
+    <div className="view-header"><div><h2>Inventario</h2><p className="sub">Controla tus productos, precios y existencias</p></div><button className="btn btn-primary btn-lg" onClick={openNew}>+ Nuevo producto</button></div>
+    {!!lowProducts.length && <div className="alert-banner"><span>⚠</span><div><strong>{lowProducts.length} producto{lowProducts.length !== 1 ? "s" : ""} con stock bajo{outCount ? ` (${outCount} agotado${outCount !== 1 ? "s" : ""})` : ""}</strong><div className="chips">{lowProducts.map((p) => <span className="chip" key={p.id}>{p.name} · {p.stock}</span>)}</div></div></div>}
+    <div className="toolbar"><div className="search-box"><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>⌕</span><input placeholder="Buscar producto, código o categoría..." value={search} onChange={(e) => setSearch(e.target.value)} /></div></div>
+    <div className="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th className="num">Precio</th><th className="num">Costo</th><th className="num">Stock</th><th>Estado</th><th></th></tr></thead><tbody>
+      {filtered.map((p) => { const [label, cls] = status(p); return <tr key={p.id}><td><span className="product-cat" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{p.code || "—"}</span></td><td><span className="product-name">{p.name}</span><span className="product-cat">{p.category}</span></td><td className="num">L {Number(p.price || 0).toFixed(2)}</td><td className="num"><span style={{ fontSize: 12.5, color: "var(--steel)" }}>L {Number(p.costPrice || 0).toFixed(2)}</span></td><td className="num">{p.stock} u.</td><td><span className={`badge ${cls}`}><span className="badge-dot"></span>{label}</span></td><td><div className="row-actions"><button className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}>Editar</button><button className="btn btn-danger btn-sm" onClick={() => remove(p.id)}>Eliminar</button></div></td></tr> })}
+    </tbody></table>{filtered.length === 0 && <div className="empty-state"><strong>{products.length ? "No se encontraron resultados" : "No hay productos todavía"}</strong></div>}</div>
+
+    {modalOpen && <div className="modal-overlay open"><div className="modal"><div className="modal-head"><h3>{form.id ? "Editar producto" : "Nuevo producto"}</h3><button className="icon-btn" onClick={() => setModalOpen(false)}>✕</button></div><div className="modal-body"><div className="form-grid">
+      <div className="field"><label>Código</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej. CEM-001" /></div>
+      <div className="field"><label>Nombre</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+      <div className="field full"><label>Categoría</label><input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
+      <div className="field"><label>Precio de venta</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
+      <div className="field"><label>Costo</label><input type="number" min="0" step="0.01" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} /></div>
+      <div className="field"><label>Stock</label><input type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
+      <div className="field"><label>Stock mínimo</label><input type="number" min="0" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></div>
+      <div className="field full"><label>Proveedor</label><select value={form.supplierId} onChange={(e) => setForm({ ...form, supplierId: e.target.value })}><option value="">— Sin proveedor —</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+    </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar producto</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
+  </div>
 }
 
 export default Products
