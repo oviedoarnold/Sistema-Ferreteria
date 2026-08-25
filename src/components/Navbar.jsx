@@ -13,6 +13,7 @@ import {
   FaTruck,
   FaHistory,
   FaFileAlt,
+  FaCog,
 } from "react-icons/fa"
 
 function Navbar() {
@@ -66,6 +67,11 @@ function Navbar() {
       to: "/sales-history",
       label: "Historial",
       Icon: FaHistory,
+    },
+    {
+      to: "/settings",
+      label: "Configuración",
+      Icon: FaCog,
     },
   ]
 
