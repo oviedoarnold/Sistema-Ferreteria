@@ -12,7 +12,7 @@ import Quotes from "../pages/Quotes"
 import SalesHistory from "../pages/SalesHistory"
 import Clients from "../pages/Clients"
 import Suppliers from "../pages/Suppliers"
-
+import Settings from "../pages/Settings"
 import MainLayout from "../layouts/MainLayout"
 import ProtectedRoute from "./ProtectedRoute"
 
@@ -105,6 +105,17 @@ function AppRouter() {
             <ProtectedRoute>
               <MainLayout>
                 <Suppliers />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* CONFIGURACIÓN */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Settings />
               </MainLayout>
             </ProtectedRoute>
           }
