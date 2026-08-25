@@ -7,6 +7,17 @@ import {
 import Swal from "sweetalert2"
 
 import { ProductContext } from "../context/ProductContext"
+import { useAuth } from "../context/AuthContext"
+
+const EMPTY_USER_FORM = {
+  id: null,
+  name: "",
+  username: "",
+  password: "",
+  role: "vendedor",
+  active: true,
+  permissions: [],
+}
 
 function Settings() {
   const {
@@ -14,21 +25,29 @@ function Settings() {
     setCompany,
   } = useContext(ProductContext)
 
-  const [form, setForm] =
-    useState({
-      name: "",
-      address: "",
-      phone: "",
-      currency: "L",
-      taxRate: 15,
-    })
+  const {
+    user,
+    users,
+    addUser,
+    updateUser,
+    deleteUser,
+    permissions,
+    sellerPermissions,
+  } = useAuth()
 
-  /*
-   * Cargamos los datos actuales
-   * de la empresa en el formulario.
-   */
+  const [
+    companyForm,
+    setCompanyForm,
+  ] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    currency: "L",
+    taxRate: 15,
+  })
+
   useEffect(() => {
-    setForm({
+    setCompanyForm({
       name:
         company?.name ||
         "",
@@ -51,7 +70,7 @@ function Settings() {
     })
   }, [company])
 
-  const handleChange = (
+  const handleCompanyChange = (
     event
   ) => {
     const {
@@ -59,39 +78,34 @@ function Settings() {
       value,
     } = event.target
 
-    setForm(
+    setCompanyForm(
       (current) => ({
         ...current,
-
-        [name]:
-          name ===
-          "taxRate"
-            ? value
-            : value,
+        [name]: value,
       })
     )
   }
 
-  const handleSubmit = (
+  const saveCompany = (
     event
   ) => {
     event.preventDefault()
 
     const name =
-      form.name.trim()
+      companyForm.name.trim()
 
     const address =
-      form.address.trim()
+      companyForm.address.trim()
 
     const phone =
-      form.phone.trim()
+      companyForm.phone.trim()
 
     const currency =
-      form.currency.trim()
+      companyForm.currency.trim()
 
     const taxRate =
       Number(
-        form.taxRate
+        companyForm.taxRate
       )
 
     if (
@@ -102,10 +116,8 @@ function Settings() {
     ) {
       Swal.fire({
         icon: "warning",
-
         title:
           "Faltan datos",
-
         text:
           "Completa todos los campos obligatorios.",
       })
@@ -122,10 +134,8 @@ function Settings() {
     ) {
       Swal.fire({
         icon: "warning",
-
         title:
           "ISV inválido",
-
         text:
           "La tasa de ISV debe estar entre 0 y 100.",
       })
@@ -133,32 +143,26 @@ function Settings() {
       return
     }
 
-    const updatedCompany = {
+    setCompany({
       name,
       address,
       phone,
       currency,
       taxRate,
-    }
-
-    setCompany(
-      updatedCompany
-    )
+    })
 
     Swal.fire({
       icon: "success",
-
       title:
         "Configuración guardada",
-
       text:
-        "Los datos de la ferretería fueron actualizados correctamente.",
+        "Los datos de la ferretería fueron actualizados.",
     })
   }
 
-  const handleRestoreForm =
+  const restoreCompanyForm =
     () => {
-      setForm({
+      setCompanyForm({
         name:
           company?.name ||
           "",
@@ -181,12 +185,465 @@ function Settings() {
       })
     }
 
+  const [
+    userModalOpen,
+    setUserModalOpen,
+  ] = useState(false)
+
+  const [
+    userForm,
+    setUserForm,
+  ] = useState({
+    ...EMPTY_USER_FORM,
+    permissions:
+      sellerPermissions,
+  })
+
+  const isEditingUser =
+    Boolean(userForm.id)
+
+  /*
+   * Los vendedores pueden recibir
+   * permisos de módulos operativos.
+   *
+   * Settings queda reservado para
+   * administradores.
+   */
+  const permissionOptions = [
+    {
+      id:
+        permissions.DASHBOARD,
+      label: "Dashboard",
+      description:
+        "Ver el panel principal y sus indicadores.",
+    },
+    {
+      id: permissions.POS,
+      label: "Facturar",
+      description:
+        "Crear ventas y generar facturas.",
+    },
+    {
+      id:
+        permissions.QUOTES,
+      label: "Cotizar",
+      description:
+        "Crear y consultar cotizaciones.",
+    },
+    {
+      id:
+        permissions.PRODUCTS,
+      label: "Inventario",
+      description:
+        "Consultar y administrar productos.",
+    },
+    {
+      id:
+        permissions.CLIENTS,
+      label: "Clientes",
+      description:
+        "Consultar y administrar clientes.",
+    },
+    {
+      id:
+        permissions.SUPPLIERS,
+      label: "Proveedores",
+      description:
+        "Consultar y administrar proveedores.",
+    },
+    {
+      id:
+        permissions.SALES_HISTORY,
+      label:
+        "Historial de facturas",
+      description:
+        "Consultar ventas y facturas anteriores.",
+    },
+  ]
+
+  const resetUserForm =
+    () => {
+      setUserForm({
+        ...EMPTY_USER_FORM,
+
+        permissions: [
+          ...sellerPermissions,
+        ],
+      })
+    }
+
+  const openNewUser =
+    () => {
+      resetUserForm()
+
+      setUserModalOpen(true)
+    }
+
+  const openEditUser = (
+    selectedUser
+  ) => {
+    setUserForm({
+      id:
+        selectedUser.id,
+
+      name:
+        selectedUser.name ||
+        "",
+
+      username:
+        selectedUser.username ||
+        "",
+
+      /*
+       * Nunca cargamos la
+       * contraseña anterior.
+       *
+       * Si queda vacío al editar,
+       * no se modifica.
+       */
+      password: "",
+
+      role:
+        selectedUser.role ||
+        "vendedor",
+
+      active:
+        selectedUser.active !==
+        false,
+
+      permissions:
+        selectedUser.role ===
+        "admin"
+          ? permissionOptions.map(
+              (item) => item.id
+            )
+          : Array.isArray(
+                selectedUser.permissions
+              )
+            ? [
+                ...selectedUser.permissions,
+              ]
+            : [],
+    })
+
+    setUserModalOpen(true)
+  }
+
+  const closeUserModal =
+    () => {
+      setUserModalOpen(false)
+
+      resetUserForm()
+    }
+
+  const handleUserChange = (
+    event
+  ) => {
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target
+
+    setUserForm(
+      (current) => ({
+        ...current,
+
+        [name]:
+          type === "checkbox"
+            ? checked
+            : value,
+      })
+    )
+  }
+
+  const handleRoleChange = (
+    event
+  ) => {
+    const role =
+      event.target.value
+
+    setUserForm(
+      (current) => ({
+        ...current,
+
+        role,
+
+        /*
+         * Admin obtiene todos los
+         * permisos automáticamente.
+         *
+         * Vendedor comienza con los
+         * permisos sugeridos.
+         */
+        permissions:
+          role === "admin"
+            ? permissionOptions.map(
+                (item) => item.id
+              )
+            : current.role ===
+                "admin"
+              ? [
+                  ...sellerPermissions,
+                ]
+              : current.permissions,
+      })
+    )
+  }
+
+  const togglePermission = (
+    permissionId
+  ) => {
+    if (
+      userForm.role ===
+      "admin"
+    ) {
+      return
+    }
+
+    setUserForm(
+      (current) => {
+        const exists =
+          current.permissions.includes(
+            permissionId
+          )
+
+        return {
+          ...current,
+
+          permissions: exists
+            ? current.permissions.filter(
+                (item) =>
+                  item !==
+                  permissionId
+              )
+            : [
+                ...current.permissions,
+                permissionId,
+              ],
+        }
+      }
+    )
+  }
+
+  const saveUser = async (
+    event
+  ) => {
+    event.preventDefault()
+
+    try {
+      if (isEditingUser) {
+        const changes = {
+          name:
+            userForm.name,
+
+          username:
+            userForm.username,
+
+          role:
+            userForm.role,
+
+          active:
+            userForm.active,
+
+          permissions:
+            userForm.role ===
+            "admin"
+              ? permissionOptions.map(
+                  (item) =>
+                    item.id
+                )
+              : userForm.permissions,
+        }
+
+        /*
+         * Contraseña vacía =
+         * conservar contraseña actual.
+         */
+        if (
+          userForm.password.trim()
+        ) {
+          changes.password =
+            userForm.password
+        }
+
+        updateUser(
+          userForm.id,
+          changes
+        )
+
+        await Swal.fire({
+          icon: "success",
+          title:
+            "Usuario actualizado",
+          text:
+            "Los cambios fueron guardados correctamente.",
+        })
+      } else {
+        addUser({
+          name:
+            userForm.name,
+
+          username:
+            userForm.username,
+
+          password:
+            userForm.password,
+
+          role:
+            userForm.role,
+
+          active:
+            userForm.active,
+
+          permissions:
+            userForm.role ===
+            "admin"
+              ? permissionOptions.map(
+                  (item) =>
+                    item.id
+                )
+              : userForm.permissions,
+        })
+
+        await Swal.fire({
+          icon: "success",
+          title:
+            "Usuario creado",
+          text:
+            "El usuario ya puede iniciar sesión.",
+        })
+      }
+
+      closeUserModal()
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title:
+          "No se pudo guardar",
+        text:
+          error.message,
+      })
+    }
+  }
+
+  const handleDeleteUser =
+    async (
+      selectedUser
+    ) => {
+      const result =
+        await Swal.fire({
+          icon: "warning",
+
+          title:
+            "¿Eliminar usuario?",
+
+          html: `
+            Se eliminará el usuario
+            <b>${selectedUser.name}</b>.
+          `,
+
+          showCancelButton: true,
+
+          confirmButtonText:
+            "Sí, eliminar",
+
+          cancelButtonText:
+            "Cancelar",
+
+          confirmButtonColor:
+            "#d33",
+        })
+
+      if (
+        !result.isConfirmed
+      ) {
+        return
+      }
+
+      try {
+        deleteUser(
+          selectedUser.id
+        )
+
+        Swal.fire({
+          icon: "success",
+          title:
+            "Usuario eliminado",
+        })
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title:
+            "No se puede eliminar",
+          text:
+            error.message,
+        })
+      }
+    }
+
+  const handleToggleActive =
+    async (
+      selectedUser
+    ) => {
+      try {
+        updateUser(
+          selectedUser.id,
+          {
+            active:
+              !selectedUser.active,
+          }
+        )
+
+        Swal.fire({
+          icon: "success",
+
+          title:
+            selectedUser.active
+              ? "Usuario desactivado"
+              : "Usuario activado",
+        })
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title:
+            "No se pudo cambiar el estado",
+          text:
+            error.message,
+        })
+      }
+    }
+
+  const getRoleLabel = (
+    role
+  ) => {
+    return role === "admin"
+      ? "Administrador"
+      : "Vendedor"
+  }
+
+  const getPermissionLabel = (
+    permissionId
+  ) => {
+    return (
+      permissionOptions.find(
+        (item) =>
+          item.id ===
+          permissionId
+      )?.label ||
+      permissionId
+    )
+  }
+
   return (
     <div className="view active">
 
-      {/* ENCABEZADO */}
-      <div className="view-header">
+      {/* =====================================
+          ENCABEZADO
+      ====================================== */}
 
+      <div className="view-header">
         <div>
           <h2>
             Configuración
@@ -195,16 +652,18 @@ function Settings() {
           <p className="sub">
             Datos de tu
             ferretería y
-            configuración del
-            sistema
+            administración de
+            usuarios
           </p>
         </div>
-
       </div>
+
+      {/* =====================================
+          DATOS DE LA FERRETERÍA
+      ====================================== */}
 
       <div className="card card-pad">
 
-        {/* DATOS EMPRESA */}
         <div className="config-section">
 
           <h3>
@@ -215,8 +674,7 @@ function Settings() {
           <p
             className="sub"
             style={{
-              marginBottom:
-                18,
+              marginBottom: 18,
             }}
           >
             Esta información
@@ -227,15 +685,12 @@ function Settings() {
 
           <form
             onSubmit={
-              handleSubmit
+              saveCompany
             }
           >
-
             <div className="form-grid">
 
-              {/* NOMBRE */}
               <div className="field full">
-
                 <label>
                   Nombre
                 </label>
@@ -244,20 +699,16 @@ function Settings() {
                   type="text"
                   name="name"
                   value={
-                    form.name
+                    companyForm.name
                   }
                   onChange={
-                    handleChange
+                    handleCompanyChange
                   }
-                  placeholder="Nombre de la ferretería"
                   required
                 />
-
               </div>
 
-              {/* DIRECCIÓN */}
               <div className="field full">
-
                 <label>
                   Dirección
                 </label>
@@ -266,20 +717,16 @@ function Settings() {
                   type="text"
                   name="address"
                   value={
-                    form.address
+                    companyForm.address
                   }
                   onChange={
-                    handleChange
+                    handleCompanyChange
                   }
-                  placeholder="Dirección del negocio"
                   required
                 />
-
               </div>
 
-              {/* TELÉFONO */}
               <div className="field">
-
                 <label>
                   Teléfono
                 </label>
@@ -288,20 +735,16 @@ function Settings() {
                   type="text"
                   name="phone"
                   value={
-                    form.phone
+                    companyForm.phone
                   }
                   onChange={
-                    handleChange
+                    handleCompanyChange
                   }
-                  placeholder="Teléfono"
                   required
                 />
-
               </div>
 
-              {/* MONEDA */}
               <div className="field">
-
                 <label>
                   Símbolo de moneda
                 </label>
@@ -309,22 +752,18 @@ function Settings() {
                 <input
                   type="text"
                   name="currency"
+                  maxLength={4}
                   value={
-                    form.currency
+                    companyForm.currency
                   }
                   onChange={
-                    handleChange
+                    handleCompanyChange
                   }
-                  maxLength={4}
-                  placeholder="L"
                   required
                 />
-
               </div>
 
-              {/* ISV */}
               <div className="field">
-
                 <label>
                   Tasa ISV (%)
                 </label>
@@ -336,14 +775,13 @@ function Settings() {
                   max="100"
                   step="0.5"
                   value={
-                    form.taxRate
+                    companyForm.taxRate
                   }
                   onChange={
-                    handleChange
+                    handleCompanyChange
                   }
                   required
                 />
-
               </div>
 
             </div>
@@ -355,227 +793,699 @@ function Settings() {
                 gap: 10,
               }}
             >
-
               <button
                 type="submit"
-                className="btn btn-primary btn-lg"
+                className="btn btn-primary"
               >
                 Guardar cambios
               </button>
 
               <button
                 type="button"
-                className="btn btn-secondary btn-lg"
+                className="btn btn-secondary"
                 onClick={
-                  handleRestoreForm
+                  restoreCompanyForm
                 }
               >
                 Deshacer cambios
               </button>
-
             </div>
-
           </form>
 
         </div>
 
         <hr className="divider" />
 
-        {/* VISTA PREVIA */}
+        {/* =====================================
+            USUARIOS
+        ====================================== */}
+
         <div className="config-section">
 
-          <h3>
-            Vista previa
-          </h3>
-
-          <p
-            className="sub"
-            style={{
-              marginBottom:
-                16,
-            }}
-          >
-            Así se utilizarán
-            estos datos dentro
-            del sistema.
-          </p>
-
           <div
-            className="card"
+            className="view-header"
             style={{
-              padding: 18,
-              background:
-                "var(--cream)",
+              marginBottom: 12,
             }}
           >
 
-            <div
-              style={{
-                display:
-                  "flex",
+            <div>
+              <h3>
+                Usuarios
+              </h3>
 
-                alignItems:
-                  "center",
-
-                gap: 14,
-              }}
-            >
-
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-
-                  borderRadius:
-                    12,
-
-                  display:
-                    "flex",
-
-                  alignItems:
-                    "center",
-
-                  justifyContent:
-                    "center",
-
-                  background:
-                    "var(--orange-light)",
-
-                  fontSize: 24,
-                }}
-              >
-                🔧
-              </div>
-
-              <div>
-
-                <strong
-                  style={{
-                    display:
-                      "block",
-
-                    fontSize: 18,
-                  }}
-                >
-                  {form.name ||
-                    "Ferretería"}
-                </strong>
-
-                <span
-                  style={{
-                    display:
-                      "block",
-
-                    color:
-                      "var(--steel)",
-
-                    marginTop: 3,
-                  }}
-                >
-                  {form.address ||
-                    "Dirección"}
-                </span>
-
-                <span
-                  style={{
-                    display:
-                      "block",
-
-                    color:
-                      "var(--steel)",
-
-                    marginTop: 2,
-                  }}
-                >
-                  Tel:{" "}
-                  {form.phone ||
-                    "—"}
-                </span>
-
-              </div>
-
+              <p className="sub">
+                Administra quién
+                puede entrar al
+                sistema y qué
+                módulos puede
+                utilizar.
+              </p>
             </div>
 
-            <div
-              style={{
-                marginTop: 18,
-
-                paddingTop:
-                  14,
-
-                borderTop:
-                  "1px solid var(--line)",
-
-                display:
-                  "flex",
-
-                gap: 24,
-
-                flexWrap:
-                  "wrap",
-              }}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={
+                openNewUser
+              }
             >
-
-              <div>
-
-                <span
-                  style={{
-                    display:
-                      "block",
-
-                    fontSize: 11,
-
-                    color:
-                      "var(--steel)",
-
-                    textTransform:
-                      "uppercase",
-                  }}
-                >
-                  Moneda
-                </span>
-
-                <strong>
-                  {form.currency ||
-                    "L"}
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span
-                  style={{
-                    display:
-                      "block",
-
-                    fontSize: 11,
-
-                    color:
-                      "var(--steel)",
-
-                    textTransform:
-                      "uppercase",
-                  }}
-                >
-                  ISV
-                </span>
-
-                <strong>
-                  {form.taxRate ||
-                    0}
-                  %
-                </strong>
-
-              </div>
-
-            </div>
+              + Nuevo usuario
+            </button>
 
           </div>
+
+          {users.length === 0 ? (
+            <div className="empty-state">
+              <strong>
+                No hay usuarios
+              </strong>
+            </div>
+          ) : (
+            <div className="table-wrap">
+
+              <table>
+
+                <thead>
+                  <tr>
+                    <th>
+                      Nombre
+                    </th>
+
+                    <th>
+                      Usuario
+                    </th>
+
+                    <th>
+                      Rol
+                    </th>
+
+                    <th>
+                      Estado
+                    </th>
+
+                    <th>
+                      Permisos
+                    </th>
+
+                    <th>
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {users.map(
+                    (
+                      systemUser
+                    ) => (
+                      <tr
+                        key={
+                          systemUser.id
+                        }
+                      >
+
+                        <td>
+                          <strong>
+                            {
+                              systemUser.name
+                            }
+                          </strong>
+
+                          {String(
+                            systemUser.id
+                          ) ===
+                            String(
+                              user?.id
+                            ) && (
+                            <div
+                              className="sub"
+                              style={{
+                                fontSize:
+                                  11,
+                              }}
+                            >
+                              Sesión actual
+                            </div>
+                          )}
+                        </td>
+
+                        <td>
+                          @
+                          {
+                            systemUser.username
+                          }
+                        </td>
+
+                        <td>
+                          <span
+                            className={
+                              systemUser.role ===
+                              "admin"
+                                ? "badge badge-credit"
+                                : "badge badge-paid"
+                            }
+                          >
+                            <span className="badge-dot" />
+
+                            {getRoleLabel(
+                              systemUser.role
+                            )}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            className={
+                              systemUser.active
+                                ? "badge badge-paid"
+                                : "badge badge-out"
+                            }
+                          >
+                            <span className="badge-dot" />
+
+                            {systemUser.active
+                              ? "Activo"
+                              : "Inactivo"}
+                          </span>
+                        </td>
+
+                        <td
+                          style={{
+                            maxWidth:
+                              360,
+                          }}
+                        >
+                          {systemUser.role ===
+                          "admin" ? (
+                            <span className="sub">
+                              Acceso total
+                            </span>
+                          ) : systemUser
+                              .permissions
+                              ?.length ? (
+                            <div
+                              style={{
+                                display:
+                                  "flex",
+
+                                flexWrap:
+                                  "wrap",
+
+                                gap: 5,
+                              }}
+                            >
+                              {systemUser.permissions.map(
+                                (
+                                  permission
+                                ) => (
+                                  <span
+                                    key={
+                                      permission
+                                    }
+                                    className="badge badge-ok"
+                                  >
+                                    {getPermissionLabel(
+                                      permission
+                                    )}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <span className="sub">
+                              Sin permisos
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="row-actions">
+
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() =>
+                              openEditUser(
+                                systemUser
+                              )
+                            }
+                          >
+                            Editar
+                          </button>
+
+                          {String(
+                            systemUser.id
+                          ) !==
+                            String(
+                              user?.id
+                            ) && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() =>
+                                  handleToggleActive(
+                                    systemUser
+                                  )
+                                }
+                              >
+                                {systemUser.active
+                                  ? "Desactivar"
+                                  : "Activar"}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() =>
+                                  handleDeleteUser(
+                                    systemUser
+                                  )
+                                }
+                              >
+                                Eliminar
+                              </button>
+                            </>
+                          )}
+
+                        </td>
+
+                      </tr>
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+          )}
 
         </div>
 
       </div>
+
+      {/* =====================================
+          MODAL USUARIO
+      ====================================== */}
+
+      {userModalOpen && (
+        <div className="modal-overlay open">
+
+          <div className="modal modal-lg">
+
+            <div className="modal-head">
+
+              <div>
+                <h3>
+                  {isEditingUser
+                    ? "Editar usuario"
+                    : "Nuevo usuario"}
+                </h3>
+
+                <p
+                  className="sub"
+                  style={{
+                    marginTop: 3,
+                  }}
+                >
+                  Configura las
+                  credenciales y
+                  permisos de
+                  acceso.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={
+                  closeUserModal
+                }
+              >
+                ✕
+              </button>
+
+            </div>
+
+            <form
+              onSubmit={
+                saveUser
+              }
+            >
+
+              <div className="modal-body">
+
+                <div className="form-grid">
+
+                  {/* NOMBRE */}
+                  <div className="field">
+                    <label>
+                      Nombre
+                    </label>
+
+                    <input
+                      type="text"
+                      name="name"
+                      value={
+                        userForm.name
+                      }
+                      onChange={
+                        handleUserChange
+                      }
+                      placeholder="Nombre completo"
+                      required
+                    />
+                  </div>
+
+                  {/* USUARIO */}
+                  <div className="field">
+                    <label>
+                      Usuario
+                    </label>
+
+                    <input
+                      type="text"
+                      name="username"
+                      value={
+                        userForm.username
+                      }
+                      onChange={
+                        handleUserChange
+                      }
+                      placeholder="Ej. jperez"
+                      autoComplete="off"
+                      required
+                    />
+                  </div>
+
+                  {/* CONTRASEÑA */}
+                  <div className="field">
+                    <label>
+                      Contraseña
+
+                      {isEditingUser && (
+                        <span
+                          style={{
+                            fontWeight:
+                              "normal",
+
+                            color:
+                              "var(--steel)",
+                          }}
+                        >
+                          {" "}
+                          (opcional)
+                        </span>
+                      )}
+                    </label>
+
+                    <input
+                      type="password"
+                      name="password"
+                      value={
+                        userForm.password
+                      }
+                      onChange={
+                        handleUserChange
+                      }
+                      placeholder={
+                        isEditingUser
+                          ? "Déjala vacía para conservarla"
+                          : "Mínimo 4 caracteres"
+                      }
+                      autoComplete="new-password"
+                      required={
+                        !isEditingUser
+                      }
+                    />
+                  </div>
+
+                  {/* ROL */}
+                  <div className="field">
+                    <label>
+                      Rol
+                    </label>
+
+                    <select
+                      name="role"
+                      value={
+                        userForm.role
+                      }
+                      onChange={
+                        handleRoleChange
+                      }
+                    >
+                      <option value="vendedor">
+                        Vendedor
+                      </option>
+
+                      <option value="admin">
+                        Administrador
+                      </option>
+                    </select>
+                  </div>
+
+                </div>
+
+                {/* ACTIVO */}
+                <div
+                  style={{
+                    marginTop: 18,
+                  }}
+                >
+                  <label
+                    style={{
+                      display:
+                        "flex",
+
+                      alignItems:
+                        "center",
+
+                      gap: 8,
+
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      name="active"
+                      checked={
+                        userForm.active
+                      }
+                      onChange={
+                        handleUserChange
+                      }
+                    />
+
+                    <strong>
+                      Usuario activo
+                    </strong>
+                  </label>
+
+                  <p
+                    className="sub"
+                    style={{
+                      marginTop: 4,
+                    }}
+                  >
+                    Un usuario
+                    inactivo no
+                    puede iniciar
+                    sesión.
+                  </p>
+                </div>
+
+                <hr className="divider" />
+
+                {/* PERMISOS */}
+                <div>
+
+                  <h3
+                    style={{
+                      marginBottom: 4,
+                    }}
+                  >
+                    Permisos de
+                    acceso
+                  </h3>
+
+                  {userForm.role ===
+                  "admin" ? (
+                    <div
+                      className="card"
+                      style={{
+                        padding: 14,
+
+                        marginTop: 12,
+
+                        background:
+                          "var(--cream)",
+                      }}
+                    >
+                      <strong>
+                        Administrador
+                      </strong>
+
+                      <p
+                        className="sub"
+                        style={{
+                          marginTop:
+                            4,
+                        }}
+                      >
+                        Los
+                        administradores
+                        tienen acceso
+                        completo a todos
+                        los módulos y a
+                        Configuración.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="sub">
+                        Selecciona los
+                        módulos que este
+                        usuario podrá
+                        utilizar.
+                      </p>
+
+                      <div
+                        style={{
+                          display:
+                            "grid",
+
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(220px, 1fr))",
+
+                          gap: 10,
+
+                          marginTop: 14,
+                        }}
+                      >
+
+                        {permissionOptions.map(
+                          (
+                            permission
+                          ) => {
+                            const checked =
+                              userForm.permissions.includes(
+                                permission.id
+                              )
+
+                            return (
+                              <label
+                                key={
+                                  permission.id
+                                }
+                                className="card"
+                                style={{
+                                  padding:
+                                    12,
+
+                                  cursor:
+                                    "pointer",
+
+                                  display:
+                                    "flex",
+
+                                  gap: 10,
+
+                                  alignItems:
+                                    "flex-start",
+
+                                  borderColor:
+                                    checked
+                                      ? "var(--orange)"
+                                      : "var(--line)",
+                                }}
+                              >
+
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    checked
+                                  }
+                                  onChange={() =>
+                                    togglePermission(
+                                      permission.id
+                                    )
+                                  }
+                                />
+
+                                <span>
+                                  <strong
+                                    style={{
+                                      display:
+                                        "block",
+                                    }}
+                                  >
+                                    {
+                                      permission.label
+                                    }
+                                  </strong>
+
+                                  <span
+                                    className="sub"
+                                    style={{
+                                      display:
+                                        "block",
+
+                                      marginTop:
+                                        2,
+                                    }}
+                                  >
+                                    {
+                                      permission.description
+                                    }
+                                  </span>
+                                </span>
+
+                              </label>
+                            )
+                          }
+                        )}
+
+                      </div>
+                    </>
+                  )}
+
+                </div>
+
+              </div>
+
+              <div className="modal-foot">
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  {isEditingUser
+                    ? "Guardar cambios"
+                    : "Crear usuario"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={
+                    closeUserModal
+                  }
+                >
+                  Cancelar
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   )
