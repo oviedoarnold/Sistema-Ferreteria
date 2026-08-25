@@ -21,77 +21,95 @@ function DocumentPreviewModal({
   confirmLabel = "Confirmar",
   canExport = true,
 }) {
-  const documentRef = useRef(null)
+  const documentRef =
+    useRef(null)
 
   const [
     generatingPdf,
     setGeneratingPdf,
   ] = useState(false)
 
+  const [
+    printing,
+    setPrinting,
+  ] = useState(false)
+
   if (!open) {
     return null
   }
 
-  const handleDownload = async () => {
-    if (!documentRef.current) {
-      Swal.fire({
-        icon: "warning",
-        title: "Documento no disponible",
-        text: "No se encontró el documento para generar el PDF.",
-      })
+  const handleDownload =
+    async () => {
+      if (!documentRef.current) {
+        Swal.fire({
+          icon: "warning",
+          title:
+            "Documento no disponible",
+          text:
+            "No se encontró el documento para generar el PDF.",
+        })
 
-      return
+        return
+      }
+
+      try {
+        setGeneratingPdf(true)
+
+        await downloadDocumentPDF(
+          documentRef.current,
+          fileName
+        )
+      } catch (error) {
+        console.error(error)
+
+        Swal.fire({
+          icon: "warning",
+          title:
+            "No se pudo generar el PDF",
+          text:
+            "Ocurrió un problema al preparar el documento.",
+        })
+      } finally {
+        setGeneratingPdf(false)
+      }
     }
 
-    try {
-      setGeneratingPdf(true)
+  const handlePrint =
+    async () => {
+      if (!documentRef.current) {
+        Swal.fire({
+          icon: "warning",
+          title:
+            "Documento no disponible",
+          text:
+            "No se encontró el documento para imprimir.",
+        })
 
-      await downloadDocumentPDF(
-        documentRef.current,
-        fileName
-      )
-    } catch (error) {
-      console.error(error)
+        return
+      }
 
-      Swal.fire({
-        icon: "warning",
-        title: "No se pudo generar el PDF",
-        text:
-          'Puedes utilizar el botón "Imprimir" y seleccionar "Guardar como PDF".',
-      })
-    } finally {
-      setGeneratingPdf(false)
+      try {
+        setPrinting(true)
+
+        await printDocumentOnePage(
+          documentRef.current,
+          printTitle || title
+        )
+      } catch (error) {
+        console.error(error)
+
+        Swal.fire({
+          icon: "error",
+          title:
+            "No se pudo imprimir",
+          text:
+            error.message ||
+            "Ocurrió un error al preparar la impresión.",
+        })
+      } finally {
+        setPrinting(false)
+      }
     }
-  }
-
-  const handlePrint = () => {
-    if (!documentRef.current) {
-      Swal.fire({
-        icon: "warning",
-        title: "Documento no disponible",
-        text: "No se encontró el documento para imprimir.",
-      })
-
-      return
-    }
-
-    try {
-      printDocumentOnePage(
-        documentRef.current,
-        printTitle
-      )
-    } catch (error) {
-      console.error(error)
-
-      Swal.fire({
-        icon: "error",
-        title: "No se pudo imprimir",
-        text:
-          error.message ||
-          "Ocurrió un error al preparar la impresión.",
-      })
-    }
-  }
 
   return (
     <div
@@ -106,7 +124,9 @@ function DocumentPreviewModal({
       }}
     >
       <div className="modal modal-document">
+
         <div className="modal-head">
+
           <h3>{title}</h3>
 
           <button
@@ -117,17 +137,23 @@ function DocumentPreviewModal({
           >
             ✕
           </button>
+
         </div>
 
         <div className="modal-body document-preview-body">
+
           <div className="receipt-wrap">
+
             <div ref={documentRef}>
               {children}
             </div>
+
           </div>
+
         </div>
 
         <div className="modal-foot">
+
           {onConfirm && (
             <button
               type="button"
@@ -143,8 +169,13 @@ function DocumentPreviewModal({
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={handleDownload}
-                disabled={generatingPdf}
+                onClick={
+                  handleDownload
+                }
+                disabled={
+                  generatingPdf ||
+                  printing
+                }
               >
                 {generatingPdf
                   ? "Generando PDF..."
@@ -154,9 +185,17 @@ function DocumentPreviewModal({
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={handlePrint}
+                onClick={
+                  handlePrint
+                }
+                disabled={
+                  printing ||
+                  generatingPdf
+                }
               >
-                🖨 Imprimir
+                {printing
+                  ? "Preparando..."
+                  : "🖨 Imprimir"}
               </button>
             </>
           )}
@@ -165,10 +204,13 @@ function DocumentPreviewModal({
             type="button"
             className="btn btn-ghost"
             onClick={onClose}
+            disabled={printing}
           >
             Cerrar
           </button>
+
         </div>
+
       </div>
     </div>
   )
