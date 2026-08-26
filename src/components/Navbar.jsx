@@ -1,9 +1,6 @@
-import {
-  NavLink,
-  useNavigate,
-} from "react-router-dom"
+import { NavLink,  useNavigate,} from "react-router-dom"
 
-import { useAuth } from "../context/AuthContext"
+import { useAuth, PERMISSIONS } from "../context/AuthContext"
 
 import {
   FaHome,
@@ -17,7 +14,7 @@ import {
 } from "react-icons/fa"
 
 function Navbar() {
-  const { user, logout } = useAuth()
+  const { user, logout, hasPermission, } = useAuth()
 
   const navigate = useNavigate()
 
@@ -27,53 +24,59 @@ function Navbar() {
   }
 
   const tabs = [
-    {
-      to: "/dashboard",
-      label: "Dashboard",
-      Icon: FaHome,
-    },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    Icon: FaHome,
+    permission: PERMISSIONS.DASHBOARD,
+  },
+  {
+    to: "/pos",
+    label: "Facturar",
+    Icon: FaCashRegister,
+    permission: PERMISSIONS.POS,
+  },
+  {
+    to: "/quotes",
+    label: "Cotizar",
+    Icon: FaFileAlt,
+    permission: PERMISSIONS.QUOTES,
+  },
+  {
+    to: "/products",
+    label: "Inventario",
+    Icon: FaBox,
+    permission: PERMISSIONS.PRODUCTS,
+  },
+  {
+    to: "/clients",
+    label: "Clientes",
+    Icon: FaUsers,
+    permission: PERMISSIONS.CLIENTS,
+  },
+  {
+    to: "/suppliers",
+    label: "Proveedores",
+    Icon: FaTruck,
+    permission: PERMISSIONS.SUPPLIERS,
+  },
+  {
+    to: "/sales-history",
+    label: "Historial",
+    Icon: FaHistory,
+    permission: PERMISSIONS.SALES_HISTORY,
+  },
+  {
+    to: "/settings",
+    label: "Configuración",
+    Icon: FaCog,
+    permission: PERMISSIONS.SETTINGS,
+  },
+]
 
-    {
-      to: "/pos",
-      label: "Facturar",
-      Icon: FaCashRegister,
-    },
-
-    {
-      to: "/quotes",
-      label: "Cotizar",
-      Icon: FaFileAlt,
-    },
-
-    {
-      to: "/products",
-      label: "Inventario",
-      Icon: FaBox,
-    },
-
-    {
-      to: "/clients",
-      label: "Clientes",
-      Icon: FaUsers,
-    },
-
-    {
-      to: "/suppliers",
-      label: "Proveedores",
-      Icon: FaTruck,
-    },
-
-    {
-      to: "/sales-history",
-      label: "Historial",
-      Icon: FaHistory,
-    },
-    {
-      to: "/settings",
-      label: "Configuración",
-      Icon: FaCog,
-    },
-  ]
+const visibleTabs = tabs.filter((tab) =>
+  hasPermission(tab.permission)
+)
 
   const getUserInitials = () => {
     if (!user?.name) {
@@ -153,7 +156,7 @@ function Navbar() {
         </div>
 
         <nav className="tabs">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.Icon
 
             return (
