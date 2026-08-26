@@ -15,6 +15,7 @@ import Suppliers from "../pages/Suppliers"
 import Settings from "../pages/Settings"
 import MainLayout from "../layouts/MainLayout"
 import ProtectedRoute from "./ProtectedRoute"
+import { PERMISSIONS } from "../context/AuthContext"
 
 function AppRouter() {
   return (
@@ -113,7 +114,7 @@ function AppRouter() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.SETTINGS}>
               <MainLayout>
                 <Settings />
               </MainLayout>
