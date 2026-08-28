@@ -1,3 +1,5 @@
+
+import { formatMoney } from "../utils/format"
 const DEFAULT_COMPANY = {
   name: "Ferretería Isaac",
   address:
@@ -7,17 +9,6 @@ const DEFAULT_COMPANY = {
   taxRate: 15,
 }
 
-function formatMoney(
-  value,
-  currency = "L"
-) {
-  return `${currency} ${Number(
-    value || 0
-  ).toLocaleString("es-HN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
 
 function formatDate(date) {
   if (!date) return ""

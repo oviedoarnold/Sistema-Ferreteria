@@ -14,46 +14,11 @@ import QuoteTemplate from "../components/QuoteTemplate"
 import ClientAutocomplete from "../components/documents/ClientAutocomplete"
 import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
 
-function addDaysISO(days) {
-  const date = new Date()
-
-  date.setDate(
-    date.getDate() + days
-  )
-
-  return [
-    date.getFullYear(),
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0"),
-    String(
-      date.getDate()
-    ).padStart(2, "0"),
-  ].join("-")
-}
-
-function todayLabel() {
-  return new Date().toLocaleDateString(
-    "es-HN",
-    {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }
-  )
-}
-
-function formatMoney(
-  value,
-  currency = "L"
-) {
-  return `${currency} ${Number(
-    value || 0
-  ).toLocaleString("es-HN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
+import {
+  formatMoney,
+  toISODateInDays,
+  todayForDisplay,
+} from "../utils/format"
 
 function generateId() {
   return `Q-${Date.now()}-${Math.floor(
@@ -152,7 +117,7 @@ function Quotes() {
 
   const [validity, setValidity] =
     useState(
-      addDaysISO(15)
+      toISODateInDays(15)
     )
 
   const [notes, setNotes] =
@@ -557,7 +522,7 @@ function Quotes() {
 
       quoteNumber,
 
-      date: todayLabel(),
+      date: todayForDisplay(),
 
       timestamp:
         Date.now(),
@@ -666,7 +631,7 @@ function Quotes() {
     setSelectedClient(null)
 
     setValidity(
-      addDaysISO(15)
+      toISODateInDays(15)
     )
 
     setNotes("")

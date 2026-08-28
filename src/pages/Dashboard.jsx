@@ -2,9 +2,9 @@
 import { ProductContext } from "../context/ProductContext"
 import { SalesContext } from "../context/SalesContext"
 import { getSaleBalance } from "../utils/salesUtils"
+import { formatMoney as money } from "../utils/format"
 import { ClientsContext } from "../context/ClientsContext"
 
-const money = (n) => `L ${Number(n || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 function Dashboard() {
   const { products = [] } = useContext(ProductContext)

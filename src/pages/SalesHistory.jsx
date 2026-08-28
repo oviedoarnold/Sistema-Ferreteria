@@ -20,17 +20,8 @@ import { ProductContext } from "../context/ProductContext"
 import InvoiceTemplate from "../components/InvoiceTemplate"
 import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
 
-function formatMoney(
-  value,
-  currency = "L"
-) {
-  return `${currency} ${Number(
-    value || 0
-  ).toLocaleString("es-HN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
+import { formatMoney } from "../utils/format"
+
 
 function isOverdue(sale) {
   if (

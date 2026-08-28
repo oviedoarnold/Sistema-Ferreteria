@@ -7,33 +7,26 @@ import InvoiceTemplate from "../components/InvoiceTemplate"
 import ClientAutocomplete from "../components/documents/ClientAutocomplete"
 import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
 
+import {
+  formatMoney,
+  toISODateInDays,
+  todayForDisplay,
+} from "../utils/format"
+
+import {
+  addProductToCart,
+  buildStockWarningMessage,
+  calculateCartTotals,
+  filterProductsBySearchText,
+  findCartLine,
+  getStockAvailableToAdd,
+  normalizeRequestedQuantity,
+  removeProductFromCart,
+  setCartLineQuantity,
+  validateQuantityAgainstStock,
+} from "../utils/cart"
+
 const TAX_RATE = 15
-
-function addDaysISO(days) {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
-
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-")
-}
-
-function todayLabel() {
-  return new Date().toLocaleDateString("es-HN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
-}
-
-function formatMoney(value) {
-  return `L ${Number(value || 0).toLocaleString("es-HN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
 
 function POS() {
   const { products = [] } = useContext(ProductContext)
@@ -48,7 +41,7 @@ function POS() {
   const [clientSearch, setClientSearch] = useState("")
   const [selectedClient, setSelectedClient] = useState(null)
   const [buyerRTN, setBuyerRTN] = useState("")
-  const [dueDate, setDueDate] = useState(addDaysISO(30))
+  const [dueDate, setDueDate] = useState(toISODateInDays(30))
 
   const [clientModalOpen, setClientModalOpen] = useState(false)
 
@@ -64,111 +57,54 @@ function POS() {
   const [previewSale, setPreviewSale] = useState(null)
   const [previewMode, setPreviewMode] = useState("preview")
 
-  const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase()
+  const filteredProducts = useMemo(
+    () =>
+      filterProductsBySearchText(
+        products,
+        search
+      ),
+    [products, search]
+  )
 
-    return products.filter((product) => {
-      const searchable = [
-        product.name,
-        product.category,
-        product.code,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-
-      return searchable.includes(query)
-    })
-  }, [products, search])
-
-  const cartQuantityFor = (productId) => {
-    const item = cart.find(
-      (cartItem) =>
-        String(cartItem.id) === String(productId)
-    )
-
-    return item ? item.quantity : 0
-  }
-
-  const availableStockFor = (product) => {
-    return Math.max(
-      0,
-      Number(product.stock || 0) -
-        cartQuantityFor(product.id)
-    )
-  }
+  const availableStockFor = (product) =>
+    getStockAvailableToAdd(product, cart)
 
   const addToCartWithQty = (
     product,
     requestedQty
   ) => {
-    const quantity = Math.max(
-      1,
-      Number.parseInt(requestedQty, 10) || 1
-    )
-
-    const available =
-      availableStockFor(product)
-
-    if (available <= 0) {
-      Swal.fire({
-        icon: "warning",
-        title: "Stock insuficiente",
-        text: `No quedan unidades disponibles de ${product.name}.`,
-      })
-      return
-    }
-
-    if (quantity > available) {
-      Swal.fire({
-        icon: "warning",
-        title: "Stock insuficiente",
-        text: `Solo puedes agregar ${available} ${
-          available === 1
-            ? "unidad"
-            : "unidades"
-        } más de ${product.name}.`,
-      })
-      return
-    }
-
-    setCart((currentCart) => {
-      const exists = currentCart.find(
-        (item) =>
-          String(item.id) ===
-          String(product.id)
+    const quantity =
+      normalizeRequestedQuantity(
+        requestedQty
       )
 
-      if (exists) {
-        return currentCart.map(
-          (item) =>
-            String(item.id) ===
-            String(product.id)
-              ? {
-                  ...item,
-                  quantity:
-                    item.quantity +
-                    quantity,
-                }
-              : item
-        )
-      }
+    const validation =
+      validateQuantityAgainstStock(
+        product,
+        cart,
+        quantity
+      )
 
-      return [
-        ...currentCart,
-        {
-          id: product.id,
-          code: product.code || "",
-          name: product.name,
-          category:
-            product.category || "",
-          price: Number(
-            product.price || 0
-          ),
-          quantity,
-        },
-      ]
-    })
+    if (!validation.isAllowed) {
+      Swal.fire({
+        icon: "warning",
+        title: "Stock insuficiente",
+        text: buildStockWarningMessage(
+          product.name,
+          validation
+        ),
+      })
+
+      return
+    }
+
+    setCart((currentCart) =>
+      addProductToCart(
+        currentCart,
+        product,
+        quantity
+      )
+    )
 
     setQtyMap((current) => ({
       ...current,
@@ -180,10 +116,9 @@ function POS() {
     productId
   ) => {
     setCart((currentCart) =>
-      currentCart.filter(
-        (item) =>
-          String(item.id) !==
-          String(productId)
+      removeProductFromCart(
+        currentCart,
+        productId
       )
     )
   }
@@ -198,21 +133,15 @@ function POS() {
         String(productId)
     )
 
-    const cartItem = cart.find(
-      (item) =>
-        String(item.id) ===
-        String(productId)
+    const cartItem = findCartLine(
+      cart,
+      productId
     )
 
     if (!product || !cartItem) return
 
     const nextQuantity =
       cartItem.quantity + delta
-
-    if (nextQuantity <= 0) {
-      removeFromCart(productId)
-      return
-    }
 
     if (
       nextQuantity >
@@ -221,49 +150,41 @@ function POS() {
       Swal.fire({
         icon: "warning",
         title: "Stock insuficiente",
-        text: `Solo hay ${
-          product.stock
-        } ${
-          Number(product.stock) === 1
-            ? "unidad"
-            : "unidades"
-        } disponibles de ${
-          product.name
-        }.`,
+        text: buildStockWarningMessage(
+          product.name,
+          {
+            reason: "excede-existencias",
+            availableToAdd: Number(
+              product.stock || 0
+            ),
+          }
+        ),
       })
+
       return
     }
 
     setCart((currentCart) =>
-      currentCart.map((item) =>
-        String(item.id) ===
-        String(productId)
-          ? {
-              ...item,
-              quantity: nextQuantity,
-            }
-          : item
+      setCartLineQuantity(
+        currentCart,
+        productId,
+        nextQuantity
       )
     )
   }
 
-  const subtotal = useMemo(
+  const {
+    subtotal,
+    tax,
+    total,
+  } = useMemo(
     () =>
-      cart.reduce(
-        (total, item) =>
-          total +
-          item.price *
-            item.quantity,
-        0
+      calculateCartTotals(
+        cart,
+        TAX_RATE
       ),
     [cart]
   )
-
-  const tax =
-    subtotal * (TAX_RATE / 100)
-
-  const total =
-    subtotal + tax
 
   const handlePaymentTypeChange = (
     type
@@ -274,7 +195,7 @@ function POS() {
     setBuyerRTN("")
 
     if (type === "credito") {
-      setDueDate(addDaysISO(30))
+      setDueDate(toISODateInDays(30))
     }
   }
 
@@ -461,7 +382,7 @@ function POS() {
 
   const buildPreviewSale = () => ({
     invoiceNumber: "VISTA PREVIA",
-    date: todayLabel(),
+    date: todayForDisplay(),
 
     clientId:
       selectedClient?.id || null,
@@ -566,7 +487,7 @@ function POS() {
     setSelectedClient(null)
     setClientSearch("")
     setBuyerRTN("")
-    setDueDate(addDaysISO(30))
+    setDueDate(toISODateInDays(30))
   }
 
   const generateSale = () => {
