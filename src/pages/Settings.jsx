@@ -1,14 +1,13 @@
 import {
   useContext,
-  useEffect,
   useState,
 } from "react"
 
 import Swal from "sweetalert2"
 
-import { ProductContext } from "../context/ProductContext"
-import { SalesContext } from "../context/SalesContext"
-import { useAuth } from "../context/AuthContext"
+import { ProductContext } from "../context/contexts"
+import { SalesContext } from "../context/contexts"
+import { useAuth } from "../hooks/useAuth"
 
 import {
   FISCAL_VACIO,
@@ -23,6 +22,19 @@ const EMPTY_USER_FORM = {
   role: "vendedor",
   active: true,
   permissions: [],
+}
+
+function buildCompanyForm(company) {
+  return {
+    name: company?.name || "",
+    address: company?.address || "",
+    phone: company?.phone || "",
+    currency: company?.currency || "L",
+    taxRate: company?.taxRate ?? 15,
+
+    ...FISCAL_VACIO,
+    ...(company?.fiscal || {}),
+  }
 }
 
 function Settings() {
@@ -48,41 +60,10 @@ function Settings() {
   const [
     companyForm,
     setCompanyForm,
-  ] = useState({
-    name: "",
-    address: "",
-    phone: "",
-    currency: "L",
-    taxRate: 15,
-    ...FISCAL_VACIO,
-  })
+  ] = useState(() =>
+    buildCompanyForm(company)
+  )
 
-  useEffect(() => {
-    setCompanyForm({
-      name:
-        company?.name ||
-        "",
-
-      address:
-        company?.address ||
-        "",
-
-      phone:
-        company?.phone ||
-        "",
-
-      currency:
-        company?.currency ||
-        "L",
-
-      taxRate:
-        company?.taxRate ??
-        15,
-
-      ...FISCAL_VACIO,
-      ...(company?.fiscal || {}),
-    })
-  }, [company])
 
   const handleCompanyChange = (
     event
@@ -185,33 +166,10 @@ function Settings() {
     })
   }
 
-  const restoreCompanyForm =
-    () => {
-      setCompanyForm({
-        name:
-          company?.name ||
-          "",
-
-        address:
-          company?.address ||
-          "",
-
-        phone:
-          company?.phone ||
-          "",
-
-        currency:
-          company?.currency ||
-          "L",
-
-        taxRate:
-          company?.taxRate ??
-          15,
-
-        ...FISCAL_VACIO,
-        ...(company?.fiscal || {}),
-      })
-    }
+  const restoreCompanyForm = () =>
+    setCompanyForm(
+      buildCompanyForm(company)
+    )
 
   /*
     Estado del rango autorizado frente al

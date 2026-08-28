@@ -3,7 +3,8 @@ import { renderHook, act } from "@testing-library/react"
 import { useContext } from "react"
 
 import ProductProvider from "./ProductContext"
-import SalesProvider, { SalesContext } from "./SalesContext"
+import SalesProvider from "./SalesContext"
+import { SalesContext } from "./contexts"
 
 const PRODUCTOS = [
   { id: "p1", code: "M-001", name: "Martillo", category: "Herramientas", price: 100, stock: 10, minStock: 2 },

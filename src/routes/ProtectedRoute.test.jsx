@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 
-import { AuthProvider, PERMISSIONS } from "../context/AuthContext"
+import { AuthProvider } from "../context/AuthContext"
+import { PERMISSIONS } from "../context/permissions"
 import ProtectedRoute from "./ProtectedRoute"
 
 const Pantalla = ({ nombre }) => <h1>{nombre}</h1>

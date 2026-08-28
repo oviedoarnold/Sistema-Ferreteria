@@ -6,8 +6,8 @@ import {
 
 import Swal from "sweetalert2"
 
-import { ProductContext } from "../context/ProductContext"
-import { ClientsContext } from "../context/ClientsContext"
+import { ProductContext } from "../context/contexts"
+import { ClientsContext } from "../context/contexts"
 
 import QuoteTemplate from "../components/QuoteTemplate"
 

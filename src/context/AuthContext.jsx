@@ -1,49 +1,23 @@
 import {
-  createContext,
-  useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react"
 
-const AuthContext = createContext(null)
+import { AuthContext } from "./contexts"
+
+import {
+  PERMISSIONS,
+  ADMIN_PERMISSIONS,
+  SELLER_PERMISSIONS,
+} from "./permissions"
 
 const USERS_STORAGE_KEY =
   "ferreteria_users"
 
 const SESSION_STORAGE_KEY =
   "ferreteria_session_user_id"
-
-export const PERMISSIONS = {
-  DASHBOARD: "dashboard",
-  POS: "pos",
-  QUOTES: "quotes",
-  PRODUCTS: "products",
-  CLIENTS: "clients",
-  SUPPLIERS: "suppliers",
-  SALES_HISTORY: "sales-history",
-  SETTINGS: "settings",
-}
-
-/*
- * Administrador = acceso total.
- */
-export const ADMIN_PERMISSIONS =
-  Object.values(PERMISSIONS)
-
-/*
- * Permisos sugeridos para vendedor.
- *
- * Después podremos modificarlos individualmente
- * desde Configuración.
- */
-export const SELLER_PERMISSIONS = [
-  PERMISSIONS.DASHBOARD,
-  PERMISSIONS.POS,
-  PERMISSIONS.QUOTES,
-  PERMISSIONS.CLIENTS,
-  PERMISSIONS.SALES_HISTORY,
-]
 
 function hashPassword(value = "") {
   let hash = 0
@@ -197,58 +171,57 @@ function loadUsers() {
   }
 }
 
-/*
- * Devuelve el usuario de la sesión
- * guardada, o null si no hay una
- * sesión válida.
- */
-function restoreSessionUser(users) {
+function readStoredSessionId() {
   try {
-    const sessionUserId =
-      localStorage.getItem(
-        SESSION_STORAGE_KEY
-      )
-
-    if (!sessionUserId) {
-      return null
-    }
-
-    const sessionUser =
-      users.find(
-        (currentUser) =>
-          String(
-            currentUser.id
-          ) ===
-          String(sessionUserId)
-      )
-
-    /*
-     * Si el usuario fue eliminado
-     * o desactivado, se termina
-     * automáticamente la sesión.
-     */
-    if (
-      !sessionUser ||
-      !sessionUser.active
-    ) {
-      localStorage.removeItem(
-        SESSION_STORAGE_KEY
-      )
-
-      return null
-    }
-
-    return normalizeUser(
-      sessionUser
+    return localStorage.getItem(
+      SESSION_STORAGE_KEY
     )
   } catch (error) {
     console.error(
-      "Error recuperando la sesión:",
+      "Error leyendo la sesión guardada:",
       error
     )
 
     return null
   }
+}
+
+function withoutPasswordHash(user) {
+  const publicUser = { ...user }
+
+  delete publicUser.passwordHash
+
+  return publicUser
+}
+
+/*
+ * Devuelve null si al usuario en sesión
+ * lo eliminaron o desactivaron, para que
+ * el cambio surta efecto sin esperar a
+ * que vuelva a entrar.
+ */
+function findActiveSessionUser(
+  users,
+  sessionUserId
+) {
+  if (!sessionUserId) {
+    return null
+  }
+
+  const sessionUser = users.find(
+    (currentUser) =>
+      String(currentUser.id) ===
+      String(sessionUserId)
+  )
+
+  if (
+    !sessionUser ||
+    !sessionUser.active
+  ) {
+    return null
+  }
+
+  return normalizeUser(sessionUser)
 }
 
 export function AuthProvider({
@@ -258,22 +231,33 @@ export function AuthProvider({
     useState(loadUsers)
 
   /*
-   * La sesión se recupera de forma
-   * síncrona. Si se hiciera dentro
-   * de un efecto, el primer render
+   * El identificador se lee de forma
+   * síncrona. Si la sesión se recuperara
+   * dentro de un efecto, el primer render
    * vería user = null y las rutas
-   * protegidas mandarían al login
-   * en cada refresh.
+   * protegidas mandarían al login en cada
+   * refresco.
    */
-  const [user, setUser] =
-    useState(() =>
-      restoreSessionUser(users)
-    )
+  const [
+    sessionUserId,
+    setSessionUserId,
+  ] = useState(readStoredSessionId)
 
   /*
-   * Guarda los usuarios cada vez
-   * que haya un cambio.
+   * El usuario se deriva de la lista, no se
+   * copia: así quitarle permisos o
+   * desactivarlo se refleja de inmediato sin
+   * un efecto que sincronice.
    */
+  const user = useMemo(
+    () =>
+      findActiveSessionUser(
+        users,
+        sessionUserId
+      ),
+    [users, sessionUserId]
+  )
+
   useEffect(() => {
     localStorage.setItem(
       USERS_STORAGE_KEY,
@@ -281,24 +265,18 @@ export function AuthProvider({
     )
   }, [users])
 
-  /*
-   * Revalida la sesión cuando cambia
-   * la lista de usuarios: si al
-   * usuario en sesión le quitan
-   * permisos, lo desactivan o lo
-   * eliminan, el cambio se aplica
-   * sin tener que volver a entrar.
-   */
   useEffect(() => {
-    setUser(
-      restoreSessionUser(users)
-    )
-  }, [users])
+    if (sessionUserId && !user) {
+      localStorage.removeItem(
+        SESSION_STORAGE_KEY
+      )
+    }
+  }, [sessionUserId, user])
 
   /*
    * LOGIN
    */
-  const login = (
+  const login = useCallback((
     username,
     password
   ) => {
@@ -339,8 +317,8 @@ export function AuthProvider({
         foundUser
       )
 
-    setUser(
-      authenticatedUser
+    setSessionUserId(
+      String(authenticatedUser.id)
     )
 
     localStorage.setItem(
@@ -359,13 +337,13 @@ export function AuthProvider({
     )
 
     return true
-  }
+  }, [users])
 
   /*
    * LOGOUT
    */
-  const logout = () => {
-    setUser(null)
+  const logout = useCallback(() => {
+    setSessionUserId(null)
 
     localStorage.removeItem(
       SESSION_STORAGE_KEY
@@ -374,12 +352,12 @@ export function AuthProvider({
     localStorage.removeItem(
       "user"
     )
-  }
+  }, [])
 
   /*
    * COMPROBAR PERMISOS
    */
-  const hasPermission = (
+  const hasPermission = useCallback((
     permission
   ) => {
     if (!user) {
@@ -404,9 +382,9 @@ export function AuthProvider({
         permission
       )
     )
-  }
+  }, [user])
 
-  const addUser = ({
+  const addUser = useCallback(({
     name,
     username,
     password,
@@ -512,9 +490,9 @@ export function AuthProvider({
     )
 
     return newUser
-  }
+  }, [users])
 
-  const updateUser = (
+  const updateUser = useCallback((
     userId,
     changes
   ) => {
@@ -695,9 +673,9 @@ export function AuthProvider({
     )
 
     return updatedUser
-  }
+  }, [users])
 
-  const deleteUser = (
+  const deleteUser = useCallback((
     userId
   ) => {
     const userToDelete =
@@ -758,12 +736,12 @@ export function AuthProvider({
     )
 
     return true
-  }
+  }, [user, users])
 
   /*
    * ACTIVAR / DESACTIVAR
    */
-  const setUserActive = (
+  const setUserActive = useCallback((
     userId,
     active
   ) => {
@@ -774,10 +752,10 @@ export function AuthProvider({
           Boolean(active),
       }
     )
-  }
+  }, [updateUser])
 
   
-  const getUserById = (
+  const getUserById = useCallback((
     userId
   ) => {
     return (
@@ -789,19 +767,12 @@ export function AuthProvider({
           String(userId)
       ) || null
     )
-  }
+  }, [users])
 
-  const publicUsers =
-    useMemo(
-      () =>
-        users.map(
-          ({
-            passwordHash,
-            ...publicUser
-          }) => publicUser
-        ),
-      [users]
-    )
+  const publicUsers = useMemo(
+    () => users.map(withoutPasswordHash),
+    [users]
+  )
 
   const contextValue =
     useMemo(
@@ -843,7 +814,14 @@ export function AuthProvider({
       [
         user,
         publicUsers,
-        users,
+        login,
+        logout,
+        hasPermission,
+        addUser,
+        updateUser,
+        deleteUser,
+        setUserActive,
+        getUserById,
       ]
     )
 
@@ -854,17 +832,4 @@ export function AuthProvider({
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const context =
-    useContext(AuthContext)
-
-  if (!context) {
-    throw new Error(
-      "useAuth debe utilizarse dentro de AuthProvider."
-    )
-  }
-
-  return context
 }

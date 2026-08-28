@@ -1,11 +1,12 @@
 import {
-  createContext,
   useContext,
   useEffect,
   useState,
 } from "react"
 
-import { ProductContext } from "./ProductContext"
+import { SalesContext } from "./contexts"
+
+import { ProductContext } from "./contexts"
 
 import {
   roundMoney,
@@ -20,8 +21,6 @@ import {
   formatDocumentNumber,
   buildFiscalSnapshot,
 } from "../utils/fiscal"
-
-export const SalesContext = createContext()
 
 const DEFAULT_COUNTERS = {
   invoice: 1000,

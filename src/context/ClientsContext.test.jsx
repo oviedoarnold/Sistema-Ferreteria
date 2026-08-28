@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import { useContext } from "react"
 
-import ClientsProvider, { ClientsContext } from "./ClientsContext"
+import ClientsProvider from "./ClientsContext"
+import { ClientsContext } from "./contexts"
 
 const renderClients = () =>
   renderHook(() => useContext(ClientsContext), {

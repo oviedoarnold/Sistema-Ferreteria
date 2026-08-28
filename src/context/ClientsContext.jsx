@@ -1,10 +1,9 @@
 import {
-  createContext,
   useEffect,
   useState,
 } from "react"
 
-export const ClientsContext = createContext()
+import { ClientsContext } from "./contexts"
 
 function generateId() {
   return `C-${Date.now()}-${Math.floor(

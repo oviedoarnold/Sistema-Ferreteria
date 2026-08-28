@@ -6,7 +6,7 @@
 
 import Swal from "sweetalert2"
 
-import { SalesContext } from "../context/SalesContext"
+import { SalesContext } from "../context/contexts"
 
 import {
   getSaleBalance,
@@ -15,7 +15,7 @@ import {
   isCreditSale,
 } from "../utils/salesUtils"
 
-import { ProductContext } from "../context/ProductContext"
+import { ProductContext } from "../context/contexts"
 
 import InvoiceTemplate from "../components/InvoiceTemplate"
 import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"

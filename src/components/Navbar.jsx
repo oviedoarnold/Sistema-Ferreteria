@@ -1,6 +1,7 @@
 import { NavLink,  useNavigate,} from "react-router-dom"
 
-import { useAuth, PERMISSIONS } from "../context/AuthContext"
+import { useAuth } from "../hooks/useAuth"
+import { PERMISSIONS } from "../context/permissions"
 
 import {
   FaHome,

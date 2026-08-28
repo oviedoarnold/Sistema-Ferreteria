@@ -1,6 +1,6 @@
 ﻿import { useContext, useEffect, useMemo, useState } from "react"
 import Swal from "sweetalert2"
-import { ProductContext } from "../context/ProductContext"
+import { ProductContext } from "../context/contexts"
 
 const emptyForm = { id: null, code: "", name: "", category: "", price: "", costPrice: "", stock: "", minStock: 5, supplierId: "" }
 

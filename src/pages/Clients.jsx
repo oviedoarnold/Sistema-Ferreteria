@@ -1,6 +1,6 @@
 ﻿import { useContext, useMemo, useState } from "react"
 import Swal from "sweetalert2"
-import { ClientsContext } from "../context/ClientsContext"
+import { ClientsContext } from "../context/contexts"
 
 const emptyForm = { id: null, name: "", rtn: "", phone: "", address: "", email: "" }
 

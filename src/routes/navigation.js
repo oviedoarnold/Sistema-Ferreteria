@@ -1,4 +1,4 @@
-import { PERMISSIONS } from "../context/AuthContext"
+import { PERMISSIONS } from "../context/permissions"
 
 /*
   Ruta que protege cada permiso, en el

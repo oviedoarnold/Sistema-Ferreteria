@@ -17,7 +17,7 @@ import Suppliers from "../pages/Suppliers"
 import Settings from "../pages/Settings"
 import MainLayout from "../layouts/MainLayout"
 import ProtectedRoute from "./ProtectedRoute"
-import { PERMISSIONS } from "../context/AuthContext"
+import { PERMISSIONS } from "../context/permissions"
 
 function AppRouter() {
   return (

@@ -24,14 +24,12 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # Informativo: hay una deuda conocida de 11 avisos heredados.
-      # No bloquea el pipeline hasta terminar de saldarla.
+      # Los tres pasos bloquean: si el lint marca algo, un test falla o
+      # el build se rompe, el pipeline queda en rojo y el commit no se
+      # considera bueno.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
-      # Estos sí bloquean: si un test falla o el build se rompe,
-      # el pipeline queda en rojo y el commit no se considera bueno.
       - name: Tests con cobertura
         run: npm run coverage
 

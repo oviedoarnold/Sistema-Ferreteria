@@ -1,9 +1,9 @@
 ﻿import { useContext, useMemo } from "react"
-import { ProductContext } from "../context/ProductContext"
-import { SalesContext } from "../context/SalesContext"
+import { ProductContext } from "../context/contexts"
+import { SalesContext } from "../context/contexts"
 import { getSaleBalance } from "../utils/salesUtils"
 import { formatMoney as money } from "../utils/format"
-import { ClientsContext } from "../context/ClientsContext"
+import { ClientsContext } from "../context/contexts"
 
 
 function Dashboard() {

@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 
-import { AuthProvider, useAuth, PERMISSIONS } from "./AuthContext"
+import { AuthProvider } from "./AuthContext"
+import { useAuth } from "../hooks/useAuth"
+import { PERMISSIONS } from "./permissions"
 
 const renderAuth = () =>
   renderHook(() => useAuth(), { wrapper: AuthProvider })
