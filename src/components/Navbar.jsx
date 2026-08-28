@@ -149,6 +149,7 @@ const visibleTabs = tabs.filter((tab) =>
               onClick={handleLogout}
               className="btn-logout"
               title="Cerrar sesión"
+              aria-label="Cerrar sesión"
             >
               ⎋
             </button>

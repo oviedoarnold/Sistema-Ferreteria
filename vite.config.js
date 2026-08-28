@@ -27,6 +27,9 @@ export default defineConfig({
         // Plantillas de impresión: son marcado, se validan mirando el PDF.
         'src/components/InvoiceTemplate.jsx',
         'src/components/QuoteTemplate.jsx',
+        // Generación de PDF con jsPDF y html2canvas: probarlo en jsdom
+        // no verificaría el archivo que realmente se produce.
+        'src/utils/documentUtils.js',
       ],
     },
   },

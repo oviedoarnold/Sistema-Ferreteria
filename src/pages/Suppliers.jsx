@@ -39,7 +39,7 @@ function Suppliers() {
       {filtered.map((s) => <tr key={s.id}><td><span className="product-name">{s.name}</span>{s.email && <span className="product-cat">{s.email}</span>}</td><td>{s.contact || "—"}</td><td>{s.phone || "—"}</td><td>{s.notes || "—"}</td><td><div className="row-actions"><button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Editar</button><button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}>Eliminar</button></div></td></tr>)}
     </tbody></table>{filtered.length === 0 && <div className="empty-state"><strong>{suppliers.length ? "No se encontraron resultados" : "No hay proveedores todavía"}</strong></div>}</div>
 
-    {modalOpen && <div className="modal-overlay open"><div className="modal"><div className="modal-head"><h3>{form.id ? "Editar proveedor" : "Nuevo proveedor"}</h3><button className="icon-btn" onClick={() => setModalOpen(false)}>✕</button></div><div className="modal-body"><div className="form-grid">
+    {modalOpen && <div className="modal-overlay open"><div className="modal"><div className="modal-head"><h3>{form.id ? "Editar proveedor" : "Nuevo proveedor"}</h3><button className="icon-btn" aria-label="Cerrar" onClick={() => setModalOpen(false)}>✕</button></div><div className="modal-body"><div className="form-grid">
       <div className="field full"><label>Proveedor</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
       <div className="field"><label>Contacto</label><input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></div>
       <div className="field"><label>Teléfono</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>

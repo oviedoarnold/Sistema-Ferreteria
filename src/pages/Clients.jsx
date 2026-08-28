@@ -66,7 +66,7 @@ function Clients() {
 
       {modalOpen && <div className="modal-overlay open" onMouseDown={(e) => e.target === e.currentTarget && setModalOpen(false)}>
         <div className="modal">
-          <div className="modal-head"><h3>{form.id ? "Editar cliente" : "Nuevo cliente"}</h3><button className="icon-btn" onClick={() => setModalOpen(false)}>✕</button></div>
+          <div className="modal-head"><h3>{form.id ? "Editar cliente" : "Nuevo cliente"}</h3><button className="icon-btn" aria-label="Cerrar" onClick={() => setModalOpen(false)}>✕</button></div>
           <div className="modal-body"><div className="form-grid">
             <div className="field"><label>Nombre</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="field"><label>RTN (opcional)</label><input value={form.rtn} onChange={(e) => setForm({ ...form, rtn: e.target.value })} /></div>

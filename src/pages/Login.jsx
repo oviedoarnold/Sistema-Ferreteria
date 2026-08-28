@@ -28,13 +28,13 @@ function Login() {
 
         <form onSubmit={handleLogin}>
           <div className="field">
-            <label>Usuario</label>
-            <input autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} />
+            <label htmlFor="login-usuario">Usuario</label>
+            <input id="login-usuario" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} />
           </div>
           <div className="field">
-            <label>Contraseña</label>
+            <label htmlFor="login-password">Contraseña</label>
             <div className="pw-wrap">
-              <input type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
               <button type="button" className="pw-toggle" onClick={() => setShowPassword((v) => !v)} aria-label="Mostrar u ocultar contraseña">{showPassword ? "🙈" : "👁"}</button>
             </div>
           </div>
