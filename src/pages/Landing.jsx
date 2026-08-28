@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 
 import "../styles/landing.css"
@@ -59,10 +60,55 @@ const STEPS = [
   },
 ]
 
+const BARS = [38, 54, 45, 71, 86, 100]
+
 function Landing() {
+  const rootRef = useRef(null)
+  const [stuck, setStuck] = useState(false)
+
+  // Revela los bloques conforme entran en pantalla.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const nodes = root.querySelectorAll("[data-reveal]")
+    if (!nodes.length) return
+
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches
+
+    if (reduced || !("IntersectionObserver" in window)) {
+      nodes.forEach((node) => node.classList.add("is-visible"))
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return
+          entry.target.classList.add("is-visible")
+          observer.unobserve(entry.target)
+        })
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    )
+
+    nodes.forEach((node) => observer.observe(node))
+    return () => observer.disconnect()
+  }, [])
+
+  // Sombra del nav una vez que la página se desplaza.
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 12)
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
   return (
-    <div className="landing">
-      <nav className="lp-nav">
+    <div className="landing" ref={rootRef}>
+      <nav className={`lp-nav ${stuck ? "is-stuck" : ""}`}>
         <div className="wrap">
           <Link to="/" className="lp-brand">
             <span className="mark">🔧</span>
@@ -85,18 +131,20 @@ function Landing() {
       <header className="lp-hero">
         <div className="wrap">
           <div>
-            <span className="lp-eyebrow">Hecho para ferreterías</span>
+            <span className="lp-eyebrow" data-rise style={{ "--d": "0s" }}>
+              Hecho para ferreterías
+            </span>
 
-            <h1>
+            <h1 data-rise style={{ "--d": ".07s" }}>
               Tu ferretería, <em>ordenada</em> de la bodega a la caja.
             </h1>
 
-            <p className="lead">
+            <p className="lead" data-rise style={{ "--d": ".14s" }}>
               Inventario, facturación, cotizaciones y clientes en un solo lugar.
               Sin hojas de cálculo sueltas y sin adivinar qué te queda en bodega.
             </p>
 
-            <div className="lp-cta-row">
+            <div className="lp-cta-row" data-rise style={{ "--d": ".21s" }}>
               <Link to="/login" className="btn btn-primary btn-lg">
                 Entrar al sistema
               </Link>
@@ -105,7 +153,7 @@ function Landing() {
               </a>
             </div>
 
-            <p className="lp-note">
+            <p className="lp-note" data-rise style={{ "--d": ".28s" }}>
               Corre en tu navegador · Precios en lempiras · Formato RTN
             </p>
           </div>
@@ -144,12 +192,12 @@ function Landing() {
             <div className="lp-mock-foot">
               <div className="t">Ventas por mes</div>
               <div className="lp-bars">
-                <i style={{ height: "38%" }}></i>
-                <i style={{ height: "54%" }}></i>
-                <i style={{ height: "45%" }}></i>
-                <i style={{ height: "71%" }}></i>
-                <i style={{ height: "86%" }}></i>
-                <i style={{ height: "100%" }}></i>
+                {BARS.map((height, index) => (
+                  <i
+                    key={height}
+                    style={{ height: `${height}%`, "--i": index }}
+                  ></i>
+                ))}
               </div>
             </div>
           </div>
@@ -158,7 +206,7 @@ function Landing() {
 
       <section className="lp-features" id="funciones">
         <div className="wrap">
-          <div className="lp-head">
+          <div className="lp-head" data-reveal>
             <span className="kicker">Funciones</span>
             <h2>Todo lo que se hace en el mostrador</h2>
             <p>
@@ -168,8 +216,13 @@ function Landing() {
           </div>
 
           <div className="lp-grid">
-            {FEATURES.map((feature) => (
-              <article className="lp-card" key={feature.title}>
+            {FEATURES.map((feature, index) => (
+              <article
+                className="lp-card"
+                key={feature.title}
+                data-reveal
+                style={{ "--d": `${index * 0.07}s` }}
+              >
                 <div className={`ico ${feature.tone}`}>{feature.icon}</div>
                 <h3>{feature.title}</h3>
                 <p>{feature.text}</p>
@@ -181,7 +234,7 @@ function Landing() {
 
       <section className="lp-steps" id="como-funciona">
         <div className="wrap">
-          <div className="lp-head">
+          <div className="lp-head" data-reveal>
             <span className="kicker">Cómo funciona</span>
             <h2>Tres pasos y estás operando</h2>
             <p>
@@ -191,8 +244,13 @@ function Landing() {
           </div>
 
           <div className="lp-grid">
-            {STEPS.map((step) => (
-              <div className="lp-step" key={step.n}>
+            {STEPS.map((step, index) => (
+              <div
+                className="lp-step"
+                key={step.n}
+                data-reveal
+                style={{ "--d": `${index * 0.1}s` }}
+              >
                 <span className="n">{step.n}</span>
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
@@ -203,7 +261,7 @@ function Landing() {
       </section>
 
       <section className="lp-cta">
-        <div className="wrap">
+        <div className="wrap" data-reveal>
           <h2>Empieza a ordenar tu ferretería hoy</h2>
           <p>
             Entra con tu usuario y encuentra el inventario, las ventas y los

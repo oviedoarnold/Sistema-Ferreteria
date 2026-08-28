@@ -40,7 +40,7 @@
 .lp-stat.w .v{color:var(--amber);} .lp-stat.g .v{color:var(--teal);}
 .lp-mock-foot{border-top:1px solid var(--line);padding:13px 16px 16px;}
 .lp-mock-foot .t{font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--steel);margin-bottom:9px;}
-.lp-bars{display:flex;align-items:flex-end;gap:7px;height:56px;}
+.lp-bars{display:flex;align-items:flex-end;gap:9px;height:92px;}
 .lp-bars i{flex:1;background:var(--orange-light);border-radius:4px 4px 0 0;display:block;}
 .lp-bars i:nth-child(5){background:var(--orange);} .lp-bars i:nth-child(6){background:var(--orange);}
 
@@ -85,3 +85,39 @@
 .lp-footer .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .lp-footer p{margin:0;font-size:13.5px;}
 .lp-footer .lp-brand b{font-size:16px;}
+
+/* ── ANIMACIONES ── */
+@keyframes lpRise{from{opacity:0;transform:translateY(15px);}to{opacity:1;transform:translateY(0);}}
+@keyframes lpMock{from{opacity:0;transform:translateY(22px) scale(.985);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes lpBar{from{transform:scaleY(0);}to{transform:scaleY(1);}}
+
+/* Entrada del hero, escalonada */
+.lp-hero [data-rise]{opacity:0;animation:lpRise .5s cubic-bezier(.2,.8,.3,1) forwards;animation-delay:var(--d,0s);}
+.lp-mock{opacity:0;animation:lpMock .6s cubic-bezier(.2,.8,.3,1) .26s forwards;}
+.lp-bars i{transform-origin:bottom;transform:scaleY(0);animation:lpBar .5s cubic-bezier(.2,.8,.3,1) forwards;animation-delay:calc(.62s + var(--i,0) * .07s);}
+
+/* Reveal al entrar en pantalla */
+[data-reveal]{opacity:0;transform:translateY(16px);transition:opacity .5s cubic-bezier(.2,.8,.3,1),transform .5s cubic-bezier(.2,.8,.3,1);transition-delay:var(--d,0s);}
+[data-reveal].is-visible{opacity:1;transform:translateY(0);}
+
+/* La sombra del nav aparece al hacer scroll */
+.lp-nav{transition:box-shadow .25s ease,background .25s ease;}
+.lp-nav.is-stuck{box-shadow:0 4px 18px rgba(35,39,42,.28);}
+
+/* Subrayado animado en los enlaces del nav */
+.lp-nav-links a:not(.btn){position:relative;}
+.lp-nav-links a:not(.btn)::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:2px;background:var(--orange);border-radius:2px;transform:scaleX(0);transform-origin:left;transition:transform .22s cubic-bezier(.2,.8,.3,1);}
+.lp-nav-links a:not(.btn):hover::after{transform:scaleX(1);}
+
+/* El icono de cada tarjeta reacciona al hover */
+.lp-card .ico{transition:transform .22s cubic-bezier(.2,.8,.3,1);}
+.lp-card:hover .ico{transform:scale(1.08) rotate(-4deg);}
+
+/* Respeta a quien pide menos movimiento */
+@media(prefers-reduced-motion:reduce){
+  .lp-hero [data-rise],.lp-mock,.lp-bars i{animation:none;opacity:1;transform:none;}
+  [data-reveal]{opacity:1;transform:none;transition:none;}
+  .lp-card:hover{transform:none;}
+  .lp-card:hover .ico{transform:none;}
+  .lp-nav-links a:not(.btn)::after{transition:none;}
+}
