@@ -1,0 +1,1770 @@
+import {
+  useContext,
+  useMemo,
+  useState,
+} from "react"
+
+import Swal from "sweetalert2"
+
+import { ProductContext } from "../context/ProductContext"
+import { ClientsContext } from "../context/ClientsContext"
+
+import QuoteTemplate from "../components/QuoteTemplate"
+
+import ClientAutocomplete from "../components/documents/ClientAutocomplete"
+import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
+
+function addDaysISO(days) {
+  const date = new Date()
+
+  date.setDate(
+    date.getDate() + days
+  )
+
+  return [
+    date.getFullYear(),
+    String(
+      date.getMonth() + 1
+    ).padStart(2, "0"),
+    String(
+      date.getDate()
+    ).padStart(2, "0"),
+  ].join("-")
+}
+
+function todayLabel() {
+  return new Date().toLocaleDateString(
+    "es-HN",
+    {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }
+  )
+}
+
+function formatMoney(
+  value,
+  currency = "L"
+) {
+  return `${currency} ${Number(
+    value || 0
+  ).toLocaleString("es-HN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function generateId() {
+  return `Q-${Date.now()}-${Math.floor(
+    Math.random() * 1000
+  )}`
+}
+
+function formatQuoteNumber(number) {
+  return `COT-${String(
+    number
+  ).padStart(5, "0")}`
+}
+
+function Quotes() {
+  const {
+    products = [],
+    company = {},
+  } = useContext(ProductContext)
+
+  const {
+    clients = [],
+    addClient,
+  } = useContext(ClientsContext)
+
+  /*
+   * Por ahora Cotizaciones administra
+   * únicamente sus propios datos.
+   *
+   * Después de comprobar que toda la
+   * pantalla funciona, el siguiente
+   * paso será extraer esta persistencia
+   * a QuoteContext.
+   */
+  const [quotes, setQuotes] =
+    useState(() => {
+      try {
+        const saved =
+          localStorage.getItem(
+            "quotes"
+          )
+
+        return saved
+          ? JSON.parse(saved)
+          : []
+      } catch (error) {
+        console.error(
+          "Error cargando cotizaciones:",
+          error
+        )
+
+        return []
+      }
+    })
+
+  const [
+    nextQuoteNumber,
+    setNextQuoteNumber,
+  ] = useState(() => {
+    try {
+      const saved =
+        localStorage.getItem(
+          "nextQuoteNumber"
+        )
+
+      return saved
+        ? Number(saved)
+        : 1
+    } catch {
+      return 1
+    }
+  })
+
+  const [search, setSearch] =
+    useState("")
+
+  const [
+    historySearch,
+    setHistorySearch,
+  ] = useState("")
+
+  const [cart, setCart] =
+    useState([])
+
+  const [qtyMap, setQtyMap] =
+    useState({})
+
+  const [
+    clientSearch,
+    setClientSearch,
+  ] = useState("")
+
+  const [
+    selectedClient,
+    setSelectedClient,
+  ] = useState(null)
+
+  const [validity, setValidity] =
+    useState(
+      addDaysISO(15)
+    )
+
+  const [notes, setNotes] =
+    useState("")
+
+  const [
+    includeTax,
+    setIncludeTax,
+  ] = useState(true)
+
+  const [
+    clientModalOpen,
+    setClientModalOpen,
+  ] = useState(false)
+
+  const [
+    clientForm,
+    setClientForm,
+  ] = useState({
+    name: "",
+    rtn: "",
+    phone: "",
+    address: "",
+    email: "",
+  })
+
+  const [
+    previewOpen,
+    setPreviewOpen,
+  ] = useState(false)
+
+  const [
+    selectedQuote,
+    setSelectedQuote,
+  ] = useState(null)
+
+  const currency =
+    company?.currency || "L"
+
+  const taxRate = Number(
+    company?.taxRate ?? 15
+  )
+
+  const filteredProducts =
+    useMemo(() => {
+      const query = search
+        .trim()
+        .toLowerCase()
+
+      return products.filter(
+        (product) => {
+          const searchableText = [
+            product.name,
+            product.code,
+            product.category,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+
+          return searchableText.includes(
+            query
+          )
+        }
+      )
+    }, [products, search])
+
+  const filteredQuotes =
+    useMemo(() => {
+      const query =
+        historySearch
+          .trim()
+          .toLowerCase()
+
+      return quotes.filter(
+        (quote) => {
+          const searchableText = [
+            quote.clientName,
+            quote.quoteNumber,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+
+          return searchableText.includes(
+            query
+          )
+        }
+      )
+    }, [quotes, historySearch])
+
+  const cartQuantityFor = (
+    productId
+  ) => {
+    const item = cart.find(
+      (cartItem) =>
+        String(
+          cartItem.productId
+        ) ===
+        String(productId)
+    )
+
+    return item
+      ? item.qty
+      : 0
+  }
+
+  const addToCart = (
+    product,
+    requestedQty
+  ) => {
+    const quantity = Math.max(
+      1,
+      Number.parseInt(
+        requestedQty,
+        10
+      ) || 1
+    )
+
+    /*
+     * IMPORTANTE:
+     * Cotización NO limita por stock.
+     *
+     * En el HTML original una
+     * cotización puede solicitar una
+     * cantidad mayor a las existencias
+     * porque no representa una venta.
+     */
+    setCart(
+      (currentCart) => {
+        const existingItem =
+          currentCart.find(
+            (item) =>
+              String(
+                item.productId
+              ) ===
+              String(
+                product.id
+              )
+          )
+
+        if (existingItem) {
+          return currentCart.map(
+            (item) =>
+              String(
+                item.productId
+              ) ===
+              String(
+                product.id
+              )
+                ? {
+                    ...item,
+
+                    qty:
+                      item.qty +
+                      quantity,
+                  }
+                : item
+          )
+        }
+
+        return [
+          ...currentCart,
+
+          {
+            productId:
+              product.id,
+
+            id: product.id,
+
+            code:
+              product.code || "",
+
+            name:
+              product.name,
+
+            category:
+              product.category ||
+              "",
+
+            price: Number(
+              product.price || 0
+            ),
+
+            qty: quantity,
+          },
+        ]
+      }
+    )
+
+    setQtyMap(
+      (current) => ({
+        ...current,
+
+        [product.id]: 1,
+      })
+    )
+  }
+
+  const changeQuantity = (
+    productId,
+    delta
+  ) => {
+    setCart(
+      (currentCart) =>
+        currentCart
+          .map((item) => {
+            if (
+              String(
+                item.productId
+              ) !==
+              String(
+                productId
+              )
+            ) {
+              return item
+            }
+
+            return {
+              ...item,
+
+              qty:
+                item.qty +
+                delta,
+            }
+          })
+          .filter(
+            (item) =>
+              item.qty > 0
+          )
+    )
+  }
+
+  const removeFromCart = (
+    productId
+  ) => {
+    setCart(
+      (currentCart) =>
+        currentCart.filter(
+          (item) =>
+            String(
+              item.productId
+            ) !==
+            String(
+              productId
+            )
+        )
+    )
+  }
+
+  const subtotal =
+    useMemo(() => {
+      return cart.reduce(
+        (total, item) =>
+          total +
+          Number(
+            item.price || 0
+          ) *
+            Number(
+              item.qty || 0
+            ),
+        0
+      )
+    }, [cart])
+
+  const tax = includeTax
+    ? subtotal *
+      (taxRate / 100)
+    : 0
+
+  const total =
+    subtotal + tax
+
+  const handleClientChange = (
+    value
+  ) => {
+    setClientSearch(value)
+
+    if (selectedClient) {
+      setSelectedClient(null)
+    }
+  }
+
+  const handleSelectClient = (
+    client
+  ) => {
+    setSelectedClient(client)
+
+    setClientSearch(
+      client.name
+    )
+  }
+
+  const clearSelectedClient =
+    () => {
+      setSelectedClient(null)
+
+      setClientSearch("")
+    }
+
+  const openNewClientModal =
+    () => {
+      setClientForm({
+        name:
+          clientSearch.trim(),
+
+        rtn: "",
+        phone: "",
+        address: "",
+        email: "",
+      })
+
+      setClientModalOpen(true)
+    }
+
+  const saveNewClient = () => {
+    const name =
+      clientForm.name.trim()
+
+    const phone =
+      clientForm.phone.trim()
+
+    const address =
+      clientForm.address.trim()
+
+    if (
+      !name ||
+      !phone ||
+      !address
+    ) {
+      Swal.fire({
+        icon: "warning",
+
+        title:
+          "Faltan datos",
+
+        text:
+          "Nombre, teléfono y dirección son obligatorios.",
+      })
+
+      return
+    }
+
+    try {
+      const newClient =
+        addClient({
+          ...clientForm,
+
+          name,
+          phone,
+          address,
+
+          rtn:
+            clientForm.rtn.trim(),
+
+          email:
+            clientForm.email.trim(),
+        })
+
+      setClientModalOpen(
+        false
+      )
+
+      if (newClient) {
+        handleSelectClient(
+          newClient
+        )
+      }
+
+      Swal.fire({
+        icon: "success",
+
+        title:
+          "Cliente guardado",
+      })
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+
+        title:
+          "No se pudo guardar el cliente",
+
+        text:
+          error.message,
+      })
+    }
+  }
+
+  const buildQuote = () => {
+    const quoteNumber =
+      formatQuoteNumber(
+        nextQuoteNumber
+      )
+
+    const customerName =
+      selectedClient?.name ||
+      clientSearch.trim() ||
+      "Cliente General"
+
+    return {
+      id: generateId(),
+
+      quoteNumber,
+
+      date: todayLabel(),
+
+      timestamp:
+        Date.now(),
+
+      clientId:
+        selectedClient?.id ||
+        null,
+
+      clientName:
+        customerName,
+
+      clientPhone:
+        selectedClient?.phone ||
+        "",
+
+      clientAddress:
+        selectedClient?.address ||
+        "",
+
+      rtn:
+        selectedClient?.rtn ||
+        "",
+
+      validity:
+        validity || "",
+
+      notes:
+        notes.trim(),
+
+      includeTax,
+
+      taxRate,
+
+      items: cart.map(
+        (item) => ({
+          productId:
+            item.productId,
+
+          id:
+            item.productId,
+
+          code:
+            item.code || "",
+
+          name:
+            item.name,
+
+          category:
+            item.category ||
+            "",
+
+          price: Number(
+            item.price || 0
+          ),
+
+          qty: Number(
+            item.qty || 0
+          ),
+
+          quantity: Number(
+            item.qty || 0
+          ),
+
+          subtotal:
+            Number(
+              item.price || 0
+            ) *
+            Number(
+              item.qty || 0
+            ),
+        })
+      ),
+
+      subtotal,
+
+      tax,
+
+      total,
+
+      company: {
+        name:
+          company?.name ||
+          "Ferretería Isaac",
+
+        address:
+          company?.address ||
+          "",
+
+        phone:
+          company?.phone ||
+          "",
+
+        currency,
+
+        taxRate,
+      },
+    }
+  }
+
+  const clearQuoteForm = () => {
+    setSearch("")
+    setCart([])
+    setQtyMap({})
+
+    setClientSearch("")
+    setSelectedClient(null)
+
+    setValidity(
+      addDaysISO(15)
+    )
+
+    setNotes("")
+
+    setIncludeTax(true)
+  }
+
+  const generateQuote =
+    async () => {
+      if (
+        cart.length === 0
+      ) {
+        Swal.fire({
+          icon: "warning",
+
+          title:
+            "Cotización vacía",
+
+          text:
+            "Agrega al menos un producto.",
+        })
+
+        return
+      }
+
+      const quote =
+        buildQuote()
+
+      const updatedQuotes = [
+        quote,
+        ...quotes,
+      ]
+
+      const nextNumber =
+        nextQuoteNumber + 1
+
+      setQuotes(
+        updatedQuotes
+      )
+
+      setNextQuoteNumber(
+        nextNumber
+      )
+
+      localStorage.setItem(
+        "quotes",
+
+        JSON.stringify(
+          updatedQuotes
+        )
+      )
+
+      localStorage.setItem(
+        "nextQuoteNumber",
+
+        String(nextNumber)
+      )
+
+      setSelectedQuote(
+        quote
+      )
+
+      setPreviewOpen(true)
+
+      /*
+       * Igual que en el HTML:
+       * generar y guardar limpia
+       * la cotización actual.
+       */
+      clearQuoteForm()
+
+      Swal.fire({
+        icon: "success",
+
+        title: `Cotización ${quote.quoteNumber} guardada`,
+
+        text:
+          "El inventario no fue modificado.",
+      })
+    }
+
+  const viewQuote = (
+    quote
+  ) => {
+    setSelectedQuote(
+      quote
+    )
+
+    setPreviewOpen(true)
+  }
+
+  const deleteQuote = async (
+    quoteId
+  ) => {
+    const result =
+      await Swal.fire({
+        icon: "warning",
+
+        title:
+          "¿Eliminar cotización?",
+
+        text:
+          "Esta acción eliminará el registro guardado.",
+
+        showCancelButton: true,
+
+        confirmButtonText:
+          "Sí, eliminar",
+
+        cancelButtonText:
+          "Cancelar",
+
+        confirmButtonColor:
+          "#C0392B",
+      })
+
+    if (
+      !result.isConfirmed
+    ) {
+      return
+    }
+
+    const updatedQuotes =
+      quotes.filter(
+        (quote) =>
+          String(
+            quote.id
+          ) !==
+          String(
+            quoteId
+          )
+      )
+
+    setQuotes(
+      updatedQuotes
+    )
+
+    localStorage.setItem(
+      "quotes",
+
+      JSON.stringify(
+        updatedQuotes
+      )
+    )
+
+    Swal.fire({
+      icon: "success",
+
+      title:
+        "Cotización eliminada",
+    })
+  }
+
+  const clearCurrentQuote =
+    async () => {
+      if (
+        cart.length === 0
+      ) {
+        return
+      }
+
+      const result =
+        await Swal.fire({
+          icon: "question",
+
+          title:
+            "¿Vaciar la cotización actual?",
+
+          text:
+            "Se quitarán todos los productos agregados.",
+
+          showCancelButton: true,
+
+          confirmButtonText:
+            "Sí, vaciar",
+
+          cancelButtonText:
+            "Cancelar",
+        })
+
+      if (
+        result.isConfirmed
+      ) {
+        clearQuoteForm()
+      }
+    }
+
+  return (
+    <div className="view active">
+      <div className="view-header">
+        <div>
+          <h2>
+            Cotización
+          </h2>
+
+          <p className="sub">
+            Genera cotizaciones
+            de productos sin
+            afectar el inventario
+          </p>
+        </div>
+      </div>
+
+      <div className="bill-grid">
+        {/* PRODUCTOS */}
+        <div>
+          <div
+            className="search-box"
+            style={{
+              maxWidth: "none",
+
+              marginBottom:
+                12,
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="8"
+              />
+
+              <line
+                x1="21"
+                y1="21"
+                x2="16.65"
+                y2="16.65"
+              />
+            </svg>
+
+            <input
+              type="text"
+              placeholder="Buscar producto para cotizar..."
+              value={search}
+              onChange={(
+                event
+              ) =>
+                setSearch(
+                  event
+                    .target
+                    .value
+                )
+              }
+            />
+          </div>
+
+          <div className="picker-list">
+            {filteredProducts.length ===
+            0 ? (
+              <div className="cart-empty">
+                No se encontraron
+                resultados
+              </div>
+            ) : (
+              filteredProducts.map(
+                (product) => {
+                  const quantity =
+                    qtyMap[
+                      product.id
+                    ] ?? 1
+
+                  const alreadyAdded =
+                    cartQuantityFor(
+                      product.id
+                    )
+
+                  return (
+                    <div
+                      key={
+                        product.id
+                      }
+                      className="picker-item"
+                    >
+                      <div className="info">
+                        <strong>
+                          {
+                            product.name
+                          }
+                        </strong>
+
+                        <span>
+                          {product.code ||
+                            "S/C"}
+
+                          {" · "}
+
+                          {product.category ||
+                            "Sin categoría"}
+
+                          {alreadyAdded >
+                            0 && (
+                            <>
+                              {" · "}
+
+                              <b>
+                                {
+                                  alreadyAdded
+                                }{" "}
+                                en
+                                cotización
+                              </b>
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="picker-actions">
+                        <span className="price">
+                          {formatMoney(
+                            product.price,
+                            currency
+                          )}
+                        </span>
+
+                        <input
+                          type="number"
+                          className="qty-input"
+                          min="1"
+                          value={
+                            quantity
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setQtyMap(
+                              (
+                                current
+                              ) => ({
+                                ...current,
+
+                                [product.id]:
+                                  event
+                                    .target
+                                    .value,
+                              })
+                            )
+                          }
+                        />
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() =>
+                            addToCart(
+                              product,
+                              quantity
+                            )
+                          }
+                        >
+                          Agregar
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+              )
+            )}
+          </div>
+        </div>
+
+        {/* COTIZACIÓN ACTUAL */}
+        <aside className="card cart-card">
+          <div className="card-pad">
+            <h3
+              style={{
+                fontSize: 17,
+
+                marginBottom:
+                  12,
+              }}
+            >
+              📋 Cotización actual
+            </h3>
+
+            <div
+              style={{
+                marginBottom:
+                  10,
+              }}
+            >
+              <ClientAutocomplete
+                clients={clients}
+                label="Cliente / Empresa"
+                placeholder="Busca o escribe el nombre del cliente..."
+                value={
+                  clientSearch
+                }
+                selectedClient={
+                  selectedClient
+                }
+                required={
+                  false
+                }
+                allowFreeText
+                onChange={
+                  handleClientChange
+                }
+                onSelect={
+                  handleSelectClient
+                }
+                onClear={
+                  clearSelectedClient
+                }
+                onCreateNew={
+                  openNewClientModal
+                }
+              />
+            </div>
+
+            <div
+              className="form-grid"
+              style={{
+                marginBottom:
+                  10,
+              }}
+            >
+              <div className="field">
+                <label>
+                  Válida hasta
+                </label>
+
+                <input
+                  type="date"
+                  value={
+                    validity
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setValidity(
+                      event
+                        .target
+                        .value
+                    )
+                  }
+                />
+              </div>
+
+              <div className="field">
+                <label>
+                  Observaciones
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Ej. Incluye instalación"
+                  value={notes}
+                  onChange={(
+                    event
+                  ) =>
+                    setNotes(
+                      event
+                        .target
+                        .value
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            <div
+              className="field"
+              style={{
+                marginBottom:
+                  10,
+              }}
+            >
+              <label
+                style={{
+                  display:
+                    "flex",
+
+                  alignItems:
+                    "center",
+
+                  gap: 7,
+
+                  fontWeight:
+                    "normal",
+
+                  cursor:
+                    "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={
+                    includeTax
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setIncludeTax(
+                      event
+                        .target
+                        .checked
+                    )
+                  }
+                />
+
+                Incluir ISV en el
+                total
+              </label>
+            </div>
+
+            <div className="cart-items">
+              {cart.length ===
+              0 ? (
+                <div className="cart-empty">
+                  Agrega productos
+                  para generar la
+                  cotización
+                </div>
+              ) : (
+                cart.map(
+                  (item) => (
+                    <div
+                      key={
+                        item.productId
+                      }
+                      className="cart-row"
+                    >
+                      <div className="name">
+                        {
+                          item.name
+                        }
+
+                        <small>
+                          {formatMoney(
+                            item.price,
+                            currency
+                          )}{" "}
+                          c/u
+                        </small>
+                      </div>
+
+                      <div className="stepper">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            changeQuantity(
+                              item.productId,
+                              -1
+                            )
+                          }
+                        >
+                          −
+                        </button>
+
+                        <span>
+                          {
+                            item.qty
+                          }
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            changeQuantity(
+                              item.productId,
+                              1
+                            )
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <div className="sub">
+                        {formatMoney(
+                          item.price *
+                            item.qty,
+
+                          currency
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="icon-btn danger cart-remove-button"
+                        title="Eliminar producto"
+                        onClick={() =>
+                          removeFromCart(
+                            item.productId
+                          )
+                        }
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  )
+                )
+              )}
+            </div>
+
+            <div className="totals">
+              <div className="totals-row">
+                <span>
+                  Subtotal
+                </span>
+
+                <span className="v">
+                  {formatMoney(
+                    subtotal,
+                    currency
+                  )}
+                </span>
+              </div>
+
+              {includeTax && (
+                <div className="totals-row">
+                  <span>
+                    ISV (
+                    {taxRate}%)
+                  </span>
+
+                  <span className="v">
+                    {formatMoney(
+                      tax,
+                      currency
+                    )}
+                  </span>
+                </div>
+              )}
+
+              <div className="totals-row grand">
+                <span>
+                  Total
+                </span>
+
+                <span className="v">
+                  {formatMoney(
+                    total,
+                    currency
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-primary btn-lg btn-block"
+              style={{
+                marginTop:
+                  14,
+              }}
+              disabled={
+                cart.length ===
+                0
+              }
+              onClick={
+                generateQuote
+              }
+            >
+              Generar y guardar
+              cotización
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-block"
+              style={{
+                marginTop: 5,
+              }}
+              disabled={
+                cart.length ===
+                0
+              }
+              onClick={
+                clearCurrentQuote
+              }
+            >
+              Vaciar
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* HISTORIAL */}
+      <div
+        className="view-header"
+        style={{
+          marginTop: 30,
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              fontSize: 19,
+            }}
+          >
+            Historial de
+            cotizaciones
+          </h2>
+
+          <p className="sub">
+            Cotizaciones guardadas
+          </p>
+        </div>
+      </div>
+
+      <div className="toolbar">
+        <div className="search-box">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle
+              cx="11"
+              cy="11"
+              r="8"
+            />
+
+            <line
+              x1="21"
+              y1="21"
+              x2="16.65"
+              y2="16.65"
+            />
+          </svg>
+
+          <input
+            type="text"
+            placeholder="Buscar por cliente o número..."
+            value={
+              historySearch
+            }
+            onChange={(
+              event
+            ) =>
+              setHistorySearch(
+                event
+                  .target
+                  .value
+              )
+            }
+          />
+        </div>
+      </div>
+
+      {quotes.length === 0 ? (
+        <div className="empty-state">
+          <strong>
+            No hay cotizaciones
+            guardadas
+          </strong>
+        </div>
+      ) : (
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            flexDirection:
+              "column",
+          }}
+        >
+          {filteredQuotes.map(
+            (quote, index) => (
+              <div
+                key={
+                  quote.id
+                }
+                className="sale-card"
+                style={{
+                  borderTop:
+                    index > 0
+                      ? "1px solid var(--line)"
+                      : "none",
+                }}
+              >
+                <div className="left">
+                  <div
+                    className="sale-icon"
+                    style={{
+                      background:
+                        "var(--purple-light)",
+
+                      color:
+                        "var(--purple)",
+                    }}
+                  >
+                    📄
+                  </div>
+
+                  <div className="sale-info">
+                    <b>
+                      {quote.clientName ||
+                        "Cliente General"}
+                    </b>
+
+                    <span>
+                      {
+                        quote.quoteNumber
+                      }
+
+                      {" · "}
+
+                      {
+                        quote.date
+                      }
+
+                      {quote.validity &&
+                        ` · Válida: ${new Date(
+                          `${quote.validity}T00:00:00`
+                        ).toLocaleDateString(
+                          "es-HN"
+                        )}`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="sale-right">
+                  <div className="sale-total">
+                    {formatMoney(
+                      quote.total,
+                      quote
+                        .company
+                        ?.currency ||
+                        currency
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() =>
+                      viewQuote(
+                        quote
+                      )
+                    }
+                  >
+                    Ver
+                  </button>
+
+                  <button
+                    type="button"
+                    className="icon-btn danger"
+                    title="Eliminar cotización"
+                    onClick={() =>
+                      deleteQuote(
+                        quote.id
+                      )
+                    }
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+
+          {filteredQuotes.length ===
+            0 && (
+            <div className="empty-state">
+              No se encontraron
+              cotizaciones.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* NUEVO CLIENTE */}
+      {clientModalOpen && (
+        <div className="modal-overlay open">
+          <div className="modal">
+            <div className="modal-head">
+              <h3>
+                Nuevo cliente
+              </h3>
+
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() =>
+                  setClientModalOpen(
+                    false
+                  )
+                }
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="field">
+                  <label>
+                    Nombre
+                  </label>
+
+                  <input
+                    value={
+                      clientForm.name
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setClientForm(
+                        (
+                          current
+                        ) => ({
+                          ...current,
+
+                          name:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    RTN
+                    (opcional)
+                  </label>
+
+                  <input
+                    value={
+                      clientForm.rtn
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setClientForm(
+                        (
+                          current
+                        ) => ({
+                          ...current,
+
+                          rtn:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Teléfono
+                  </label>
+
+                  <input
+                    value={
+                      clientForm.phone
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setClientForm(
+                        (
+                          current
+                        ) => ({
+                          ...current,
+
+                          phone:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Correo
+                  </label>
+
+                  <input
+                    type="email"
+                    value={
+                      clientForm.email
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setClientForm(
+                        (
+                          current
+                        ) => ({
+                          ...current,
+
+                          email:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="field full">
+                  <label>
+                    Dirección
+                  </label>
+
+                  <input
+                    value={
+                      clientForm.address
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setClientForm(
+                        (
+                          current
+                        ) => ({
+                          ...current,
+
+                          address:
+                            event
+                              .target
+                              .value,
+                        })
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-foot">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={
+                  saveNewClient
+                }
+              >
+                Guardar cliente
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() =>
+                  setClientModalOpen(
+                    false
+                  )
+                }
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA / PDF / IMPRESIÓN */}
+      <DocumentPreviewModal
+        open={
+          previewOpen &&
+          !!selectedQuote
+        }
+        title="Cotización"
+        fileName={`Cotizacion-${
+          selectedQuote?.quoteNumber ||
+          "documento"
+        }.pdf`}
+        printTitle="Cotización"
+        canExport
+        onClose={() => {
+          setPreviewOpen(
+            false
+          )
+
+          setSelectedQuote(
+            null
+          )
+        }}
+      >
+        <QuoteTemplate
+          quote={
+            selectedQuote
+          }
+        />
+      </DocumentPreviewModal>
+    </div>
+  )
+}
+
+export default Quotes
