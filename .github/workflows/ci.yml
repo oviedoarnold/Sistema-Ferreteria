@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verificar:
+    name: Lint, tests y build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Informativo: hay una deuda conocida de 11 avisos heredados.
+      # No bloquea el pipeline hasta terminar de saldarla.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      # Estos sí bloquean: si un test falla o el build se rompe,
+      # el pipeline queda en rojo y el commit no se considera bueno.
+      - name: Tests con cobertura
+        run: npm run coverage
+
+      - name: Build de producción
+        run: npm run build
+
+      - name: Publicar el reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage/
+          retention-days: 30

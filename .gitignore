@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cobertura: solo se versiona el resumen, que el requisito pide
+coverage/*
+!coverage/coverage-summary.json
