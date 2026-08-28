@@ -4,6 +4,7 @@ import {
   Route,
 } from "react-router-dom"
 
+import Landing from "../pages/Landing"
 import Login from "../pages/Login"
 import Dashboard from "../pages/Dashboard"
 import Products from "../pages/Products"
@@ -21,9 +22,15 @@ function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* LOGIN */}
+        {/* LANDING */}
         <Route
           path="/"
+          element={<Landing />}
+        />
+
+        {/* LOGIN */}
+        <Route
+          path="/login"
           element={<Login />}
         />
 

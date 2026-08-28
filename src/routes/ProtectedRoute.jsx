@@ -20,7 +20,7 @@ function ProtectedRoute({
   if (!user) {
     return (
       <Navigate
-        to="/"
+        to="/login"
         replace
         state={{
           from: location.pathname,
