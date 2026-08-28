@@ -11,9 +11,15 @@ jobs:
     name: Lint, tests y build
     runs-on: ubuntu-latest
 
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
+        with:
+          # SonarCloud necesita el historial para atribuir el codigo nuevo.
+          fetch-depth: 0
 
       - name: Preparar Node
         uses: actions/setup-node@v4
@@ -24,9 +30,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # Los tres pasos bloquean: si el lint marca algo, un test falla o
-      # el build se rompe, el pipeline queda en rojo y el commit no se
-      # considera bueno.
+      # Los tres pasos siguientes bloquean: si el lint marca algo, un test
+      # falla o el build se rompe, el pipeline queda en rojo y el commit no
+      # se considera bueno.
       - name: Lint
         run: npm run lint
 
@@ -35,6 +41,12 @@ jobs:
 
       - name: Build de producción
         run: npm run build
+
+      # Se omite mientras no exista el secreto SONAR_TOKEN, para no dejar
+      # el pipeline en rojo antes de conectar el proyecto en SonarCloud.
+      - name: SonarCloud
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v4
 
       - name: Publicar el reporte de cobertura
         if: always()
