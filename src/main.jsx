@@ -9,6 +9,8 @@ import ProductProvider from './context/ProductContext'
 import SalesProvider from './context/SalesContext'
 import ClientsProvider from './context/ClientsContext'
 
+import { registrarServiceWorker } from './registrarServiceWorker'
+
 
 ReactDOM.createRoot(document.getElementById('root')).render(
 
@@ -26,3 +28,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
   </React.StrictMode>
 )
+
+registrarServiceWorker()
