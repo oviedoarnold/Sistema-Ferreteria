@@ -1,4 +1,5 @@
-﻿import { useContext, useMemo, useState } from "react"
+﻿import { useContext, useEffect, useMemo, useState } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import Swal from "sweetalert2"
 import { ProductContext } from "../context/ProductContext"
 import { SalesContext } from "../context/SalesContext"
@@ -33,14 +34,32 @@ function POS() {
   const { addSale } = useContext(SalesContext)
   const { clients = [], addClient } = useContext(ClientsContext)
 
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const saleDraft = location.state?.saleDraft
+
   const [search, setSearch] = useState("")
-  const [cart, setCart] = useState([])
+  const [cart, setCart] = useState(
+    () => saleDraft?.cart || []
+  )
   const [qtyMap, setQtyMap] = useState({})
 
   const [paymentType, setPaymentType] = useState("contado")
-  const [clientSearch, setClientSearch] = useState("")
-  const [selectedClient, setSelectedClient] = useState(null)
-  const [buyerRTN, setBuyerRTN] = useState("")
+  const [clientSearch, setClientSearch] = useState(
+    () => saleDraft?.clientName || ""
+  )
+  const [selectedClient, setSelectedClient] = useState(
+    () =>
+      clients.find(
+        (candidate) =>
+          String(candidate.id) ===
+          String(saleDraft?.clientId)
+      ) || null
+  )
+  const [buyerRTN, setBuyerRTN] = useState(
+    () => saleDraft?.rtn || ""
+  )
   const [dueDate, setDueDate] = useState(toISODateInDays(30))
 
   const [clientModalOpen, setClientModalOpen] = useState(false)
@@ -56,6 +75,25 @@ function POS() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewSale, setPreviewSale] = useState(null)
   const [previewMode, setPreviewMode] = useState("preview")
+
+  /*
+    Se limpia el borrador del historial para que recargar la pagina
+    no vuelva a cargar la cotizacion ya facturada.
+  */
+  useEffect(() => {
+    if (!saleDraft) return
+
+    navigate("/pos", {
+      replace: true,
+      state: null,
+    })
+
+    Swal.fire({
+      icon: "success",
+      title: "Cotización cargada",
+      text: `Se cargaron los productos de ${saleDraft.quoteNumber}. Revisa antes de facturar.`,
+    })
+  }, [saleDraft, navigate])
 
   const filteredProducts = useMemo(
     () =>

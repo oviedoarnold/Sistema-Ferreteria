@@ -20,19 +20,55 @@ import {
   todayForDisplay,
 } from "../utils/format"
 
-function generateId() {
-  return `Q-${Date.now()}-${Math.floor(
-    Math.random() * 1000
-  )}`
+import {
+  addProductToCart,
+  buildStockWarningMessage,
+  filterProductsBySearchText,
+  findCartLine,
+  getQuantityInCart,
+  normalizeRequestedQuantity,
+  removeProductFromCart,
+  setCartLineQuantity,
+  validateQuantityAgainstStock,
+} from "../utils/cart"
+
+import { useNavigate } from "react-router-dom"
+
+import {
+  buildQuoteNumber,
+  buildSaleDraftFromQuote,
+  findUnavailableItems,
+  calculateQuoteTotals,
+  createQuoteId,
+  filterQuotesBySearchText,
+  getQuoteStatus,
+} from "../utils/quotes"
+
+const CLASE_POR_ESTADO = {
+  vencida: "badge-overdue",
+  "por-vencer": "badge-low",
+  vigente: "badge-ok",
+  "sin-vigencia": "badge-credit",
 }
 
-function formatQuoteNumber(number) {
-  return `COT-${String(
-    number
-  ).padStart(5, "0")}`
+function QuoteStatusBadge({ quote }) {
+  const status = getQuoteStatus(quote)
+
+  return (
+    <span
+      className={`badge ${
+        CLASE_POR_ESTADO[status.code]
+      }`}
+    >
+      <span className="badge-dot" />
+      {status.label}
+    </span>
+  )
 }
 
 function Quotes() {
+  const navigate = useNavigate()
+
   const {
     products = [],
     company = {},
@@ -161,235 +197,148 @@ function Quotes() {
     company?.taxRate ?? 15
   )
 
-  const filteredProducts =
-    useMemo(() => {
-      const query = search
-        .trim()
-        .toLowerCase()
+  const filteredProducts = useMemo(
+    () =>
+      filterProductsBySearchText(
+        products,
+        search
+      ),
+    [products, search]
+  )
 
-      return products.filter(
-        (product) => {
-          const searchableText = [
-            product.name,
-            product.code,
-            product.category,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-
-          return searchableText.includes(
-            query
-          )
-        }
-      )
-    }, [products, search])
-
-  const filteredQuotes =
-    useMemo(() => {
-      const query =
+  const filteredQuotes = useMemo(
+    () =>
+      filterQuotesBySearchText(
+        quotes,
         historySearch
-          .trim()
-          .toLowerCase()
-
-      return quotes.filter(
-        (quote) => {
-          const searchableText = [
-            quote.clientName,
-            quote.quoteNumber,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-
-          return searchableText.includes(
-            query
-          )
-        }
-      )
-    }, [quotes, historySearch])
+      ),
+    [quotes, historySearch]
+  )
 
   const cartQuantityFor = (
     productId
-  ) => {
-    const item = cart.find(
-      (cartItem) =>
-        String(
-          cartItem.productId
-        ) ===
-        String(productId)
+  ) =>
+    getQuantityInCart(
+      cart,
+      productId
     )
-
-    return item
-      ? item.qty
-      : 0
-  }
 
   const addToCart = (
     product,
     requestedQty
   ) => {
-    const quantity = Math.max(
-      1,
-      Number.parseInt(
-        requestedQty,
-        10
-      ) || 1
-    )
+    const quantity =
+      normalizeRequestedQuantity(
+        requestedQty
+      )
 
-    /*
-     * IMPORTANTE:
-     * Cotización NO limita por stock.
-     *
-     * En el HTML original una
-     * cotización puede solicitar una
-     * cantidad mayor a las existencias
-     * porque no representa una venta.
-     */
-    setCart(
-      (currentCart) => {
-        const existingItem =
-          currentCart.find(
-            (item) =>
-              String(
-                item.productId
-              ) ===
-              String(
-                product.id
-              )
-          )
+    const validation =
+      validateQuantityAgainstStock(
+        product,
+        cart,
+        quantity
+      )
 
-        if (existingItem) {
-          return currentCart.map(
-            (item) =>
-              String(
-                item.productId
-              ) ===
-              String(
-                product.id
-              )
-                ? {
-                    ...item,
-
-                    qty:
-                      item.qty +
-                      quantity,
-                  }
-                : item
-          )
-        }
-
-        return [
-          ...currentCart,
-
-          {
-            productId:
-              product.id,
-
-            id: product.id,
-
-            code:
-              product.code || "",
-
-            name:
-              product.name,
-
-            category:
-              product.category ||
-              "",
-
-            price: Number(
-              product.price || 0
-            ),
-
-            qty: quantity,
-          },
-        ]
-      }
-    )
-
-    setQtyMap(
-      (current) => ({
-        ...current,
-
-        [product.id]: 1,
+    if (!validation.isAllowed) {
+      Swal.fire({
+        icon: "warning",
+        title: "Stock insuficiente",
+        text: buildStockWarningMessage(
+          product.name,
+          validation
+        ),
       })
+
+      return
+    }
+
+    setCart((currentCart) =>
+      addProductToCart(
+        currentCart,
+        product,
+        quantity
+      )
     )
+
+    setQtyMap((current) => ({
+      ...current,
+      [product.id]: 1,
+    }))
   }
 
   const changeQuantity = (
     productId,
     delta
   ) => {
-    setCart(
-      (currentCart) =>
-        currentCart
-          .map((item) => {
-            if (
-              String(
-                item.productId
-              ) !==
-              String(
-                productId
-              )
-            ) {
-              return item
-            }
+    const product = products.find(
+      (item) =>
+        String(item.id) ===
+        String(productId)
+    )
 
-            return {
-              ...item,
+    const cartItem = findCartLine(
+      cart,
+      productId
+    )
 
-              qty:
-                item.qty +
-                delta,
-            }
-          })
-          .filter(
-            (item) =>
-              item.qty > 0
-          )
+    if (!product || !cartItem) return
+
+    const nextQuantity =
+      cartItem.quantity + delta
+
+    if (
+      nextQuantity >
+      Number(product.stock || 0)
+    ) {
+      Swal.fire({
+        icon: "warning",
+        title: "Stock insuficiente",
+        text: buildStockWarningMessage(
+          product.name,
+          {
+            reason: "excede-existencias",
+            availableToAdd: Number(
+              product.stock || 0
+            ),
+          }
+        ),
+      })
+
+      return
+    }
+
+    setCart((currentCart) =>
+      setCartLineQuantity(
+        currentCart,
+        productId,
+        nextQuantity
+      )
     )
   }
 
   const removeFromCart = (
     productId
   ) => {
-    setCart(
-      (currentCart) =>
-        currentCart.filter(
-          (item) =>
-            String(
-              item.productId
-            ) !==
-            String(
-              productId
-            )
-        )
+    setCart((currentCart) =>
+      removeProductFromCart(
+        currentCart,
+        productId
+      )
     )
   }
 
-  const subtotal =
-    useMemo(() => {
-      return cart.reduce(
-        (total, item) =>
-          total +
-          Number(
-            item.price || 0
-          ) *
-            Number(
-              item.qty || 0
-            ),
-        0
-      )
-    }, [cart])
-
-  const tax = includeTax
-    ? subtotal *
-      (taxRate / 100)
-    : 0
-
-  const total =
-    subtotal + tax
+  const {
+    subtotal,
+    tax,
+    total,
+  } = useMemo(
+    () =>
+      calculateQuoteTotals(cart, {
+        includeTax,
+        taxRate,
+      }),
+    [cart, includeTax, taxRate]
+  )
 
   const handleClientChange = (
     value
@@ -508,7 +457,7 @@ function Quotes() {
 
   const buildQuote = () => {
     const quoteNumber =
-      formatQuoteNumber(
+      buildQuoteNumber(
         nextQuoteNumber
       )
 
@@ -518,7 +467,7 @@ function Quotes() {
       "Cliente General"
 
     return {
-      id: generateId(),
+      id: createQuoteId(),
 
       quoteNumber,
 
@@ -579,11 +528,11 @@ function Quotes() {
           ),
 
           qty: Number(
-            item.qty || 0
+            item.quantity || 0
           ),
 
           quantity: Number(
-            item.qty || 0
+            item.quantity || 0
           ),
 
           subtotal:
@@ -591,7 +540,7 @@ function Quotes() {
               item.price || 0
             ) *
             Number(
-              item.qty || 0
+              item.quantity || 0
             ),
         })
       ),
@@ -712,6 +661,50 @@ function Quotes() {
           "El inventario no fue modificado.",
       })
     }
+
+  const convertQuoteToSale = async (
+    quote
+  ) => {
+    const draft =
+      buildSaleDraftFromQuote(quote)
+
+    const unavailable =
+      findUnavailableItems(
+        draft.cart,
+        products
+      )
+
+    if (unavailable.length > 0) {
+      const detalle = unavailable
+        .map((item) =>
+          item.reason === "no-existe"
+            ? `${item.name}: ya no está en el inventario`
+            : `${item.name}: se piden ${item.requested} y hay ${item.available}`
+        )
+        .join("\n")
+
+      const confirmar =
+        await Swal.fire({
+          icon: "warning",
+          title:
+            "Hay productos con problemas",
+          text: `${detalle}\n\n¿Quieres pasar la cotización al punto de venta de todos modos?`,
+          showCancelButton: true,
+          confirmButtonText:
+            "Sí, continuar",
+          cancelButtonText:
+            "Cancelar",
+        })
+
+      if (!confirmar.isConfirmed) {
+        return
+      }
+    }
+
+    navigate("/pos", {
+      state: { saleDraft: draft },
+    })
+  }
 
   const viewQuote = (
     quote
@@ -1190,7 +1183,7 @@ function Quotes() {
 
                         <span>
                           {
-                            item.qty
+                            item.quantity
                           }
                         </span>
 
@@ -1210,7 +1203,7 @@ function Quotes() {
                       <div className="sub">
                         {formatMoney(
                           item.price *
-                            item.qty,
+                            item.quantity,
 
                           currency
                         )}
@@ -1445,12 +1438,18 @@ function Quotes() {
                       }
 
                       {quote.validity &&
-                        ` · Válida: ${new Date(
+                        ` · Válida hasta ${new Date(
                           `${quote.validity}T00:00:00`
                         ).toLocaleDateString(
                           "es-HN"
                         )}`}
                     </span>
+
+                    <div className="badges">
+                      <QuoteStatusBadge
+                        quote={quote}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1464,6 +1463,19 @@ function Quotes() {
                         currency
                     )}
                   </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    title="Pasar esta cotización al punto de venta"
+                    onClick={() =>
+                      convertQuoteToSale(
+                        quote
+                      )
+                    }
+                  >
+                    Facturar
+                  </button>
 
                   <button
                     type="button"
