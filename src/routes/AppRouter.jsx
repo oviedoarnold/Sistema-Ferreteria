@@ -38,7 +38,7 @@ function AppRouter() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.DASHBOARD}>
               <MainLayout>
                 <Dashboard />
               </MainLayout>
@@ -50,7 +50,7 @@ function AppRouter() {
         <Route
           path="/products"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.PRODUCTS}>
               <MainLayout>
                 <Products />
               </MainLayout>
@@ -62,7 +62,7 @@ function AppRouter() {
         <Route
           path="/clients"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.CLIENTS}>
               <MainLayout>
                 <Clients />
               </MainLayout>
@@ -74,7 +74,7 @@ function AppRouter() {
         <Route
           path="/pos"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.POS}>
               <MainLayout>
                 <POS />
               </MainLayout>
@@ -86,7 +86,7 @@ function AppRouter() {
         <Route
           path="/quotes"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.QUOTES}>
               <MainLayout>
                 <Quotes />
               </MainLayout>
@@ -98,7 +98,7 @@ function AppRouter() {
         <Route
           path="/sales-history"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.SALES_HISTORY}>
               <MainLayout>
                 <SalesHistory />
               </MainLayout>
@@ -110,7 +110,7 @@ function AppRouter() {
         <Route
           path="/suppliers"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission={PERMISSIONS.SUPPLIERS}>
               <MainLayout>
                 <Suppliers />
               </MainLayout>

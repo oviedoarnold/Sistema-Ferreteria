@@ -197,39 +197,20 @@ function loadUsers() {
   }
 }
 
-export function AuthProvider({
-  children,
-}) {
-  const [users, setUsers] =
-    useState(loadUsers)
-
-  const [user, setUser] =
-    useState(null)
-
-  /*
-   * Guarda los usuarios cada vez
-   * que haya un cambio.
-   */
-  useEffect(() => {
-    localStorage.setItem(
-      USERS_STORAGE_KEY,
-      JSON.stringify(users)
-    )
-  }, [users])
-
-  /*
-   * Recuperar sesión al recargar
-   * el navegador.
-   */
-  useEffect(() => {
+/*
+ * Devuelve el usuario de la sesión
+ * guardada, o null si no hay una
+ * sesión válida.
+ */
+function restoreSessionUser(users) {
+  try {
     const sessionUserId =
       localStorage.getItem(
         SESSION_STORAGE_KEY
       )
 
     if (!sessionUserId) {
-      setUser(null)
-      return
+      return null
     }
 
     const sessionUser =
@@ -238,9 +219,7 @@ export function AuthProvider({
           String(
             currentUser.id
           ) ===
-          String(
-            sessionUserId
-          )
+          String(sessionUserId)
       )
 
     /*
@@ -256,15 +235,63 @@ export function AuthProvider({
         SESSION_STORAGE_KEY
       )
 
-      setUser(null)
-
-      return
+      return null
     }
 
+    return normalizeUser(
+      sessionUser
+    )
+  } catch (error) {
+    console.error(
+      "Error recuperando la sesión:",
+      error
+    )
+
+    return null
+  }
+}
+
+export function AuthProvider({
+  children,
+}) {
+  const [users, setUsers] =
+    useState(loadUsers)
+
+  /*
+   * La sesión se recupera de forma
+   * síncrona. Si se hiciera dentro
+   * de un efecto, el primer render
+   * vería user = null y las rutas
+   * protegidas mandarían al login
+   * en cada refresh.
+   */
+  const [user, setUser] =
+    useState(() =>
+      restoreSessionUser(users)
+    )
+
+  /*
+   * Guarda los usuarios cada vez
+   * que haya un cambio.
+   */
+  useEffect(() => {
+    localStorage.setItem(
+      USERS_STORAGE_KEY,
+      JSON.stringify(users)
+    )
+  }, [users])
+
+  /*
+   * Revalida la sesión cuando cambia
+   * la lista de usuarios: si al
+   * usuario en sesión le quitan
+   * permisos, lo desactivan o lo
+   * eliminan, el cambio se aplica
+   * sin tener que volver a entrar.
+   */
+  useEffect(() => {
     setUser(
-      normalizeUser(
-        sessionUser
-      )
+      restoreSessionUser(users)
     )
   }, [users])
 
