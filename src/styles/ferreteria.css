@@ -541,4 +541,8 @@ td.num,th.num{text-align:right;font-family:var(--font-mono);}
 .inv-table th:first-child,
 .inv-table td:first-child {
   width: 40%;
-}
+}/* ── DATOS FISCALES DE LA FACTURA ── */
+.inv-fiscal{margin:0 22px 16px;border:1px solid var(--line-strong);border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:3px;background:var(--cream);}
+.inv-fiscal-row{display:flex;justify-content:space-between;gap:20px;font-size:11.5px;}
+.inv-fiscal-row span{color:var(--steel);}
+.inv-fiscal-row b{font-family:var(--font-mono);font-weight:600;text-align:right;}

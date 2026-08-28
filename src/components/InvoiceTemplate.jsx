@@ -3,6 +3,8 @@ import {
   getSaleBalance,
 } from "../utils/salesUtils"
 
+import { formatDocumentNumber } from "../utils/fiscal"
+
 const DEFAULT_COMPANY = {
   name: "Ferretería Isaac",
 
@@ -372,6 +374,57 @@ function InvoiceTemplate({
         "pendiente" && (
         <div className="inv-pending">
           PENDIENTE DE PAGO
+        </div>
+      )}
+
+      {sale.fiscal && (
+        <div className="inv-fiscal">
+          <div className="inv-fiscal-row">
+            <span>CAI</span>
+            <b>{sale.fiscal.cai}</b>
+          </div>
+
+          {sale.fiscal.rtn && (
+            <div className="inv-fiscal-row">
+              <span>
+                RTN del emisor
+              </span>
+              <b>
+                {sale.fiscal.rtn}
+              </b>
+            </div>
+          )}
+
+          <div className="inv-fiscal-row">
+            <span>
+              Rango autorizado
+            </span>
+            <b>
+              {formatDocumentNumber(
+                sale.fiscal
+                  .rangoDesde,
+                sale.fiscal
+              )}
+              {" al "}
+              {formatDocumentNumber(
+                sale.fiscal
+                  .rangoHasta,
+                sale.fiscal
+              )}
+            </b>
+          </div>
+
+          <div className="inv-fiscal-row">
+            <span>
+              Fecha límite de emisión
+            </span>
+            <b>
+              {
+                sale.fiscal
+                  .fechaLimiteEmision
+              }
+            </b>
+          </div>
         </div>
       )}
 

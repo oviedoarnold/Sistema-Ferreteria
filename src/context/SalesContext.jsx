@@ -15,6 +15,12 @@ import {
   applyPayments,
 } from "../utils/salesUtils"
 
+import {
+  isFiscalConfigured,
+  formatDocumentNumber,
+  buildFiscalSnapshot,
+} from "../utils/fiscal"
+
 export const SalesContext = createContext()
 
 const DEFAULT_COUNTERS = {
@@ -318,10 +324,29 @@ function SalesProvider({ children }) {
     const invoiceCounter =
       counters.invoice
 
-    const invoiceNumber =
-      formatInvoiceNumber(
+    /*
+      Con datos fiscales cargados la factura
+      usa la numeración autorizada; sin ellos
+      cae en la numeración interna.
+    */
+    const fiscal =
+      company?.fiscal
+
+    const fiscalSnapshot =
+      buildFiscalSnapshot(
+        fiscal,
         invoiceCounter
       )
+
+    const invoiceNumber =
+      isFiscalConfigured(fiscal)
+        ? formatDocumentNumber(
+            invoiceCounter,
+            fiscal
+          )
+        : formatInvoiceNumber(
+            invoiceCounter
+          )
 
     const now = new Date()
 
@@ -390,6 +415,14 @@ function SalesProvider({ children }) {
 
       note:
         sale.note || "",
+
+      /*
+        Copia, no referencia: al cambiar el CAI
+        las facturas ya emitidas deben conservar
+        el que tenían.
+      */
+      fiscal:
+        fiscalSnapshot,
 
       company: {
         name:

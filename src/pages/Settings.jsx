@@ -7,7 +7,13 @@ import {
 import Swal from "sweetalert2"
 
 import { ProductContext } from "../context/ProductContext"
+import { SalesContext } from "../context/SalesContext"
 import { useAuth } from "../context/AuthContext"
+
+import {
+  FISCAL_VACIO,
+  getFiscalStatus,
+} from "../utils/fiscal"
 
 const EMPTY_USER_FORM = {
   id: null,
@@ -35,6 +41,10 @@ function Settings() {
     sellerPermissions,
   } = useAuth()
 
+  const {
+    counters,
+  } = useContext(SalesContext)
+
   const [
     companyForm,
     setCompanyForm,
@@ -44,6 +54,7 @@ function Settings() {
     phone: "",
     currency: "L",
     taxRate: 15,
+    ...FISCAL_VACIO,
   })
 
   useEffect(() => {
@@ -67,6 +78,9 @@ function Settings() {
       taxRate:
         company?.taxRate ??
         15,
+
+      ...FISCAL_VACIO,
+      ...(company?.fiscal || {}),
     })
   }, [company])
 
@@ -149,6 +163,17 @@ function Settings() {
       phone,
       currency,
       taxRate,
+
+      fiscal: {
+        rtn: companyForm.rtn.trim(),
+        cai: companyForm.cai.trim(),
+        establecimiento: companyForm.establecimiento,
+        puntoEmision: companyForm.puntoEmision,
+        tipoDocumento: companyForm.tipoDocumento || "01",
+        rangoDesde: companyForm.rangoDesde,
+        rangoHasta: companyForm.rangoHasta,
+        fechaLimiteEmision: companyForm.fechaLimiteEmision,
+      },
     })
 
     Swal.fire({
@@ -182,8 +207,21 @@ function Settings() {
         taxRate:
           company?.taxRate ??
           15,
+
+        ...FISCAL_VACIO,
+        ...(company?.fiscal || {}),
       })
     }
+
+  /*
+    Estado del rango autorizado frente al
+    proximo correlativo que se emitiria.
+  */
+  const fiscalStatus =
+    getFiscalStatus(
+      companyForm,
+      counters?.invoice ?? 0
+    )
 
   const [
     userModalOpen,
@@ -784,6 +822,218 @@ function Settings() {
                 />
               </div>
 
+            </div>
+
+            {/* DATOS FISCALES */}
+            <div
+              style={{
+                marginTop: 26,
+                paddingTop: 18,
+                borderTop:
+                  "1px solid var(--line)",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: 18,
+                  marginBottom: 4,
+                }}
+              >
+                Datos fiscales
+              </h3>
+
+              <p
+                style={{
+                  color:
+                    "var(--steel)",
+                  fontSize: 14,
+                  margin: "0 0 14px",
+                }}
+              >
+                Con estos datos las facturas
+                usan la numeración autorizada
+                por el SAR. Sin ellos se emiten
+                con numeración interna.
+              </p>
+
+              <div
+                className={`login-error show`}
+                style={{
+                  background:
+                    fiscalStatus.level ===
+                    "bloqueo"
+                      ? "var(--red-light)"
+                      : fiscalStatus.level ===
+                          "aviso"
+                        ? "var(--amber-light)"
+                        : "var(--teal-light)",
+                  color:
+                    fiscalStatus.level ===
+                    "bloqueo"
+                      ? "var(--red)"
+                      : fiscalStatus.level ===
+                          "aviso"
+                        ? "var(--amber)"
+                        : "var(--teal)",
+                  marginBottom: 16,
+                }}
+              >
+                {fiscalStatus.message}
+              </div>
+
+              <div className="form-grid">
+
+                <div className="field">
+                  <label>
+                    RTN de la ferretería
+                  </label>
+
+                  <input
+                    type="text"
+                    name="rtn"
+                    placeholder="08019012345678"
+                    value={
+                      companyForm.rtn
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+                </div>
+
+                <div className="field full">
+                  <label>CAI</label>
+
+                  <input
+                    type="text"
+                    name="cai"
+                    placeholder="A1B2C3-D4E5F6-A7B8C9-D1E2F3-A4B5C6-D7"
+                    value={
+                      companyForm.cai
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+
+                  <span className="hint">
+                    Código de Autorización de
+                    Impresión emitido por el SAR
+                  </span>
+                </div>
+
+                <div className="field">
+                  <label>
+                    Establecimiento
+                  </label>
+
+                  <input
+                    type="text"
+                    name="establecimiento"
+                    placeholder="000"
+                    maxLength="3"
+                    value={
+                      companyForm.establecimiento
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Punto de emisión
+                  </label>
+
+                  <input
+                    type="text"
+                    name="puntoEmision"
+                    placeholder="001"
+                    maxLength="3"
+                    value={
+                      companyForm.puntoEmision
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Rango autorizado desde
+                  </label>
+
+                  <input
+                    type="number"
+                    name="rangoDesde"
+                    min="1"
+                    placeholder="1"
+                    value={
+                      companyForm.rangoDesde
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Rango autorizado hasta
+                  </label>
+
+                  <input
+                    type="number"
+                    name="rangoHasta"
+                    min="1"
+                    placeholder="5000"
+                    value={
+                      companyForm.rangoHasta
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Fecha límite de emisión
+                  </label>
+
+                  <input
+                    type="date"
+                    name="fechaLimiteEmision"
+                    value={
+                      companyForm.fechaLimiteEmision
+                    }
+                    onChange={
+                      handleCompanyChange
+                    }
+                  />
+                </div>
+
+              </div>
+
+              <p
+                style={{
+                  color:
+                    "var(--steel)",
+                  fontSize: 13,
+                  marginTop: 12,
+                  paddingTop: 10,
+                  borderTop:
+                    "1px dashed var(--line-strong)",
+                }}
+              >
+                La normativa del SAR cambia con
+                el tiempo. Confirma con tu
+                contador que estos datos y su
+                formato son los vigentes antes
+                de facturar formalmente.
+              </p>
             </div>
 
             <div
