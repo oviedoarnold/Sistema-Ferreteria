@@ -7,6 +7,14 @@ import {
 
 import { ProductContext } from "./ProductContext"
 
+import {
+  roundMoney,
+  isCreditSale,
+  getSalePayments,
+  getSaleBalance,
+  applyPayments,
+} from "../utils/salesUtils"
+
 export const SalesContext = createContext()
 
 const DEFAULT_COUNTERS = {
@@ -436,6 +444,150 @@ function SalesProvider({ children }) {
     return newInvoice
   }
 
+  /*
+    Registra un abono sobre una venta
+    a crédito. Al quedar el saldo en
+    cero la factura pasa a "pagada".
+  */
+  const addPayment = (
+    saleId,
+    payment = {}
+  ) => {
+    const sale = sales.find(
+      (candidate) =>
+        String(candidate.id) ===
+        String(saleId)
+    )
+
+    if (!sale) {
+      throw new Error(
+        "La factura no existe."
+      )
+    }
+
+    if (!isCreditSale(sale)) {
+      throw new Error(
+        "Solo las facturas a crédito admiten abonos."
+      )
+    }
+
+    const amount = roundMoney(
+      payment.amount
+    )
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      throw new Error(
+        "El monto del abono debe ser mayor que cero."
+      )
+    }
+
+    const balance =
+      getSaleBalance(sale)
+
+    if (balance <= 0) {
+      throw new Error(
+        "Esta factura ya está cancelada."
+      )
+    }
+
+    if (amount > balance) {
+      throw new Error(
+        `El abono no puede superar el saldo pendiente de ${balance.toFixed(
+          2
+        )}.`
+      )
+    }
+
+    const now = new Date()
+
+    const newPayment = {
+      id: `AB-${now.getTime()}-${Math.random()
+        .toString(36)
+        .slice(2, 7)}`,
+
+      amount,
+
+      date: formatDate(now),
+
+      isoDate:
+        now.toISOString(),
+
+      timestamp:
+        now.getTime(),
+
+      note:
+        payment.note || "",
+    }
+
+    setSales((currentSales) =>
+      currentSales.map(
+        (candidate) => {
+          if (
+            String(
+              candidate.id
+            ) !==
+            String(saleId)
+          ) {
+            return candidate
+          }
+
+          return applyPayments(
+            candidate,
+            [
+              ...getSalePayments(
+                candidate
+              ),
+              newPayment,
+            ]
+          )
+        }
+      )
+    )
+
+    return newPayment
+  }
+
+  /*
+    Permite corregir un abono mal
+    registrado; el saldo y el estado
+    se recalculan solos.
+  */
+  const deletePayment = (
+    saleId,
+    paymentId
+  ) => {
+    setSales((currentSales) =>
+      currentSales.map(
+        (candidate) => {
+          if (
+            String(
+              candidate.id
+            ) !==
+            String(saleId)
+          ) {
+            return candidate
+          }
+
+          return applyPayments(
+            candidate,
+            getSalePayments(
+              candidate
+            ).filter(
+              (payment) =>
+                String(
+                  payment.id
+                ) !==
+                String(paymentId)
+            )
+          )
+        }
+      )
+    )
+  }
+
   const getSaleById = (id) => {
     return sales.find(
       (sale) =>
@@ -463,6 +615,9 @@ function SalesProvider({ children }) {
         setSales,
 
         addSale,
+
+        addPayment,
+        deletePayment,
 
         getSaleById,
         getSaleByInvoiceNumber,

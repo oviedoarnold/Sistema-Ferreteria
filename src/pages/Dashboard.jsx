@@ -1,6 +1,7 @@
 ﻿import { useContext, useMemo } from "react"
 import { ProductContext } from "../context/ProductContext"
 import { SalesContext } from "../context/SalesContext"
+import { getSaleBalance } from "../utils/salesUtils"
 import { ClientsContext } from "../context/ClientsContext"
 
 const money = (n) => `L ${Number(n || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -21,7 +22,8 @@ function Dashboard() {
     }).reduce((a, s) => a + Number(s.total || 0), 0)
     const low = products.filter((p) => Number(p.stock) > 0 && Number(p.stock) <= Number(p.minStock ?? 5)).length
     const out = products.filter((p) => Number(p.stock) <= 0).length
-    const receivable = sales.filter((s) => s.paymentType === "credito" || s.type === "credito").filter((s) => s.status !== "pagada").reduce((a, s) => a + Number(s.total || 0), 0)
+    // Descuenta los abonos: lo pendiente es el saldo, no el total facturado.
+    const receivable = sales.reduce((a, s) => a + getSaleBalance(s), 0)
     return { todaySales, monthSales, low, out, receivable }
   }, [products, sales])
 

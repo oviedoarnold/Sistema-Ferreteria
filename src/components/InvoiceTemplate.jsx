@@ -1,3 +1,8 @@
+import {
+  getSalePaid,
+  getSaleBalance,
+} from "../utils/salesUtils"
+
 const DEFAULT_COMPANY = {
   name: "Ferretería Isaac",
 
@@ -61,6 +66,12 @@ function InvoiceTemplate({
     (paymentType === "credito"
       ? "pendiente"
       : "pagada")
+
+  const paid =
+    getSalePaid(sale)
+
+  const balance =
+    getSaleBalance(sale)
 
   return (
     <div className="receipt document-letter">
@@ -325,6 +336,36 @@ function InvoiceTemplate({
             )}
           </b>
         </div>
+
+        {paid > 0 && (
+          <>
+            <div className="inv-totals-row">
+              <span>
+                Abonado
+              </span>
+
+              <b>
+                {formatMoney(
+                  paid,
+                  company.currency
+                )}
+              </b>
+            </div>
+
+            <div className="inv-totals-row">
+              <span>
+                Saldo pendiente
+              </span>
+
+              <b>
+                {formatMoney(
+                  balance,
+                  company.currency
+                )}
+              </b>
+            </div>
+          </>
+        )}
       </div>
 
       {status ===

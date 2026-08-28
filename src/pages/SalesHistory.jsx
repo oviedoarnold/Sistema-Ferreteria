@@ -4,7 +4,17 @@
   useState,
 } from "react"
 
+import Swal from "sweetalert2"
+
 import { SalesContext } from "../context/SalesContext"
+
+import {
+  getSaleBalance,
+  getSalePaid,
+  getSalePayments,
+  isCreditSale,
+} from "../utils/salesUtils"
+
 import { ProductContext } from "../context/ProductContext"
 
 import InvoiceTemplate from "../components/InvoiceTemplate"
@@ -68,11 +78,33 @@ function getClientName(sale) {
 function SalesHistory() {
   const {
     sales = [],
+    addPayment,
+    deletePayment,
   } = useContext(SalesContext)
 
   const {
     company = {},
   } = useContext(ProductContext)
+
+  const [
+    payingSaleId,
+    setPayingSaleId,
+  ] = useState(null)
+
+  const [
+    paymentAmount,
+    setPaymentAmount,
+  ] = useState("")
+
+  const [
+    paymentNote,
+    setPaymentNote,
+  ] = useState("")
+
+  const [
+    paymentError,
+    setPaymentError,
+  ] = useState("")
 
   const [search, setSearch] =
     useState("")
@@ -190,6 +222,131 @@ function SalesHistory() {
         "pendiente"
     ).length
 
+  const totalReceivable =
+    sales.reduce(
+      (sum, sale) =>
+        sum +
+        getSaleBalance(sale),
+      0
+    )
+
+  /*
+    Se busca por id en cada render en
+    vez de guardar la venta: así el
+    modal refleja el saldo nuevo
+    apenas se registra un abono.
+  */
+  const payingSale =
+    payingSaleId
+      ? sales.find(
+          (sale) =>
+            String(sale.id) ===
+            String(payingSaleId)
+        )
+      : null
+
+  const payingBalance =
+    payingSale
+      ? getSaleBalance(
+          payingSale
+        )
+      : 0
+
+  const closePaymentModal = () => {
+    setPayingSaleId(null)
+    setPaymentAmount("")
+    setPaymentNote("")
+    setPaymentError("")
+  }
+
+  const openPaymentModal = (
+    sale
+  ) => {
+    setPayingSaleId(sale.id)
+    setPaymentAmount("")
+    setPaymentNote("")
+    setPaymentError("")
+  }
+
+  const submitPayment = (
+    event
+  ) => {
+    event.preventDefault()
+
+    if (!payingSale) {
+      return
+    }
+
+    const wasLastPayment =
+      Number(paymentAmount) >=
+      payingBalance
+
+    try {
+      addPayment(
+        payingSale.id,
+        {
+          amount:
+            paymentAmount,
+          note: paymentNote,
+        }
+      )
+    } catch (error) {
+      setPaymentError(
+        error.message
+      )
+
+      return
+    }
+
+    closePaymentModal()
+
+    Swal.fire({
+      icon: "success",
+
+      title: wasLastPayment
+        ? "Factura cancelada"
+        : "Abono registrado",
+
+      text: wasLastPayment
+        ? "El saldo quedó en cero."
+        : "El saldo pendiente se actualizó.",
+    })
+  }
+
+  const removePayment = async (
+    sale,
+    payment
+  ) => {
+    const result =
+      await Swal.fire({
+        icon: "warning",
+
+        title: "¿Eliminar abono?",
+
+        text: `Se quitará el abono de ${formatMoney(
+          payment.amount,
+          currency
+        )} y el saldo volverá a subir.`,
+
+        showCancelButton: true,
+
+        confirmButtonText:
+          "Sí, eliminar",
+
+        cancelButtonText:
+          "Cancelar",
+      })
+
+    if (!result.isConfirmed) {
+      return
+    }
+
+    deletePayment(
+      sale.id,
+      payment.id
+    )
+  }
+
   const getStatusBadge = (
     sale
   ) => {
@@ -200,7 +357,9 @@ function SalesHistory() {
       return (
         <span className="badge badge-paid">
           <span className="badge-dot" />
-          Pagada
+          {isCreditSale(sale)
+            ? "Cancelada"
+            : "Pagada"}
         </span>
       )
     }
@@ -341,6 +500,41 @@ function SalesHistory() {
             >
               {formatMoney(
                 totalSales,
+                currency
+              )}
+            </strong>
+          </div>
+
+          <div
+            style={{
+              textAlign:
+                "right",
+            }}
+          >
+            <span
+              style={{
+                display:
+                  "block",
+                fontSize: 12,
+                color:
+                  "var(--steel)",
+              }}
+            >
+              Saldo por cobrar
+            </span>
+
+            <strong
+              style={{
+                fontSize: 24,
+                color:
+                  totalReceivable >
+                  0
+                    ? "var(--amber)"
+                    : "var(--teal)",
+              }}
+            >
+              {formatMoney(
+                totalReceivable,
                 currency
               )}
             </strong>
@@ -516,15 +710,92 @@ function SalesHistory() {
 
                   <div className="sale-right">
 
-                    <div className="sale-total">
-                      {formatMoney(
-                        sale.total,
+                    <div
+                      style={{
+                        textAlign:
+                          "right",
+                      }}
+                    >
+                      <div className="sale-total">
+                        {formatMoney(
+                          sale.total,
+                          sale
+                            .company
+                            ?.currency ||
+                            currency
+                        )}
+                      </div>
+
+                      {isCreditSale(
                         sale
-                          .company
-                          ?.currency ||
-                          currency
-                      )}
+                      ) &&
+                        getSalePaid(
+                          sale
+                        ) > 0 && (
+                          <span
+                            style={{
+                              display:
+                                "block",
+                              fontSize: 12,
+                              color:
+                                "var(--steel)",
+                            }}
+                          >
+                            Abonado{" "}
+                            {formatMoney(
+                              getSalePaid(
+                                sale
+                              ),
+                              currency
+                            )}
+                          </span>
+                        )}
+
+                      {isCreditSale(
+                        sale
+                      ) &&
+                        getSaleBalance(
+                          sale
+                        ) > 0 && (
+                          <span
+                            style={{
+                              display:
+                                "block",
+                              fontSize: 12.5,
+                              fontWeight: 700,
+                              color:
+                                "var(--amber)",
+                            }}
+                          >
+                            Resta{" "}
+                            {formatMoney(
+                              getSaleBalance(
+                                sale
+                              ),
+                              currency
+                            )}
+                          </span>
+                        )}
                     </div>
+
+                    {isCreditSale(
+                      sale
+                    ) &&
+                      getSaleBalance(
+                        sale
+                      ) > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() =>
+                            openPaymentModal(
+                              sale
+                            )
+                          }
+                        >
+                          Abonar
+                        </button>
+                      )}
 
                     <button
                       type="button"
@@ -560,6 +831,353 @@ function SalesHistory() {
 
         </div>
       )}
+
+      {/* ABONOS */}
+      <div
+        className={`modal-overlay ${
+          payingSale ? "open" : ""
+        }`}
+        onClick={
+          closePaymentModal
+        }
+      >
+        {payingSale && (
+          <div
+            className="modal"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-head">
+              <h3>
+                Abonar a{" "}
+                {
+                  payingSale.invoiceNumber
+                }
+              </h3>
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={
+                  closePaymentModal
+                }
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <form
+              onSubmit={
+                submitPayment
+              }
+            >
+              <div className="modal-body">
+
+                <div
+                  className="card card-pad"
+                  style={{
+                    display:
+                      "grid",
+                    gridTemplateColumns:
+                      "repeat(3, 1fr)",
+                    gap: 12,
+                    marginBottom: 18,
+                  }}
+                >
+                  <div>
+                    <span
+                      style={{
+                        display:
+                          "block",
+                        fontSize: 11.5,
+                        color:
+                          "var(--steel)",
+                      }}
+                    >
+                      Total
+                    </span>
+
+                    <strong>
+                      {formatMoney(
+                        payingSale.total,
+                        currency
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span
+                      style={{
+                        display:
+                          "block",
+                        fontSize: 11.5,
+                        color:
+                          "var(--steel)",
+                      }}
+                    >
+                      Abonado
+                    </span>
+
+                    <strong
+                      style={{
+                        color:
+                          "var(--teal)",
+                      }}
+                    >
+                      {formatMoney(
+                        getSalePaid(
+                          payingSale
+                        ),
+                        currency
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span
+                      style={{
+                        display:
+                          "block",
+                        fontSize: 11.5,
+                        color:
+                          "var(--steel)",
+                      }}
+                    >
+                      Saldo
+                    </span>
+
+                    <strong
+                      style={{
+                        color:
+                          "var(--amber)",
+                      }}
+                    >
+                      {formatMoney(
+                        payingBalance,
+                        currency
+                      )}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>
+                    Monto del abono
+                  </label>
+
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={
+                      payingBalance
+                    }
+                    autoFocus
+                    placeholder="0.00"
+                    value={
+                      paymentAmount
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      setPaymentAmount(
+                        event
+                          .target
+                          .value
+                      )
+
+                      setPaymentError(
+                        ""
+                      )
+                    }}
+                  />
+
+                  <span className="hint">
+                    Máximo{" "}
+                    {formatMoney(
+                      payingBalance,
+                      currency
+                    )}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    marginTop: 8,
+                  }}
+                  onClick={() => {
+                    setPaymentAmount(
+                      String(
+                        payingBalance
+                      )
+                    )
+
+                    setPaymentError(
+                      ""
+                    )
+                  }}
+                >
+                  Pagar el saldo completo
+                </button>
+
+                <div
+                  className="field"
+                  style={{
+                    marginTop: 16,
+                  }}
+                >
+                  <label>
+                    Nota (opcional)
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="Efectivo, transferencia, recibo #..."
+                    value={
+                      paymentNote
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setPaymentNote(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                  />
+                </div>
+
+                {paymentError && (
+                  <div
+                    className="login-error show"
+                    style={{
+                      marginTop: 14,
+                    }}
+                  >
+                    {paymentError}
+                  </div>
+                )}
+
+                {getSalePayments(
+                  payingSale
+                ).length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 22,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontFamily:
+                          "var(--font-mono)",
+                        textTransform:
+                          "uppercase",
+                        letterSpacing:
+                          ".5px",
+                        color:
+                          "var(--steel)",
+                        marginBottom: 9,
+                      }}
+                    >
+                      Abonos registrados
+                    </div>
+
+                    {getSalePayments(
+                      payingSale
+                    ).map(
+                      (payment) => (
+                        <div
+                          key={
+                            payment.id
+                          }
+                          style={{
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "space-between",
+                            gap: 10,
+                            padding:
+                              "9px 0",
+                            borderTop:
+                              "1px solid var(--line)",
+                          }}
+                        >
+                          <div>
+                            <b>
+                              {formatMoney(
+                                payment.amount,
+                                currency
+                              )}
+                            </b>
+
+                            <span
+                              style={{
+                                display:
+                                  "block",
+                                fontSize: 12,
+                                color:
+                                  "var(--steel)",
+                              }}
+                            >
+                              {
+                                payment.date
+                              }
+
+                              {payment.note
+                                ? ` · ${payment.note}`
+                                : ""}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() =>
+                              removePayment(
+                                payingSale,
+                                payment
+                              )
+                            }
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+              </div>
+
+              <div className="modal-foot">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={
+                    closePaymentModal
+                  }
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  Registrar abono
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
 
       {/* FACTURA */}
       <DocumentPreviewModal
