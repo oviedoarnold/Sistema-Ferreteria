@@ -16,6 +16,8 @@ import {
   applyPayments,
 } from "../utils/salesUtils"
 
+import { sufijoAleatorio } from "../utils/ids"
+
 import {
   isFiscalConfigured,
   formatDocumentNumber,
@@ -536,9 +538,7 @@ function SalesProvider({ children }) {
     const now = new Date()
 
     const newPayment = {
-      id: `AB-${now.getTime()}-${Math.random()
-        .toString(36)
-        .slice(2, 7)}`,
+      id: `AB-${now.getTime()}-${sufijoAleatorio(3)}`,
 
       amount,
 

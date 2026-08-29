@@ -1,4 +1,5 @@
 import { calculateCartSubtotal } from "./cart"
+import { crearId } from "./ids"
 
 export const VIGENTE = "vigente"
 export const POR_VENCER = "por-vencer"
@@ -12,7 +13,7 @@ export function buildQuoteNumber(sequence) {
 }
 
 export function createQuoteId() {
-  return `Q-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+  return crearId("Q")
 }
 
 export function getQuoteItemQuantity(item) {

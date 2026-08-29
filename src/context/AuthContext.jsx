@@ -7,6 +7,8 @@ import {
 
 import { AuthContext } from "./contexts"
 
+import { crearId } from "../utils/ids"
+
 import {
   PERMISSIONS,
   ADMIN_PERMISSIONS,
@@ -27,30 +29,12 @@ function hashPassword(value = "") {
     index < value.length;
     index += 1
   ) {
-    hash =
-      Math.imul(31, hash) +
-      value.charCodeAt(index)
-
-    hash |= 0
+    hash = Math.imul(31, hash) + value.charCodeAt(index)
   }
 
   return `h${(
     hash >>> 0
   ).toString(36)}`
-}
-
-function createId() {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID ===
-      "function"
-  ) {
-    return crypto.randomUUID()
-  }
-
-  return `USR-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`
 }
 
 function createBootstrapAdmin() {
@@ -450,7 +434,7 @@ export function AuthProvider({
         : "vendedor"
 
     const newUser = {
-      id: createId(),
+      id: crearId("USR"),
 
       name: cleanName,
 

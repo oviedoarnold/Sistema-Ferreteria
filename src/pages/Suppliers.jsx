@@ -40,11 +40,11 @@ function Suppliers() {
     </tbody></table>{filtered.length === 0 && <div className="empty-state"><strong>{suppliers.length ? "No se encontraron resultados" : "No hay proveedores todavía"}</strong></div>}</div>
 
     {modalOpen && <div className="modal-overlay open"><div className="modal"><div className="modal-head"><h3>{form.id ? "Editar proveedor" : "Nuevo proveedor"}</h3><button className="icon-btn" aria-label="Cerrar" onClick={() => setModalOpen(false)}>✕</button></div><div className="modal-body"><div className="form-grid">
-      <div className="field full"><label>Proveedor</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-      <div className="field"><label>Contacto</label><input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></div>
-      <div className="field"><label>Teléfono</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-      <div className="field full"><label>Correo</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-      <div className="field full"><label>Suministra / Notas</label><textarea rows="3" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+      <div className="field full"><label htmlFor="suppliers-proveedor">Proveedor</label><input id="suppliers-proveedor" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+      <div className="field"><label htmlFor="suppliers-contacto">Contacto</label><input id="suppliers-contacto" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></div>
+      <div className="field"><label htmlFor="suppliers-telefono">Teléfono</label><input id="suppliers-telefono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+      <div className="field full"><label htmlFor="suppliers-correo">Correo</label><input id="suppliers-correo" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+      <div className="field full"><label htmlFor="suppliers-suministra-notas">Suministra / Notas</label><textarea id="suppliers-suministra-notas" rows="3" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
     </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar proveedor</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
   </div>
 }

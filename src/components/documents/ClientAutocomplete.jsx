@@ -91,7 +91,7 @@ function ClientAutocomplete({
   return (
     <div ref={rootRef}>
       <div className="field">
-        <label>
+        <label htmlFor="clientautocomplete-opcional">
           {label}
 
           {!required && (
@@ -107,7 +107,7 @@ function ClientAutocomplete({
         </label>
 
         <div className="client-autocomplete">
-          <input
+          <input id="clientautocomplete-opcional"
             type="text"
             autoComplete="off"
             value={value}

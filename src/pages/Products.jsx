@@ -34,7 +34,7 @@ function Products() {
     if (!code || !form.name.trim() || !form.category.trim()) { Swal.fire({ icon: "warning", title: "Faltan datos", text: "Código, nombre y categoría son obligatorios" }); return }
     if (products.some((p) => String(p.code || "").toLowerCase() === code.toLowerCase() && p.id !== form.id)) { Swal.fire({ icon: "error", title: "Producto ya existente", text: `El código ${code} ya está registrado` }); return }
     if (Number(form.stock) < 0) { Swal.fire({ icon: "warning", title: "Stock inválido" }); return }
-    const data = { ...form, code, name: form.name.trim(), category: form.category.trim(), price: Math.max(0, Number(form.price) || 0), costPrice: Math.max(0, Number(form.costPrice) || 0), stock: Math.max(0, parseInt(form.stock || 0)), minStock: Math.max(0, parseInt(form.minStock || 0)) }
+    const data = { ...form, code, name: form.name.trim(), category: form.category.trim(), price: Math.max(0, Number(form.price) || 0), costPrice: Math.max(0, Number(form.costPrice) || 0), stock: Math.max(0, Number.parseInt(form.stock || 0)), minStock: Math.max(0, Number.parseInt(form.minStock || 0)) }
     if (form.id) setProducts(products.map((p) => p.id === form.id ? { ...p, ...data } : p))
     else setProducts([...products, { ...data, id: Date.now(), lastPurchaseDate: null }])
     setModalOpen(false); setForm(emptyForm)
@@ -56,14 +56,14 @@ function Products() {
     </tbody></table>{filtered.length === 0 && <div className="empty-state"><strong>{products.length ? "No se encontraron resultados" : "No hay productos todavía"}</strong></div>}</div>
 
     {modalOpen && <div className="modal-overlay open"><div className="modal"><div className="modal-head"><h3>{form.id ? "Editar producto" : "Nuevo producto"}</h3><button className="icon-btn" aria-label="Cerrar" onClick={() => setModalOpen(false)}>✕</button></div><div className="modal-body"><div className="form-grid">
-      <div className="field"><label>Código</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej. CEM-001" /></div>
-      <div className="field"><label>Nombre</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-      <div className="field full"><label>Categoría</label><input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
-      <div className="field"><label>Precio de venta</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
-      <div className="field"><label>Costo</label><input type="number" min="0" step="0.01" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} /></div>
-      <div className="field"><label>Stock</label><input type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
-      <div className="field"><label>Stock mínimo</label><input type="number" min="0" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></div>
-      <div className="field full"><label>Proveedor</label><select value={form.supplierId} onChange={(e) => setForm({ ...form, supplierId: e.target.value })}><option value="">— Sin proveedor —</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+      <div className="field"><label htmlFor="products-codigo">Código</label><input id="products-codigo" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej. CEM-001" /></div>
+      <div className="field"><label htmlFor="products-nombre">Nombre</label><input id="products-nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+      <div className="field full"><label htmlFor="products-categoria">Categoría</label><input id="products-categoria" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
+      <div className="field"><label htmlFor="products-precio-de-venta">Precio de venta</label><input id="products-precio-de-venta" type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
+      <div className="field"><label htmlFor="products-costo">Costo</label><input id="products-costo" type="number" min="0" step="0.01" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} /></div>
+      <div className="field"><label htmlFor="products-stock">Stock</label><input id="products-stock" type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
+      <div className="field"><label htmlFor="products-stock-minimo">Stock mínimo</label><input id="products-stock-minimo" type="number" min="0" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></div>
+      <div className="field full"><label htmlFor="products-proveedor">Proveedor</label><select id="products-proveedor" value={form.supplierId} onChange={(e) => setForm({ ...form, supplierId: e.target.value })}><option value="">— Sin proveedor —</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
     </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar producto</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
   </div>
 }

@@ -1049,11 +1049,11 @@ function Quotes() {
               }}
             >
               <div className="field">
-                <label>
+                <label htmlFor="quotes-valida-hasta">
                   Válida hasta
                 </label>
 
-                <input
+                <input id="quotes-valida-hasta"
                   type="date"
                   value={
                     validity
@@ -1071,11 +1071,11 @@ function Quotes() {
               </div>
 
               <div className="field">
-                <label>
+                <label htmlFor="quotes-observaciones">
                   Observaciones
                 </label>
 
-                <input
+                <input id="quotes-observaciones"
                   type="text"
                   placeholder="Ej. Incluye instalación"
                   value={notes}
@@ -1541,11 +1541,11 @@ function Quotes() {
             <div className="modal-body">
               <div className="form-grid">
                 <div className="field">
-                  <label>
+                  <label htmlFor="quotes-nombre">
                     Nombre
                   </label>
 
-                  <input
+                  <input id="quotes-nombre"
                     value={
                       clientForm.name
                     }
@@ -1569,12 +1569,12 @@ function Quotes() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="quotes-rtn-opcional">
                     RTN
                     (opcional)
                   </label>
 
-                  <input
+                  <input id="quotes-rtn-opcional"
                     value={
                       clientForm.rtn
                     }
@@ -1598,11 +1598,11 @@ function Quotes() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="quotes-telefono">
                     Teléfono
                   </label>
 
-                  <input
+                  <input id="quotes-telefono"
                     value={
                       clientForm.phone
                     }
@@ -1626,11 +1626,11 @@ function Quotes() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="quotes-correo">
                     Correo
                   </label>
 
-                  <input
+                  <input id="quotes-correo"
                     type="email"
                     value={
                       clientForm.email
@@ -1655,11 +1655,11 @@ function Quotes() {
                 </div>
 
                 <div className="field full">
-                  <label>
+                  <label htmlFor="quotes-direccion">
                     Dirección
                   </label>
 
-                  <input
+                  <input id="quotes-direccion"
                     value={
                       clientForm.address
                     }

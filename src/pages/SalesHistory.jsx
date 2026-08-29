@@ -953,11 +953,11 @@ function SalesHistory() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="saleshistory-monto-del-abono">
                     Monto del abono
                   </label>
 
-                  <input
+                  <input id="saleshistory-monto-del-abono"
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -1020,11 +1020,11 @@ function SalesHistory() {
                     marginTop: 16,
                   }}
                 >
-                  <label>
+                  <label htmlFor="saleshistory-nota-opcional">
                     Nota (opcional)
                   </label>
 
-                  <input
+                  <input id="saleshistory-nota-opcional"
                     type="text"
                     placeholder="Efectivo, transferencia, recibo #..."
                     value={

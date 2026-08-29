@@ -687,11 +687,11 @@ function Settings() {
             <div className="form-grid">
 
               <div className="field full">
-                <label>
+                <label htmlFor="settings-nombre-2">
                   Nombre
                 </label>
 
-                <input
+                <input id="settings-nombre-2"
                   type="text"
                   name="name"
                   value={
@@ -705,11 +705,11 @@ function Settings() {
               </div>
 
               <div className="field full">
-                <label>
+                <label htmlFor="settings-direccion">
                   Dirección
                 </label>
 
-                <input
+                <input id="settings-direccion"
                   type="text"
                   name="address"
                   value={
@@ -723,11 +723,11 @@ function Settings() {
               </div>
 
               <div className="field">
-                <label>
+                <label htmlFor="settings-telefono">
                   Teléfono
                 </label>
 
-                <input
+                <input id="settings-telefono"
                   type="text"
                   name="phone"
                   value={
@@ -741,11 +741,11 @@ function Settings() {
               </div>
 
               <div className="field">
-                <label>
+                <label htmlFor="settings-simbolo-de-moneda">
                   Símbolo de moneda
                 </label>
 
-                <input
+                <input id="settings-simbolo-de-moneda"
                   type="text"
                   name="currency"
                   maxLength={4}
@@ -760,11 +760,11 @@ function Settings() {
               </div>
 
               <div className="field">
-                <label>
+                <label htmlFor="settings-tasa-isv">
                   Tasa ISV (%)
                 </label>
 
-                <input
+                <input id="settings-tasa-isv"
                   type="number"
                   name="taxRate"
                   min="0"
@@ -842,11 +842,11 @@ function Settings() {
               <div className="form-grid">
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="settings-rtn-de-la-ferreteria">
                     RTN de la ferretería
                   </label>
 
-                  <input
+                  <input id="settings-rtn-de-la-ferreteria"
                     type="text"
                     name="rtn"
                     placeholder="08019012345678"
@@ -860,9 +860,9 @@ function Settings() {
                 </div>
 
                 <div className="field full">
-                  <label>CAI</label>
+                  <label htmlFor="settings-cai">CAI</label>
 
-                  <input
+                  <input id="settings-cai"
                     type="text"
                     name="cai"
                     placeholder="A1B2C3-D4E5F6-A7B8C9-D1E2F3-A4B5C6-D7"
@@ -881,11 +881,11 @@ function Settings() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="settings-establecimiento">
                     Establecimiento
                   </label>
 
-                  <input
+                  <input id="settings-establecimiento"
                     type="text"
                     name="establecimiento"
                     placeholder="000"
@@ -900,11 +900,11 @@ function Settings() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="settings-punto-de-emision">
                     Punto de emisión
                   </label>
 
-                  <input
+                  <input id="settings-punto-de-emision"
                     type="text"
                     name="puntoEmision"
                     placeholder="001"
@@ -919,11 +919,11 @@ function Settings() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="settings-rango-autorizado-desde">
                     Rango autorizado desde
                   </label>
 
-                  <input
+                  <input id="settings-rango-autorizado-desde"
                     type="number"
                     name="rangoDesde"
                     min="1"
@@ -938,11 +938,11 @@ function Settings() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="settings-rango-autorizado-hasta">
                     Rango autorizado hasta
                   </label>
 
-                  <input
+                  <input id="settings-rango-autorizado-hasta"
                     type="number"
                     name="rangoHasta"
                     min="1"
@@ -957,11 +957,11 @@ function Settings() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="settings-fecha-limite-de-emision">
                     Fecha límite de emisión
                   </label>
 
-                  <input
+                  <input id="settings-fecha-limite-de-emision"
                     type="date"
                     name="fechaLimiteEmision"
                     value={
@@ -1349,11 +1349,11 @@ function Settings() {
 
                   {/* NOMBRE */}
                   <div className="field">
-                    <label>
+                    <label htmlFor="settings-nombre">
                       Nombre
                     </label>
 
-                    <input
+                    <input id="settings-nombre"
                       type="text"
                       name="name"
                       value={
@@ -1369,11 +1369,11 @@ function Settings() {
 
                   {/* USUARIO */}
                   <div className="field">
-                    <label>
+                    <label htmlFor="settings-usuario">
                       Usuario
                     </label>
 
-                    <input
+                    <input id="settings-usuario"
                       type="text"
                       name="username"
                       value={
@@ -1390,7 +1390,7 @@ function Settings() {
 
                   {/* CONTRASEÑA */}
                   <div className="field">
-                    <label>
+                    <label htmlFor="settings-contrasena-opcional">
                       Contraseña
 
                       {isEditingUser && (
@@ -1409,7 +1409,7 @@ function Settings() {
                       )}
                     </label>
 
-                    <input
+                    <input id="settings-contrasena-opcional"
                       type="password"
                       name="password"
                       value={
@@ -1432,11 +1432,11 @@ function Settings() {
 
                   {/* ROL */}
                   <div className="field">
-                    <label>
+                    <label htmlFor="settings-rol">
                       Rol
                     </label>
 
-                    <select
+                    <select id="settings-rol"
                       name="role"
                       value={
                         userForm.role

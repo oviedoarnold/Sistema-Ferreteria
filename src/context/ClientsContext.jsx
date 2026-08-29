@@ -5,11 +5,7 @@ import {
 
 import { ClientsContext } from "./contexts"
 
-function generateId() {
-  return `C-${Date.now()}-${Math.floor(
-    Math.random() * 1000
-  )}`
-}
+import { crearId } from "../utils/ids"
 
 function ClientsProvider({ children }) {
   const [clients, setClients] = useState(() => {
@@ -43,7 +39,7 @@ function ClientsProvider({ children }) {
 
       id:
         client.id ||
-        generateId(),
+        crearId("C"),
 
       name:
         client.name?.trim() || "",

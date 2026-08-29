@@ -915,12 +915,12 @@ function POS() {
                   marginBottom: 10,
                 }}
               >
-                <label>
+                <label htmlFor="pos-fecha-de-vencimiento">
                   Fecha de
                   vencimiento
                 </label>
 
-                <input
+                <input id="pos-fecha-de-vencimiento"
                   type="date"
                   value={dueDate}
                   onChange={(
@@ -941,7 +941,7 @@ function POS() {
                 marginBottom: 10,
               }}
             >
-              <label>
+              <label htmlFor="pos-rtn-del-comprador-opcional">
                 RTN del comprador{" "}
                 <span
                   style={{
@@ -952,7 +952,7 @@ function POS() {
                 </span>
               </label>
 
-              <input
+              <input id="pos-rtn-del-comprador-opcional"
                 type="text"
                 maxLength="20"
                 placeholder="Ej. 0801-1990-01234"
@@ -1157,11 +1157,11 @@ function POS() {
             <div className="modal-body">
               <div className="form-grid">
                 <div className="field">
-                  <label>
+                  <label htmlFor="pos-nombre">
                     Nombre
                   </label>
 
-                  <input
+                  <input id="pos-nombre"
                     value={
                       clientForm.name
                     }
@@ -1183,11 +1183,11 @@ function POS() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="pos-rtn-opcional">
                     RTN (opcional)
                   </label>
 
-                  <input
+                  <input id="pos-rtn-opcional"
                     value={
                       clientForm.rtn
                     }
@@ -1209,11 +1209,11 @@ function POS() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="pos-telefono">
                     Teléfono
                   </label>
 
-                  <input
+                  <input id="pos-telefono"
                     value={
                       clientForm.phone
                     }
@@ -1236,11 +1236,11 @@ function POS() {
                 </div>
 
                 <div className="field">
-                  <label>
+                  <label htmlFor="pos-correo">
                     Correo
                   </label>
 
-                  <input
+                  <input id="pos-correo"
                     type="email"
                     value={
                       clientForm.email
@@ -1264,11 +1264,11 @@ function POS() {
                 </div>
 
                 <div className="field full">
-                  <label>
+                  <label htmlFor="pos-direccion">
                     Dirección
                   </label>
 
-                  <input
+                  <input id="pos-direccion"
                     value={
                       clientForm.address
                     }

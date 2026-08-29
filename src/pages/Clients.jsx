@@ -68,11 +68,11 @@ function Clients() {
         <div className="modal">
           <div className="modal-head"><h3>{form.id ? "Editar cliente" : "Nuevo cliente"}</h3><button className="icon-btn" aria-label="Cerrar" onClick={() => setModalOpen(false)}>✕</button></div>
           <div className="modal-body"><div className="form-grid">
-            <div className="field"><label>Nombre</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div className="field"><label>RTN (opcional)</label><input value={form.rtn} onChange={(e) => setForm({ ...form, rtn: e.target.value })} /></div>
-            <div className="field"><label>Teléfono</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div className="field"><label>Correo</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="field full"><label>Dirección</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className="field"><label htmlFor="clients-nombre">Nombre</label><input id="clients-nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="field"><label htmlFor="clients-rtn-opcional">RTN (opcional)</label><input id="clients-rtn-opcional" value={form.rtn} onChange={(e) => setForm({ ...form, rtn: e.target.value })} /></div>
+            <div className="field"><label htmlFor="clients-telefono">Teléfono</label><input id="clients-telefono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="field"><label htmlFor="clients-correo">Correo</label><input id="clients-correo" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="field full"><label htmlFor="clients-direccion">Dirección</label><input id="clients-direccion" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
           </div></div>
           <div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar cliente</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div>
         </div>
