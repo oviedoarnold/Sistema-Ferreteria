@@ -6,6 +6,7 @@ import {
 
 import Landing from "../pages/Landing"
 import NotFound from "../pages/NotFound"
+import Demo from "../pages/Demo"
 import Login from "../pages/Login"
 import Dashboard from "../pages/Dashboard"
 import Products from "../pages/Products"
@@ -33,6 +34,12 @@ function AppRouter() {
         <Route
           path="/login"
           element={<Login />}
+        />
+
+        {/* DEMOSTRACION GUIADA */}
+        <Route
+          path="/demo"
+          element={<Demo />}
         />
 
         {/* DASHBOARD */}

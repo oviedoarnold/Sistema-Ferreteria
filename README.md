@@ -96,6 +96,27 @@ La persistencia actual es `localStorage`, lo que mantiene los datos en el navega
 equipo. La migración a PostgreSQL con backend está en curso; las decisiones quedarán
 documentadas en `docs/arquitectura.md`.
 
+## Demostración
+
+Recorrido guiado de 5 minutos con datos de ejemplo:
+
+1. https://www.oviedoarnold.lat/demo — prepara la ferretería de ejemplo
+2. https://www.oviedoarnold.lat/login — entra con `demo` / `Demo2026`
+
+Los datos son ficticios y se guardan solo en tu navegador. El guion completo
+está en [docs/demo.md](docs/demo.md).
+
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| [Arquitectura](docs/arquitectura.md) | Diagramas C4 y decisiones |
+| [ADR-1](docs/adr/adr-001-postgresql-multiempresa.md) | PostgreSQL multi-empresa |
+| [ADR-2](docs/adr/adr-002-permisos-por-ruta.md) | Permisos por ruta |
+| [PWA](docs/pwa.md) | Service worker y funcionamiento sin conexión |
+| [Demostración](docs/demo.md) | Recorrido guiado |
+| [Bitácora de IA](docs/bitacora-ia.md) | Uso de IA en el desarrollo |
+
 ## Autor
 
 Arnold Oviedo — [github.com/oviedoarnold](https://github.com/oviedoarnold)

@@ -14,6 +14,7 @@ import {
 } from "../utils/almacenamiento"
 
 import { crearId } from "../utils/ids"
+import { hashPassword } from "../utils/password"
 
 import {
   PERMISSIONS,
@@ -26,22 +27,6 @@ const USERS_STORAGE_KEY =
 
 const SESSION_STORAGE_KEY =
   "ferreteria_session_user_id"
-
-function hashPassword(value = "") {
-  let hash = 0
-
-  for (
-    let index = 0;
-    index < value.length;
-    index += 1
-  ) {
-    hash = Math.imul(31, hash) + value.charCodeAt(index)
-  }
-
-  return `h${(
-    hash >>> 0
-  ).toString(36)}`
-}
 
 function createBootstrapAdmin() {
   return {
