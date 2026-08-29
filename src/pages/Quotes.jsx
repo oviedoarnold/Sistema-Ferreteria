@@ -11,6 +11,11 @@ import { ClientsContext } from "../context/contexts"
 
 import QuoteTemplate from "../components/QuoteTemplate"
 
+import {
+  guardarJSON,
+  guardarTexto,
+} from "../utils/almacenamiento"
+
 import ClientAutocomplete from "../components/documents/ClientAutocomplete"
 import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
 
@@ -625,18 +630,9 @@ function Quotes() {
         nextNumber
       )
 
-      localStorage.setItem(
-        "quotes",
+      guardarJSON("quotes", updatedQuotes)
 
-        JSON.stringify(
-          updatedQuotes
-        )
-      )
-
-      localStorage.setItem(
-        "nextQuoteNumber",
-
-        String(nextNumber)
+      guardarTexto("nextQuoteNumber", String(nextNumber)
       )
 
       setSelectedQuote(
@@ -762,13 +758,7 @@ function Quotes() {
       updatedQuotes
     )
 
-    localStorage.setItem(
-      "quotes",
-
-      JSON.stringify(
-        updatedQuotes
-      )
-    )
+    guardarJSON("quotes", updatedQuotes)
 
     Swal.fire({
       icon: "success",

@@ -2,6 +2,10 @@ import { useState, useEffect } from "react"
 
 import { ProductContext } from "./contexts"
 
+import {
+  guardarJSON,
+} from "../utils/almacenamiento"
+
 function ProductProvider({ children }) {
 
   const [products, setProducts] = useState(() => {
@@ -37,9 +41,9 @@ function ProductProvider({ children }) {
       : { name: "Ferretería Isaac", address: "Asentamientos Humanos, San Pedro Sula, Cortés", phone: "9709-0121", currency: "L", taxRate: 15 }
   })
 
-  useEffect(() => { localStorage.setItem("products", JSON.stringify(products)) }, [products])
-  useEffect(() => { localStorage.setItem("suppliers", JSON.stringify(suppliers)) }, [suppliers])
-  useEffect(() => { localStorage.setItem("company", JSON.stringify(company)) }, [company])
+  useEffect(() => { guardarJSON("products", products) }, [products])
+  useEffect(() => { guardarJSON("suppliers", suppliers) }, [suppliers])
+  useEffect(() => { guardarJSON("company", company) }, [company])
 
   return (
     <ProductContext.Provider value={{ products, setProducts, suppliers, setSuppliers, company, setCompany }}>

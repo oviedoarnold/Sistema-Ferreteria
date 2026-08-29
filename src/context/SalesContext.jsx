@@ -6,6 +6,10 @@ import {
 
 import { SalesContext } from "./contexts"
 
+import {
+  guardarJSON,
+} from "../utils/almacenamiento"
+
 import { ProductContext } from "./contexts"
 
 import {
@@ -96,17 +100,11 @@ function SalesProvider({ children }) {
     })
 
   useEffect(() => {
-    localStorage.setItem(
-      "sales",
-      JSON.stringify(sales)
-    )
+    guardarJSON("sales", sales)
   }, [sales])
 
   useEffect(() => {
-    localStorage.setItem(
-      "counters",
-      JSON.stringify(counters)
-    )
+    guardarJSON("counters", counters)
   }, [counters])
 
   const validateSaleItems = (

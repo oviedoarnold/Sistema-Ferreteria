@@ -5,6 +5,10 @@ import {
 
 import { ClientsContext } from "./contexts"
 
+import {
+  guardarJSON,
+} from "../utils/almacenamiento"
+
 import { crearId } from "../utils/ids"
 
 function ClientsProvider({ children }) {
@@ -27,10 +31,7 @@ function ClientsProvider({ children }) {
   })
 
   useEffect(() => {
-    localStorage.setItem(
-      "clients",
-      JSON.stringify(clients)
-    )
+    guardarJSON("clients", clients)
   }, [clients])
 
   const addClient = (client) => {

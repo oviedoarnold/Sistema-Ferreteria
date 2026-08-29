@@ -7,6 +7,12 @@ import {
 
 import { AuthContext } from "./contexts"
 
+import {
+  guardarJSON,
+  guardarTexto,
+  borrar,
+} from "../utils/almacenamiento"
+
 import { crearId } from "../utils/ids"
 
 import {
@@ -109,12 +115,7 @@ function loadUsers() {
         createBootstrapAdmin(),
       ]
 
-      localStorage.setItem(
-        USERS_STORAGE_KEY,
-        JSON.stringify(
-          initialUsers
-        )
-      )
+      guardarJSON(USERS_STORAGE_KEY, initialUsers)
 
       return initialUsers
     }
@@ -130,12 +131,7 @@ function loadUsers() {
         createBootstrapAdmin(),
       ]
 
-      localStorage.setItem(
-        USERS_STORAGE_KEY,
-        JSON.stringify(
-          initialUsers
-        )
-      )
+      guardarJSON(USERS_STORAGE_KEY, initialUsers)
 
       return initialUsers
     }
@@ -243,17 +239,12 @@ export function AuthProvider({
   )
 
   useEffect(() => {
-    localStorage.setItem(
-      USERS_STORAGE_KEY,
-      JSON.stringify(users)
-    )
+    guardarJSON(USERS_STORAGE_KEY, users)
   }, [users])
 
   useEffect(() => {
     if (sessionUserId && !user) {
-      localStorage.removeItem(
-        SESSION_STORAGE_KEY
-      )
+      borrar(SESSION_STORAGE_KEY)
     }
   }, [sessionUserId, user])
 
@@ -305,20 +296,15 @@ export function AuthProvider({
       String(authenticatedUser.id)
     )
 
-    localStorage.setItem(
-      SESSION_STORAGE_KEY,
-      String(
-        authenticatedUser.id
-      )
+    guardarTexto(SESSION_STORAGE_KEY, String(
+        authenticatedUser.id)
     )
 
     /*
      * Eliminamos la sesión antigua
      * que utilizaba la versión anterior.
      */
-    localStorage.removeItem(
-      "user"
-    )
+    borrar("user")
 
     return true
   }, [users])
@@ -329,13 +315,9 @@ export function AuthProvider({
   const logout = useCallback(() => {
     setSessionUserId(null)
 
-    localStorage.removeItem(
-      SESSION_STORAGE_KEY
-    )
+    borrar(SESSION_STORAGE_KEY)
 
-    localStorage.removeItem(
-      "user"
-    )
+    borrar("user")
   }, [])
 
   /*

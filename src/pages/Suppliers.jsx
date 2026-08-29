@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import Swal from "sweetalert2"
 
+import {
+  guardarJSON,
+} from "../utils/almacenamiento"
+
 const emptyForm = { id: null, name: "", contact: "", phone: "", email: "", notes: "" }
 
 function Suppliers() {
@@ -9,7 +13,7 @@ function Suppliers() {
   const [form, setForm] = useState(emptyForm)
   const [modalOpen, setModalOpen] = useState(false)
 
-  useEffect(() => { localStorage.setItem("suppliers", JSON.stringify(suppliers)); window.dispatchEvent(new CustomEvent("suppliersUpdated", { detail: suppliers })) }, [suppliers])
+  useEffect(() => { guardarJSON("suppliers", suppliers); window.dispatchEvent(new CustomEvent("suppliersUpdated", { detail: suppliers })) }, [suppliers])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
