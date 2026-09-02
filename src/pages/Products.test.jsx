@@ -1,8 +1,17 @@
-import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { screen, fireEvent } from "@testing-library/react"
 
+import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
+import { renderizarPantalla } from "../test/pantallas"
 import Products from "./Products"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
 
 const PRODUCTOS = [
   { id: "p1", code: "M-001", name: "Martillo de uña", category: "Herramientas", price: 180, costPrice: 120, stock: 20, minStock: 5, supplierId: "" },
@@ -11,13 +20,13 @@ const PRODUCTOS = [
 ]
 
 function renderProducts(productos = PRODUCTOS) {
-  localStorage.setItem("products", JSON.stringify(productos))
-  localStorage.setItem("suppliers", JSON.stringify([]))
-
-  return render(
-    <ProductProvider>
-      <Products />
-    </ProductProvider>
+  return renderizarPantalla(
+    <AuthProvider>
+      <ProductProvider>
+        <Products />
+      </ProductProvider>
+    </AuthProvider>,
+    { productos, esperar: ["productos_con_stock"] }
   )
 }
 
@@ -27,54 +36,54 @@ const buscar = (texto) =>
   })
 
 describe("Products", () => {
-  it("lista los productos del inventario", () => {
-    renderProducts()
+  it("lista los productos del inventario", async () => {
+    await renderProducts()
 
     expect(screen.getByText("Martillo de uña")).toBeInTheDocument()
     expect(screen.getByText("Cemento gris")).toBeInTheDocument()
   })
 
-  it("marca disponible el producto con stock suficiente", () => {
-    renderProducts()
+  it("marca disponible el producto con stock suficiente", async () => {
+    await renderProducts()
     expect(screen.getByText("Disponible")).toBeInTheDocument()
   })
 
-  it("marca stock bajo cuando llega al mínimo", () => {
-    renderProducts()
+  it("marca stock bajo cuando llega al mínimo", async () => {
+    await renderProducts()
     expect(screen.getByText("Stock bajo")).toBeInTheDocument()
   })
 
-  it("marca agotado cuando no queda nada", () => {
-    renderProducts()
+  it("marca agotado cuando no queda nada", async () => {
+    await renderProducts()
     expect(screen.getByText("Agotado")).toBeInTheDocument()
   })
 
-  it("filtra por nombre", () => {
-    renderProducts()
+  it("filtra por nombre", async () => {
+    await renderProducts()
     buscar("martillo")
 
     expect(screen.getByText("Martillo de uña")).toBeInTheDocument()
     expect(screen.queryByText("Cemento gris")).not.toBeInTheDocument()
   })
 
-  it("filtra por categoría", () => {
-    renderProducts()
+  it("filtra por categoría", async () => {
+    await renderProducts()
     buscar("pinturas")
 
     expect(screen.getByText("Brocha 3 pulgadas")).toBeInTheDocument()
     expect(screen.queryByText("Martillo de uña")).not.toBeInTheDocument()
   })
 
-  it("filtra por código", () => {
-    renderProducts()
+  it("filtra por código", async () => {
+    await renderProducts()
     buscar("C-001")
 
     expect(screen.getByText("Cemento gris")).toBeInTheDocument()
     expect(screen.queryByText("Martillo de uña")).not.toBeInTheDocument()
   })
 
-  it("abre el formulario de producto nuevo", () => {
-    renderProducts()
+  it("abre el formulario de producto nuevo", async () => {
+    await renderProducts()
 
     fireEvent.click(screen.getByRole("button", { name: /nuevo producto/i }))
 
@@ -83,8 +92,8 @@ describe("Products", () => {
     ).toBeInTheDocument()
   })
 
-  it("ofrece editar cada producto listado", () => {
-    renderProducts()
+  it("ofrece editar cada producto listado", async () => {
+    await renderProducts()
 
     expect(screen.getAllByRole("button", { name: /editar/i })).toHaveLength(3)
   })

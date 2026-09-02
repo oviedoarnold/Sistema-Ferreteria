@@ -27,11 +27,17 @@ import {
   validateQuantityAgainstStock,
 } from "../utils/cart"
 
-const TAX_RATE = 15
+const ISV_POR_OMISION = 15
 
 function POS() {
-  const { products = [] } = useContext(ProductContext)
+  const { products = [], company } = useContext(ProductContext)
   const { addSale } = useContext(SalesContext)
+
+  /*
+    La tasa sale de la configuración de la ferretería. Tenerla fija aquí
+    hacía que cambiarla en Configuración no afectara lo que se cobra.
+  */
+  const tasaISV = Number(company?.taxRate ?? ISV_POR_OMISION)
   const { clients = [], addClient } = useContext(ClientsContext)
 
   const location = useLocation()
@@ -219,9 +225,9 @@ function POS() {
     () =>
       calculateCartTotals(
         cart,
-        TAX_RATE
+        tasaISV
       ),
-    [cart]
+    [cart, tasaISV]
   )
 
   const handlePaymentTypeChange = (
@@ -455,7 +461,7 @@ function POS() {
 
     subtotal,
     tax,
-    taxRate: TAX_RATE,
+    taxRate: tasaISV,
     total,
 
     paymentType,
@@ -528,13 +534,13 @@ function POS() {
     setDueDate(toISODateInDays(30))
   }
 
-  const generateSale = () => {
+  const generateSale = async () => {
     if (!validateSale()) {
       return null
     }
 
     try {
-      const createdSale = addSale(
+      const createdSale = await addSale(
         buildSalePayload()
       )
 
@@ -595,9 +601,9 @@ function POS() {
     }
   }
 
-  const confirmPreviewSale = () => {
+  const confirmPreviewSale = async () => {
     const createdSale =
-      generateSale()
+      await generateSale()
 
     if (!createdSale) return
 
@@ -1069,7 +1075,7 @@ function POS() {
 
               <div className="totals-row">
                 <span>
-                  ISV ({TAX_RATE}%)
+                  ISV ({tasaISV}%)
                 </span>
 
                 <span className="v">

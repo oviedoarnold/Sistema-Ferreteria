@@ -1,21 +1,23 @@
-﻿import { useContext, useEffect, useMemo, useState } from "react"
+﻿import { useContext, useMemo, useState } from "react"
 import Swal from "sweetalert2"
 import { ProductContext } from "../context/contexts"
 
 const emptyForm = { id: null, code: "", name: "", category: "", price: "", costPrice: "", stock: "", minStock: 5, supplierId: "" }
 
 function Products() {
-  const { products = [], setProducts } = useContext(ProductContext)
-  const [suppliers, setSuppliers] = useState(() => JSON.parse(localStorage.getItem("suppliers") || "[]"))
+  const {
+    products = [],
+    suppliers = [],
+    cargando,
+    agregarProducto,
+    editarProducto,
+    quitarProducto,
+  } = useContext(ProductContext)
+
   const [search, setSearch] = useState("")
   const [form, setForm] = useState(emptyForm)
   const [modalOpen, setModalOpen] = useState(false)
-
-  useEffect(() => {
-    const h = (e) => setSuppliers(e.detail || [])
-    window.addEventListener("suppliersUpdated", h)
-    return () => window.removeEventListener("suppliersUpdated", h)
-  }, [])
+  const [guardando, setGuardando] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -29,26 +31,40 @@ function Products() {
   const openNew = () => { setForm(emptyForm); setModalOpen(true) }
   const openEdit = (p) => { setForm({ ...emptyForm, ...p }); setModalOpen(true) }
 
-  const save = () => {
+  const save = async () => {
     const code = form.code.trim()
     if (!code || !form.name.trim() || !form.category.trim()) { Swal.fire({ icon: "warning", title: "Faltan datos", text: "Código, nombre y categoría son obligatorios" }); return }
     if (products.some((p) => String(p.code || "").toLowerCase() === code.toLowerCase() && p.id !== form.id)) { Swal.fire({ icon: "error", title: "Producto ya existente", text: `El código ${code} ya está registrado` }); return }
     if (Number(form.stock) < 0) { Swal.fire({ icon: "warning", title: "Stock inválido" }); return }
     const data = { ...form, code, name: form.name.trim(), category: form.category.trim(), price: Math.max(0, Number(form.price) || 0), costPrice: Math.max(0, Number(form.costPrice) || 0), stock: Math.max(0, Number.parseInt(form.stock || 0)), minStock: Math.max(0, Number.parseInt(form.minStock || 0)) }
-    if (form.id) setProducts(products.map((p) => p.id === form.id ? { ...p, ...data } : p))
-    else setProducts([...products, { ...data, id: Date.now(), lastPurchaseDate: null }])
-    setModalOpen(false); setForm(emptyForm)
-    Swal.fire({ icon: "success", title: form.id ? "Producto actualizado" : "Producto agregado" })
+    setGuardando(true)
+    try {
+      if (form.id) await editarProducto(form.id, data)
+      else await agregarProducto(data)
+      setModalOpen(false); setForm(emptyForm)
+      Swal.fire({ icon: "success", title: form.id ? "Producto actualizado" : "Producto agregado" })
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo guardar", text: e.message })
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const remove = async (id) => {
     const p = products.find((x) => x.id === id)
     const r = await Swal.fire({ title: `¿Eliminar "${p?.name || "producto"}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar" })
-    if (r.isConfirmed) setProducts(products.filter((x) => x.id !== id))
+    if (!r.isConfirmed) return
+    try {
+      await quitarProducto(id)
+      Swal.fire({ icon: "success", title: "Producto eliminado" })
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo eliminar", text: e.message })
+    }
   }
 
   return <div className="view active">
     <div className="view-header"><div><h2>Inventario</h2><p className="sub">Controla tus productos, precios y existencias</p></div><button className="btn btn-primary btn-lg" onClick={openNew}>+ Nuevo producto</button></div>
+    {cargando && <div className="empty-state">Cargando inventario…</div>}
     {!!lowProducts.length && <div className="alert-banner"><span>⚠</span><div><strong>{lowProducts.length} producto{lowProducts.length !== 1 ? "s" : ""} con stock bajo{outCount ? ` (${outCount} agotado${outCount !== 1 ? "s" : ""})` : ""}</strong><div className="chips">{lowProducts.map((p) => <span className="chip" key={p.id}>{p.name} · {p.stock}</span>)}</div></div></div>}
     <div className="toolbar"><div className="search-box"><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>⌕</span><input placeholder="Buscar producto, código o categoría..." value={search} onChange={(e) => setSearch(e.target.value)} /></div></div>
     <div className="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th className="num">Precio</th><th className="num">Costo</th><th className="num">Stock</th><th>Estado</th><th></th></tr></thead><tbody>
@@ -64,7 +80,7 @@ function Products() {
       <div className="field"><label htmlFor="products-stock">Stock</label><input id="products-stock" type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
       <div className="field"><label htmlFor="products-stock-minimo">Stock mínimo</label><input id="products-stock-minimo" type="number" min="0" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></div>
       <div className="field full"><label htmlFor="products-proveedor">Proveedor</label><select id="products-proveedor" value={form.supplierId} onChange={(e) => setForm({ ...form, supplierId: e.target.value })}><option value="">— Sin proveedor —</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-    </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar producto</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
+    </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save} disabled={guardando}>Guardar producto</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
   </div>
 }
 

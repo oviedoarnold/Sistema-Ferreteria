@@ -1,7 +1,17 @@
-import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { screen, fireEvent } from "@testing-library/react"
 
+import { AuthProvider } from "../context/AuthContext"
+import ProductProvider from "../context/ProductContext"
+import { renderizarPantalla } from "../test/pantallas"
 import Suppliers from "./Suppliers"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
 
 const PROVEEDORES = [
   {
@@ -23,8 +33,14 @@ const PROVEEDORES = [
 ]
 
 function renderSuppliers(proveedores = PROVEEDORES) {
-  localStorage.setItem("suppliers", JSON.stringify(proveedores))
-  return render(<Suppliers />)
+  return renderizarPantalla(
+    <AuthProvider>
+      <ProductProvider>
+        <Suppliers />
+      </ProductProvider>
+    </AuthProvider>,
+    { proveedores, esperar: ["proveedores"] }
+  )
 }
 
 const buscar = (texto) =>
@@ -33,15 +49,15 @@ const buscar = (texto) =>
   })
 
 describe("Suppliers", () => {
-  it("lista los proveedores guardados", () => {
-    renderSuppliers()
+  it("lista los proveedores guardados", async () => {
+    await renderSuppliers()
 
     expect(screen.getByText("Distribuidora Ferretera")).toBeInTheDocument()
     expect(screen.getByText("Pinturas del Norte")).toBeInTheDocument()
   })
 
-  it("filtra por nombre del proveedor", () => {
-    renderSuppliers()
+  it("filtra por nombre del proveedor", async () => {
+    await renderSuppliers()
     buscar("pinturas")
 
     expect(screen.getByText("Pinturas del Norte")).toBeInTheDocument()
@@ -50,16 +66,16 @@ describe("Suppliers", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("filtra por nombre del contacto", () => {
-    renderSuppliers()
+  it("filtra por nombre del contacto", async () => {
+    await renderSuppliers()
     buscar("carlos")
 
     expect(screen.getByText("Distribuidora Ferretera")).toBeInTheDocument()
     expect(screen.queryByText("Pinturas del Norte")).not.toBeInTheDocument()
   })
 
-  it("no muestra nada cuando la búsqueda no coincide", () => {
-    renderSuppliers()
+  it("no muestra nada cuando la búsqueda no coincide", async () => {
+    await renderSuppliers()
     buscar("proveedor-inexistente")
 
     expect(
@@ -67,8 +83,8 @@ describe("Suppliers", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("abre el formulario de proveedor nuevo", () => {
-    renderSuppliers()
+  it("abre el formulario de proveedor nuevo", async () => {
+    await renderSuppliers()
 
     fireEvent.click(screen.getByRole("button", { name: /nuevo proveedor/i }))
 
@@ -77,8 +93,8 @@ describe("Suppliers", () => {
     ).toBeInTheDocument()
   })
 
-  it("muestra un mensaje cuando no hay proveedores", () => {
-    renderSuppliers([])
+  it("muestra un mensaje cuando no hay proveedores", async () => {
+    await renderSuppliers([])
 
     expect(screen.getByText(/no hay proveedores/i)).toBeInTheDocument()
   })

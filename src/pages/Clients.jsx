@@ -5,10 +5,11 @@ import { ClientsContext } from "../context/contexts"
 const emptyForm = { id: null, name: "", rtn: "", phone: "", address: "", email: "" }
 
 function Clients() {
-  const { clients = [], addClient, updateClient, deleteClient } = useContext(ClientsContext)
+  const { clients = [], cargando, addClient, updateClient, deleteClient } = useContext(ClientsContext)
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [guardando, setGuardando] = useState(false)
 
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -18,23 +19,37 @@ function Clients() {
   const openNew = () => { setForm(emptyForm); setModalOpen(true) }
   const openEdit = (client) => { setForm({ ...emptyForm, ...client }); setModalOpen(true) }
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
       Swal.fire({ icon: "warning", title: "Faltan datos", text: "Nombre, teléfono y dirección son obligatorios" })
       return
     }
-    if (form.id) updateClient(form.id, form)
-    else addClient(form)
-    setModalOpen(false)
-    setForm(emptyForm)
-    Swal.fire({ icon: "success", title: form.id ? "Cliente actualizado" : "Cliente agregado" })
+
+    setGuardando(true)
+    try {
+      if (form.id) await updateClient(form.id, form)
+      else await addClient(form)
+
+      setModalOpen(false)
+      setForm(emptyForm)
+      Swal.fire({ icon: "success", title: form.id ? "Cliente actualizado" : "Cliente agregado" })
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo guardar", text: e.message })
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const remove = async (id) => {
     const result = await Swal.fire({ title: "¿Eliminar cliente?", text: "Esta acción no se puede deshacer", icon: "warning", showCancelButton: true, confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar" })
     if (!result.isConfirmed) return
-    if (deleteClient) deleteClient(id)
-    Swal.fire({ icon: "success", title: "Cliente eliminado" })
+
+    try {
+      await deleteClient(id)
+      Swal.fire({ icon: "success", title: "Cliente eliminado" })
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo eliminar", text: e.message })
+    }
   }
 
   return (
@@ -43,6 +58,7 @@ function Clients() {
         <div><h2>Clientes</h2><p className="sub">Gestiona tus clientes y su información de contacto</p></div>
         <button className="btn btn-primary btn-lg" onClick={openNew}>+ Nuevo cliente</button>
       </div>
+      {cargando && <div className="empty-state">Cargando clientes…</div>}
 
       <div className="toolbar">
         <div className="search-box"><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>⌕</span><input placeholder="Buscar cliente..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
@@ -74,7 +90,7 @@ function Clients() {
             <div className="field"><label htmlFor="clients-correo">Correo</label><input id="clients-correo" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="field full"><label htmlFor="clients-direccion">Dirección</label><input id="clients-direccion" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
           </div></div>
-          <div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar cliente</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div>
+          <div className="modal-foot"><button className="btn btn-primary" onClick={save} disabled={guardando}>Guardar cliente</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div>
         </div>
       </div>}
     </div>

@@ -1,17 +1,26 @@
-import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent, within } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { screen, fireEvent, within } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 
+import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
 import ClientsProvider from "../context/ClientsContext"
+import { EMPRESA_PRUEBA, renderizarPantalla } from "../test/pantallas"
 import Quotes from "./Quotes"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
 
 const PRODUCTOS = [
   { id: "p1", code: "M-001", name: "Martillo de uña", category: "Herramientas", price: 180, stock: 10, minStock: 3 },
   { id: "p2", code: "C-001", name: "Cemento gris", category: "Construcción", price: 250, stock: 4, minStock: 1 },
 ]
 
-const empresa = { name: "Ferretería Isaac", currency: "L", taxRate: 15 }
+const empresa = { name: EMPRESA_PRUEBA.nombre, currency: "L", taxRate: 15 }
 
 const cotizacion = (extra = {}) => ({
   id: "Q-1",
@@ -35,19 +44,19 @@ const cotizacion = (extra = {}) => ({
 })
 
 function renderQuotes(cotizaciones = []) {
-  localStorage.setItem("products", JSON.stringify(PRODUCTOS))
-  localStorage.setItem("clients", JSON.stringify([]))
   localStorage.setItem("quotes", JSON.stringify(cotizaciones))
-  localStorage.setItem("company", JSON.stringify(empresa))
 
-  return render(
-    <ProductProvider>
-      <ClientsProvider>
-        <MemoryRouter initialEntries={["/quotes"]}>
-          <Quotes />
-        </MemoryRouter>
-      </ClientsProvider>
-    </ProductProvider>
+  return renderizarPantalla(
+    <AuthProvider>
+      <ProductProvider>
+        <ClientsProvider>
+          <MemoryRouter initialEntries={["/quotes"]}>
+            <Quotes />
+          </MemoryRouter>
+        </ClientsProvider>
+      </ProductProvider>
+    </AuthProvider>,
+    { productos: PRODUCTOS, esperar: ["productos_con_stock"] }
   )
 }
 
@@ -63,15 +72,15 @@ const filaDe = (numero) =>
   screen.getByText(numero, { exact: false }).closest(".sale-card")
 
 describe("Quotes: catálogo", () => {
-  it("lista los productos para cotizar", () => {
-    renderQuotes()
+  it("lista los productos para cotizar", async () => {
+    await renderQuotes()
 
     expect(screen.getByText("Martillo de uña")).toBeInTheDocument()
     expect(screen.getByText("Cemento gris")).toBeInTheDocument()
   })
 
-  it("filtra por nombre", () => {
-    renderQuotes()
+  it("filtra por nombre", async () => {
+    await renderQuotes()
 
     fireEvent.change(screen.getByPlaceholderText(/buscar producto/i), {
       target: { value: "cemento" },
@@ -83,20 +92,20 @@ describe("Quotes: catálogo", () => {
 })
 
 describe("Quotes: armado", () => {
-  it("arranca sin productos", () => {
-    renderQuotes()
+  it("arranca sin productos", async () => {
+    await renderQuotes()
     expect(screen.getByText(/agrega productos/i)).toBeInTheDocument()
   })
 
-  it("calcula el total con ISV incluido", () => {
-    renderQuotes()
+  it("calcula el total con ISV incluido", async () => {
+    await renderQuotes()
     agregar("Martillo de uña")
 
     expect(totales()).toHaveTextContent("L 207.00")
   })
 
-  it("permite cotizar sin ISV", () => {
-    renderQuotes()
+  it("permite cotizar sin ISV", async () => {
+    await renderQuotes()
     agregar("Martillo de uña")
 
     fireEvent.click(screen.getByLabelText(/incluir isv/i))
@@ -104,8 +113,8 @@ describe("Quotes: armado", () => {
     expect(totales()).toHaveTextContent("L 180.00")
   })
 
-  it("acumula al agregar el mismo producto dos veces", () => {
-    renderQuotes()
+  it("acumula al agregar el mismo producto dos veces", async () => {
+    await renderQuotes()
     agregar("Martillo de uña")
     agregar("Martillo de uña")
 
@@ -114,44 +123,44 @@ describe("Quotes: armado", () => {
 })
 
 describe("Quotes: historial", () => {
-  it("avisa cuando no hay cotizaciones", () => {
-    renderQuotes()
+  it("avisa cuando no hay cotizaciones", async () => {
+    await renderQuotes()
     expect(screen.getByText(/historial de cotizaciones/i)).toBeInTheDocument()
   })
 
-  it("lista las cotizaciones guardadas", () => {
-    renderQuotes([cotizacion()])
+  it("lista las cotizaciones guardadas", async () => {
+    await renderQuotes([cotizacion()])
     expect(screen.getByText("Ferremax")).toBeInTheDocument()
   })
 
-  it("marca vigente la que aún no vence", () => {
-    renderQuotes([cotizacion()])
+  it("marca vigente la que aún no vence", async () => {
+    await renderQuotes([cotizacion()])
     expect(within(filaDe("COT-00001")).getByText("Vigente")).toBeInTheDocument()
   })
 
-  it("marca vencida la que ya pasó su vigencia", () => {
-    renderQuotes([cotizacion({ validity: "2020-01-01" })])
+  it("marca vencida la que ya pasó su vigencia", async () => {
+    await renderQuotes([cotizacion({ validity: "2020-01-01" })])
     expect(within(filaDe("COT-00001")).getByText("Vencida")).toBeInTheDocument()
   })
 
-  it("marca sin vigencia la que no tiene fecha", () => {
-    renderQuotes([cotizacion({ validity: "" })])
+  it("marca sin vigencia la que no tiene fecha", async () => {
+    await renderQuotes([cotizacion({ validity: "" })])
 
     expect(
       within(filaDe("COT-00001")).getByText("Sin vigencia")
     ).toBeInTheDocument()
   })
 
-  it("ofrece facturar cada cotización", () => {
-    renderQuotes([cotizacion()])
+  it("ofrece facturar cada cotización", async () => {
+    await renderQuotes([cotizacion()])
 
     expect(
       within(filaDe("COT-00001")).getByRole("button", { name: /facturar/i })
     ).toBeInTheDocument()
   })
 
-  it("busca por nombre de cliente", () => {
-    renderQuotes([
+  it("busca por nombre de cliente", async () => {
+    await renderQuotes([
       cotizacion(),
       cotizacion({ id: "Q-2", quoteNumber: "COT-00002", clientName: "Taller Díaz" }),
     ])

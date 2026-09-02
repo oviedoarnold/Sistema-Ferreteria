@@ -1,153 +1,108 @@
-import {
-  useEffect,
-  useState,
-} from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { ClientsContext } from "./contexts"
+import { useAuth } from "../hooks/useAuth"
 
 import {
-  guardarJSON,
-} from "../utils/almacenamiento"
-
-import { crearId } from "../utils/ids"
+  traerClientes,
+  crearCliente,
+  actualizarCliente,
+  eliminarCliente,
+} from "../lib/api/catalogos"
 
 function ClientsProvider({ children }) {
-  const [clients, setClients] = useState(() => {
-    try {
-      const savedClients =
-        localStorage.getItem("clients")
+  const { user } = useAuth()
 
-      return savedClients
-        ? JSON.parse(savedClients)
-        : []
-    } catch (error) {
-      console.error(
-        "Error cargando clientes:",
-        error
-      )
+  const [clients, setClients] = useState([])
+  const [empresaCargada, setEmpresaCargada] = useState(null)
+  const [error, setError] = useState("")
 
-      return []
-    }
-  })
+  const empresaId = user?.empresa_id
+
+  /*
+    Se deriva en lugar de encenderse dentro del efecto: mientras la empresa
+    del usuario no coincida con la ya cargada, la pantalla está esperando.
+  */
+  const cargando = Boolean(empresaId) && empresaCargada !== empresaId
 
   useEffect(() => {
-    guardarJSON("clients", clients)
-  }, [clients])
-
-  const addClient = (client) => {
-    const newClient = {
-      ...client,
-
-      id:
-        client.id ||
-        crearId("C"),
-
-      name:
-        client.name?.trim() || "",
-
-      rtn:
-        client.rtn?.trim() || "",
-
-      phone:
-        client.phone?.trim() || "",
-
-      address:
-        client.address?.trim() || "",
-
-      email:
-        client.email?.trim() || "",
-
-      balance:
-        Number(client.balance || 0),
+    if (!empresaId) {
+      return
     }
 
-    setClients((currentClients) => [
-      newClient,
-      ...currentClients,
-    ])
+    let vigente = true
 
-    return newClient
-  }
-
-  const updateClient = (
-    id,
-    updatedData
-  ) => {
-    let updatedClient = null
-
-    setClients((currentClients) =>
-      currentClients.map((client) => {
-        if (
-          String(client.id) !==
-          String(id)
-        ) {
-          return client
+    traerClientes()
+      .then((lista) => {
+        if (vigente) {
+          setClients(lista)
+          setError("")
         }
-
-        updatedClient = {
-          ...client,
-          ...updatedData,
-
-          id: client.id,
-
-          name:
-            updatedData.name?.trim() ??
-            client.name,
-
-          rtn:
-            updatedData.rtn?.trim() ??
-            client.rtn,
-
-          phone:
-            updatedData.phone?.trim() ??
-            client.phone,
-
-          address:
-            updatedData.address?.trim() ??
-            client.address,
-
-          email:
-            updatedData.email?.trim() ??
-            client.email,
-        }
-
-        return updatedClient
       })
-    )
+      .catch((e) => {
+        if (vigente) setError(e.message)
+      })
+      .finally(() => {
+        if (vigente) setEmpresaCargada(empresaId)
+      })
 
-    return updatedClient
-  }
+    return () => {
+      vigente = false
+    }
+  }, [empresaId])
 
-  const deleteClient = (id) => {
-    setClients((currentClients) =>
-      currentClients.filter(
-        (client) =>
-          String(client.id) !==
-          String(id)
-      )
-    )
-  }
+  const refrescar = useCallback(async () => {
+    setClients(await traerClientes())
+  }, [])
 
-  const getClientById = (id) => {
-    return clients.find(
-      (client) =>
-        String(client.id) ===
-        String(id)
-    )
-  }
+  const addClient = useCallback(
+    async (cliente) => {
+      const creado = await crearCliente(cliente, empresaId)
+
+      await refrescar()
+
+      return creado
+    },
+    [empresaId, refrescar]
+  )
+
+  const updateClient = useCallback(
+    async (id, cliente) => {
+      await actualizarCliente(id, cliente, empresaId)
+      await refrescar()
+    },
+    [empresaId, refrescar]
+  )
+
+  const deleteClient = useCallback(
+    async (id) => {
+      await eliminarCliente(id)
+      await refrescar()
+    },
+    [refrescar]
+  )
+
+  const getClientById = useCallback(
+    (id) => clients.find((c) => String(c.id) === String(id)) || null,
+    [clients]
+  )
+
+  const value = useMemo(
+    () => ({
+      clients,
+      cargando,
+      error,
+
+      addClient,
+      updateClient,
+      deleteClient,
+      getClientById,
+    }),
+    [clients, cargando, error, addClient, updateClient, deleteClient, getClientById]
+  )
 
   return (
-    <ClientsContext.Provider
-      value={{
-        clients,
-        setClients,
-
-        addClient,
-        updateClient,
-        deleteClient,
-        getClientById,
-      }}
-    >
+    <ClientsContext.Provider value={value}>
       {children}
     </ClientsContext.Provider>
   )

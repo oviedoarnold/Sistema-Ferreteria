@@ -1,10 +1,19 @@
-import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { screen } from "@testing-library/react"
 
+import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
 import SalesProvider from "../context/SalesContext"
 import ClientsProvider from "../context/ClientsContext"
+import { renderizarPantalla } from "../test/pantallas"
 import Dashboard from "./Dashboard"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
 
 const PRODUCTOS = [
   { id: "p1", name: "Martillo", category: "Herramientas", price: 180, stock: 20, minStock: 5 },
@@ -31,68 +40,67 @@ const venta = (extra = {}) => ({
 })
 
 function renderDashboard({ ventas = [], productos = PRODUCTOS, clientes = [] } = {}) {
-  localStorage.setItem("products", JSON.stringify(productos))
-  localStorage.setItem("sales", JSON.stringify(ventas))
-  localStorage.setItem("clients", JSON.stringify(clientes))
-
-  return render(
-    <ProductProvider>
-      <ClientsProvider>
-        <SalesProvider>
-          <Dashboard />
-        </SalesProvider>
-      </ClientsProvider>
-    </ProductProvider>
+  return renderizarPantalla(
+    <AuthProvider>
+      <ProductProvider>
+        <ClientsProvider>
+          <SalesProvider>
+            <Dashboard />
+          </SalesProvider>
+        </ClientsProvider>
+      </ProductProvider>
+    </AuthProvider>,
+    { ventas, productos, clientes, esperar: ["ventas"] }
   )
 }
 
 describe("Dashboard", () => {
-  it("muestra el encabezado", () => {
-    renderDashboard()
+  it("muestra el encabezado", async () => {
+    await renderDashboard()
     expect(screen.getByText("Dashboard")).toBeInTheDocument()
   })
 
-  it("cuenta como stock bajo solo lo que aun tiene existencias", () => {
-    renderDashboard()
+  it("cuenta como stock bajo solo lo que aun tiene existencias", async () => {
+    await renderDashboard()
 
     const tarjeta = screen.getByText("Stock bajo").closest(".stat-card")
 
     expect(tarjeta).toHaveTextContent("1")
   })
 
-  it("cuenta los productos agotados", () => {
-    renderDashboard()
+  it("cuenta los productos agotados", async () => {
+    await renderDashboard()
 
     const tarjeta = screen.getByText("Agotados").closest(".stat-card")
 
     expect(tarjeta).toHaveTextContent("1")
   })
 
-  it("informa cuántos productos hay", () => {
-    renderDashboard()
+  it("informa cuántos productos hay", async () => {
+    await renderDashboard()
 
     const tarjeta = screen.getByText("Productos").closest(".stat-card")
 
     expect(tarjeta).toHaveTextContent("3")
   })
 
-  it("suma las ventas del día", () => {
-    renderDashboard({ ventas: [venta()] })
+  it("suma las ventas del día", async () => {
+    await renderDashboard({ ventas: [venta()] })
 
     const tarjeta = screen.getByText("Ventas hoy").closest(".stat-card")
 
     expect(tarjeta).toHaveTextContent("207.00")
   })
 
-  it("deja el saldo por cobrar en cero si todo es de contado", () => {
-    renderDashboard({ ventas: [venta()] })
+  it("deja el saldo por cobrar en cero si todo es de contado", async () => {
+    await renderDashboard({ ventas: [venta()] })
 
     const tarjeta = screen.getByText("Por cobrar").closest(".stat-card")
 
     expect(tarjeta).toHaveTextContent("0.00")
   })
 
-  it("suma al por cobrar solo el saldo pendiente de las ventas a crédito", () => {
+  it("suma al por cobrar solo el saldo pendiente de las ventas a crédito", async () => {
     const aCredito = venta({
       id: "F-2",
       paymentType: "credito",
@@ -102,20 +110,20 @@ describe("Dashboard", () => {
       payments: [{ id: "ab1", amount: 400 }],
     })
 
-    renderDashboard({ ventas: [aCredito] })
+    await renderDashboard({ ventas: [aCredito] })
 
     const tarjeta = screen.getByText("Por cobrar").closest(".stat-card")
 
     expect(tarjeta).toHaveTextContent("600.00")
   })
 
-  it("avisa cuando todavía no hay ventas", () => {
-    renderDashboard()
+  it("avisa cuando todavía no hay ventas", async () => {
+    await renderDashboard()
     expect(screen.getAllByText(/sin ventas todav/i).length).toBeGreaterThan(0)
   })
 
-  it("lista los productos más vendidos", () => {
-    renderDashboard({ ventas: [venta()] })
+  it("lista los productos más vendidos", async () => {
+    await renderDashboard({ ventas: [venta()] })
 
     expect(screen.getByText("Top productos vendidos")).toBeInTheDocument()
     expect(screen.getByText("Martillo")).toBeInTheDocument()

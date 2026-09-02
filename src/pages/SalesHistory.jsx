@@ -259,7 +259,7 @@ function SalesHistory() {
     setPaymentError("")
   }
 
-  const submitPayment = (
+  const submitPayment = async (
     event
   ) => {
     event.preventDefault()
@@ -273,7 +273,7 @@ function SalesHistory() {
       payingBalance
 
     try {
-      addPayment(
+      await addPayment(
         payingSale.id,
         {
           amount:
@@ -332,10 +332,21 @@ function SalesHistory() {
       return
     }
 
-    deletePayment(
-      sale.id,
-      payment.id
-    )
+    try {
+      await deletePayment(
+        sale.id,
+        payment.id
+      )
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+
+        title:
+          "No se pudo eliminar el abono",
+
+        text: error.message,
+      })
+    }
   }
 
   const getStatusBadge = (

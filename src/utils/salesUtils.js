@@ -93,3 +93,32 @@ export function applyPayments(
         : "pendiente",
   }
 }
+
+/*
+  La fecha de una venta se compara como fecha y no como texto: el formato
+  de "date" depende del locale y basta un cambio de formato para que la
+  comparación deje de calzar sin que nadie lo note.
+*/
+export function fechaDeVenta(sale) {
+  const fecha = new Date(
+    sale?.isoDate || sale?.timestamp || sale?.date
+  )
+
+  return Number.isNaN(fecha.getTime()) ? null : fecha
+}
+
+export function esVentaDelDia(sale, dia = new Date()) {
+  const fecha = fechaDeVenta(sale)
+
+  return Boolean(fecha) && fecha.toDateString() === dia.toDateString()
+}
+
+export function esVentaDelMes(sale, mes = new Date()) {
+  const fecha = fechaDeVenta(sale)
+
+  return (
+    Boolean(fecha) &&
+    fecha.getMonth() === mes.getMonth() &&
+    fecha.getFullYear() === mes.getFullYear()
+  )
+}

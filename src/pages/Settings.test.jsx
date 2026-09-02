@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent, within } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
 
 import {
   montarSupabaseFalso,
@@ -7,6 +7,7 @@ import {
   permisosDe,
   sesionDe,
 } from "../test/auth"
+import { aFilaDeEmpresa } from "../test/pantallas"
 
 vi.mock("../lib/supabase", () => ({
   get supabase() {
@@ -40,20 +41,24 @@ beforeEach(() => {
 })
 
 async function renderSettings({ empresa = EMPRESA, correlativo = 1000 } = {}) {
-  localStorage.setItem("company", JSON.stringify(empresa))
-  localStorage.setItem("products", JSON.stringify([]))
-  localStorage.setItem("sales", JSON.stringify([]))
-  localStorage.setItem(
-    "counters",
-    JSON.stringify({ invoice: correlativo, quote: 2000 })
-  )
-
   montarSupabaseFalso({
     usuarios: [
       usuarioDePrueba({ rol: "admin", nombre: "Administrador" }),
     ],
     permisos: permisosDe("u-1", ["settings"]),
     sesionInicial: sesionDe("auth-1"),
+    tablasExtra: {
+      empresas: [
+        aFilaDeEmpresa(empresa, { correlativoFactura: correlativo }),
+      ],
+      productos: [],
+      movimientos_inventario: [],
+      proveedores: [],
+      clientes: [],
+      ventas: [],
+      detalle_venta: [],
+      abonos: [],
+    },
   })
 
   const { AuthProvider } = await import("../context/AuthContext")
@@ -72,6 +77,11 @@ async function renderSettings({ empresa = EMPRESA, correlativo = 1000 } = {}) {
   )
 
   await screen.findByText(/datos de la ferretería/i)
+
+  // El formulario se llena cuando la empresa termina de llegar de la base.
+  await waitFor(() => {
+    expect(campo("name")).toHaveValue(empresa.name)
+  })
 }
 
 const campo = (nombre) => document.querySelector(`[name="${nombre}"]`)

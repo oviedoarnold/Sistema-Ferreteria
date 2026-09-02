@@ -1,11 +1,20 @@
-import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent, within } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { screen, fireEvent, within } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 
+import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
 import ClientsProvider from "../context/ClientsContext"
 import SalesProvider from "../context/SalesContext"
+import { renderizarPantalla } from "../test/pantallas"
 import POS from "./POS"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
 
 const PRODUCTOS = [
   { id: "p1", code: "M-001", name: "Martillo de uña", category: "Herramientas", price: 180, stock: 10, minStock: 3 },
@@ -17,24 +26,19 @@ const CLIENTES = [
 ]
 
 function renderPOS() {
-  localStorage.setItem("products", JSON.stringify(PRODUCTOS))
-  localStorage.setItem("clients", JSON.stringify(CLIENTES))
-  localStorage.setItem("sales", JSON.stringify([]))
-  localStorage.setItem(
-    "company",
-    JSON.stringify({ name: "Ferretería Isaac", currency: "L", taxRate: 15 })
-  )
-
-  return render(
-    <ProductProvider>
-      <ClientsProvider>
-        <SalesProvider>
-          <MemoryRouter initialEntries={["/pos"]}>
-            <POS />
-          </MemoryRouter>
-        </SalesProvider>
-      </ClientsProvider>
-    </ProductProvider>
+  return renderizarPantalla(
+    <AuthProvider>
+      <ProductProvider>
+        <ClientsProvider>
+          <SalesProvider>
+            <MemoryRouter initialEntries={["/pos"]}>
+              <POS />
+            </MemoryRouter>
+          </SalesProvider>
+        </ClientsProvider>
+      </ProductProvider>
+    </AuthProvider>,
+    { productos: PRODUCTOS, clientes: CLIENTES, esperar: ["ventas"] }
   )
 }
 
@@ -56,23 +60,23 @@ const buscar = (texto) =>
   })
 
 describe("POS: catálogo", () => {
-  it("lista los productos disponibles", () => {
-    renderPOS()
+  it("lista los productos disponibles", async () => {
+    await renderPOS()
 
     expect(screen.getByText("Martillo de uña")).toBeInTheDocument()
     expect(screen.getByText("Cemento gris")).toBeInTheDocument()
   })
 
-  it("filtra por nombre", () => {
-    renderPOS()
+  it("filtra por nombre", async () => {
+    await renderPOS()
     buscar("martillo")
 
     expect(screen.getByText("Martillo de uña")).toBeInTheDocument()
     expect(screen.queryByText("Cemento gris")).not.toBeInTheDocument()
   })
 
-  it("filtra por código", () => {
-    renderPOS()
+  it("filtra por código", async () => {
+    await renderPOS()
     buscar("C-001")
 
     expect(screen.getByText("Cemento gris")).toBeInTheDocument()
@@ -81,28 +85,28 @@ describe("POS: catálogo", () => {
 })
 
 describe("POS: carrito", () => {
-  it("arranca con el total en cero", () => {
-    renderPOS()
+  it("arranca con el total en cero", async () => {
+    await renderPOS()
     expect(screen.getAllByText("L 0.00").length).toBeGreaterThan(0)
   })
 
-  it("agrega un producto y calcula el total con impuesto", () => {
-    renderPOS()
+  it("agrega un producto y calcula el total con impuesto", async () => {
+    await renderPOS()
     agregar("Martillo de uña")
 
     expect(totales()).toHaveTextContent("L 27.00")
     expect(totales()).toHaveTextContent("L 207.00")
   })
 
-  it("descuenta del disponible lo que ya está en el carrito", () => {
-    renderPOS()
+  it("descuenta del disponible lo que ya está en el carrito", async () => {
+    await renderPOS()
     agregar("Martillo de uña")
 
     expect(screen.getByText(/9 disp/i)).toBeInTheDocument()
   })
 
-  it("acumula al agregar el mismo producto dos veces", () => {
-    renderPOS()
+  it("acumula al agregar el mismo producto dos veces", async () => {
+    await renderPOS()
     agregar("Martillo de uña")
     agregar("Martillo de uña")
 
@@ -111,16 +115,16 @@ describe("POS: carrito", () => {
 })
 
 describe("POS: forma de pago", () => {
-  it("arranca en contado", () => {
-    renderPOS()
+  it("arranca en contado", async () => {
+    await renderPOS()
 
     const contado = screen.getByRole("button", { name: /contado/i })
 
     expect(contado).toBeInTheDocument()
   })
 
-  it("al elegir crédito pide fecha de vencimiento", () => {
-    renderPOS()
+  it("al elegir crédito pide fecha de vencimiento", async () => {
+    await renderPOS()
 
     fireEvent.click(screen.getByRole("button", { name: /crédito/i }))
 
@@ -129,8 +133,8 @@ describe("POS: forma de pago", () => {
 })
 
 describe("POS: cliente", () => {
-  it("permite escribir el nombre del comprador", () => {
-    renderPOS()
+  it("permite escribir el nombre del comprador", async () => {
+    await renderPOS()
 
     const campo = screen.getByPlaceholderText(/nombre/i)
 
@@ -139,8 +143,8 @@ describe("POS: cliente", () => {
     expect(campo).toHaveValue("Ferremax")
   })
 
-  it("ofrece capturar el RTN del comprador", () => {
-    renderPOS()
+  it("ofrece capturar el RTN del comprador", async () => {
+    await renderPOS()
     expect(screen.getByText(/RTN del comprador/i)).toBeInTheDocument()
   })
 })

@@ -1,16 +1,15 @@
-import {
-  useContext,
-  useEffect,
-  useState,
-} from "react"
+import { useCallback, useContext, useEffect, useMemo, useState } from "react"
 
-import { SalesContext } from "./contexts"
+import { ProductContext, SalesContext } from "./contexts"
+import { useAuth } from "../hooks/useAuth"
 
 import {
-  guardarJSON,
-} from "../utils/almacenamiento"
-
-import { ProductContext } from "./contexts"
+  traerVentas,
+  crearVenta,
+  crearAbono,
+  eliminarAbono,
+  ajustarEstadoPorSaldo,
+} from "../lib/api/ventas"
 
 import {
   roundMoney,
@@ -20,644 +19,331 @@ import {
   applyPayments,
 } from "../utils/salesUtils"
 
-import { sufijoAleatorio } from "../utils/ids"
-
-import {
-  isFiscalConfigured,
-  formatDocumentNumber,
-  buildFiscalSnapshot,
-} from "../utils/fiscal"
-
-const DEFAULT_COUNTERS = {
-  invoice: 1000,
-  quote: 2000,
-}
-
-function formatInvoiceNumber(number) {
-  return `FAC-${String(number).padStart(5, "0")}`
-}
-
-function formatDate(date = new Date()) {
-  return date.toLocaleDateString("es-HN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
-}
+const ISV_POR_OMISION = 15
 
 function SalesProvider({ children }) {
+  const { user } = useAuth()
+
   const {
     products,
-    setProducts,
     company,
+    refrescarProductos,
   } = useContext(ProductContext)
 
-  const [sales, setSales] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem("sales")
+  const [sales, setSales] = useState([])
+  const [empresaCargada, setEmpresaCargada] = useState(null)
+  const [error, setError] = useState("")
 
-      return saved
-        ? JSON.parse(saved)
-        : []
-    } catch (error) {
-      console.error(
-        "Error cargando ventas:",
-        error
-      )
+  const empresaId = user?.empresa_id
+  const usuarioId = user?.id
 
-      return []
+  const cargando = Boolean(empresaId) && empresaCargada !== empresaId
+
+  useEffect(() => {
+    if (!empresaId) {
+      return
     }
-  })
 
-  const [counters, setCounters] =
-    useState(() => {
-      try {
-        const saved =
-          localStorage.getItem(
-            "counters"
-          )
+    let vigente = true
 
-        if (!saved) {
-          return DEFAULT_COUNTERS
+    traerVentas(company)
+      .then((lista) => {
+        if (!vigente) return
+
+        setSales(lista)
+        setError("")
+      })
+      .catch((problema) => {
+        if (vigente) setError(problema.message)
+      })
+      .finally(() => {
+        if (vigente) setEmpresaCargada(empresaId)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [empresaId, company])
+
+  const refrescarVentas = useCallback(async () => {
+    setSales(await traerVentas(company))
+  }, [company])
+
+  const buscarProducto = useCallback(
+    (id) => products.find((p) => String(p.id) === String(id)),
+    [products]
+  )
+
+  const validarRenglones = useCallback(
+    (items = []) => {
+      if (!Array.isArray(items)) {
+        throw new Error("Los productos de la venta no son válidos.")
+      }
+
+      if (items.length === 0) {
+        throw new Error("La venta debe contener al menos un producto.")
+      }
+
+      items.forEach((item) => {
+        const productId = item.productId ?? item.id
+        const cantidad = Number(item.qty ?? item.quantity ?? 0)
+
+        if (!productId) {
+          throw new Error("Uno de los productos no tiene identificador.")
         }
 
-        const parsed =
-          JSON.parse(saved)
+        if (!Number.isFinite(cantidad) || cantidad <= 0) {
+          throw new Error(
+            "La cantidad de los productos debe ser mayor que cero."
+          )
+        }
+
+        const producto = buscarProducto(productId)
+
+        if (!producto) {
+          throw new Error("Uno de los productos ya no existe en el inventario.")
+        }
+
+        if (cantidad > Number(producto.stock || 0)) {
+          throw new Error(
+            `Stock insuficiente de ${producto.name}. Solo hay ${producto.stock} unidades disponibles.`
+          )
+        }
+      })
+    },
+    [buscarProducto]
+  )
+
+  const armarRenglones = useCallback(
+    (items = []) =>
+      items.map((item) => {
+        const productId = item.productId ?? item.id
+        const producto = buscarProducto(productId)
+        const cantidad = Number(item.qty ?? item.quantity ?? 1)
+        const precio = Number(item.price ?? producto?.price ?? 0)
 
         return {
-          ...DEFAULT_COUNTERS,
-          ...parsed,
+          productId,
+          id: productId,
+          code: producto?.code || "",
+          name: producto?.name || item.name || "Producto",
+          category: producto?.category || item.category || "",
+          qty: cantidad,
+          quantity: cantidad,
+          price: precio,
+          subtotal: roundMoney(precio * cantidad),
         }
-      } catch (error) {
-        console.error(
-          "Error cargando contadores:",
-          error
-        )
+      }),
+    [buscarProducto]
+  )
 
-        return DEFAULT_COUNTERS
-      }
-    })
-
-  useEffect(() => {
-    guardarJSON("sales", sales)
-  }, [sales])
-
-  useEffect(() => {
-    guardarJSON("counters", counters)
-  }, [counters])
-
-  const validateSaleItems = (
-    items = []
-  ) => {
-    if (!Array.isArray(items)) {
-      throw new Error(
-        "Los productos de la venta no son válidos."
-      )
-    }
-
-    if (items.length === 0) {
-      throw new Error(
-        "La venta debe contener al menos un producto."
-      )
-    }
-
-    items.forEach((item) => {
-      const productId =
-        item.productId ?? item.id
-
-      const quantity = Number(
-        item.qty ?? item.quantity ?? 0
+  const calcularTotales = useCallback(
+    (renglones) => {
+      const subtotal = roundMoney(
+        renglones.reduce((suma, item) => suma + item.subtotal, 0)
       )
 
-      if (!productId) {
-        throw new Error(
-          "Uno de los productos no tiene identificador."
-        )
-      }
-
-      if (
-        !Number.isFinite(quantity) ||
-        quantity <= 0
-      ) {
-        throw new Error(
-          "La cantidad de los productos debe ser mayor que cero."
-        )
-      }
-
-      const product = products.find(
-        (candidate) =>
-          String(candidate.id) ===
-          String(productId)
-      )
-
-      if (!product) {
-        throw new Error(
-          "Uno de los productos ya no existe en el inventario."
-        )
-      }
-
-      if (
-        quantity >
-        Number(product.stock || 0)
-      ) {
-        throw new Error(
-          `Stock insuficiente de ${product.name}. Solo hay ${product.stock} unidades disponibles.`
-        )
-      }
-    })
-  }
-
-  const buildInvoiceItems = (
-    items = []
-  ) => {
-    return items.map((item) => {
-      const productId =
-        item.productId ?? item.id
-
-      const product = products.find(
-        (candidate) =>
-          String(candidate.id) ===
-          String(productId)
-      )
-
-      const quantity = Number(
-        item.qty ?? item.quantity ?? 1
-      )
-
-      const price = Number(
-        item.price ??
-          product?.price ??
-          0
-      )
-
-      return {
-        productId,
-        id: productId,
-
-        code:
-          product?.code || "",
-
-        name:
-          product?.name ||
-          item.name ||
-          "Producto",
-
-        category:
-          product?.category ||
-          item.category ||
-          "",
-
-        qty: quantity,
-        quantity,
-
-        price,
-
-        subtotal:
-          price * quantity,
-      }
-    })
-  }
-
-  const calculateTotals = (
-    invoiceItems
-  ) => {
-    const subtotal =
-      invoiceItems.reduce(
-        (sum, item) =>
-          sum + item.subtotal,
-        0
-      )
-
-    const taxRate = Number(
-      company?.taxRate ?? 15
-    )
-
-    const tax =
-      subtotal * (taxRate / 100)
-
-    return {
-      subtotal,
-      tax,
-      taxRate,
-      total: subtotal + tax,
-    }
-  }
-
-  const reduceStock = (
-    invoiceItems
-  ) => {
-    setProducts(
-      (currentProducts) =>
-        currentProducts.map(
-          (product) => {
-            const soldItem =
-              invoiceItems.find(
-                (item) =>
-                  String(
-                    item.productId
-                  ) ===
-                  String(
-                    product.id
-                  )
-              )
-
-            if (!soldItem) {
-              return product
-            }
-
-            return {
-              ...product,
-
-              stock:
-                Number(
-                  product.stock || 0
-                ) -
-                Number(
-                  soldItem.qty
-                ),
-            }
-          }
-        )
-    )
-  }
-
-  const addSale = (sale) => {
-    if (!sale) {
-      throw new Error(
-        "No se recibieron datos de la venta."
-      )
-    }
-
-    validateSaleItems(
-      sale.items
-    )
-
-    const invoiceItems =
-      buildInvoiceItems(
-        sale.items
-      )
-
-    const totals =
-      calculateTotals(
-        invoiceItems
-      )
-
-    const paymentType =
-      sale.paymentType ||
-      sale.type ||
-      "contado"
-
-    const isCredit =
-      paymentType === "credito"
-
-    if (
-      isCredit &&
-      !sale.clientId
-    ) {
-      throw new Error(
-        "Para una venta a crédito debes seleccionar un cliente registrado."
-      )
-    }
-
-    const invoiceCounter =
-      counters.invoice
-
-    /*
-      Con datos fiscales cargados la factura
-      usa la numeración autorizada; sin ellos
-      cae en la numeración interna.
-    */
-    const fiscal =
-      company?.fiscal
-
-    const fiscalSnapshot =
-      buildFiscalSnapshot(
-        fiscal,
-        invoiceCounter
-      )
-
-    const invoiceNumber =
-      isFiscalConfigured(fiscal)
-        ? formatDocumentNumber(
-            invoiceCounter,
-            fiscal
-          )
-        : formatInvoiceNumber(
-            invoiceCounter
-          )
-
-    const now = new Date()
-
-    const customerName =
-      sale.customerName ||
-      sale.customer ||
-      "Consumidor Final"
-
-    const newInvoice = {
-      id: `F-${invoiceCounter}`,
-
-      invoiceNumber,
-
-      date: formatDate(now),
-
-      timestamp:
-        now.getTime(),
-
-      isoDate:
-        now.toISOString(),
-
-      clientId:
-        sale.clientId || null,
-
-      clientName:
-        customerName,
-
-      customerName:
-        customerName,
-
-      customer:
-        customerName,
-
-      rtn:
-        sale.rtn || "",
-
-      items:
-        invoiceItems,
-
-      subtotal:
-        totals.subtotal,
-
-      tax:
-        totals.tax,
-
-      taxRate:
-        totals.taxRate,
-
-      total:
-        totals.total,
-
-      paymentType,
-
-      type:
-        paymentType,
-
-      dueDate:
-        isCredit
-          ? sale.dueDate || null
-          : null,
-
-      status:
-        isCredit
-          ? "pendiente"
-          : "pagada",
-
-      note:
-        sale.note || "",
-
-      /*
-        Copia, no referencia: al cambiar el CAI
-        las facturas ya emitidas deben conservar
-        el que tenían.
-      */
-      fiscal:
-        fiscalSnapshot,
-
-      company: {
-        name:
-          company?.name ||
-          "Ferretería Isaac",
-
-        address:
-          company?.address ||
-          "",
-
-        phone:
-          company?.phone ||
-          "",
-
-        currency:
-          company?.currency ||
-          "L",
-
-        taxRate:
-          totals.taxRate,
-      },
-    }
-
-    /*
-      SalesContext es quien modifica
-      el inventario.
-
-      POS solamente valida y envía
-      los datos de la venta.
-    */
-    reduceStock(
-      invoiceItems
-    )
-
-    setSales(
-      (currentSales) => [
-        newInvoice,
-        ...currentSales,
-      ]
-    )
-
-    setCounters(
-      (currentCounters) => ({
-        ...currentCounters,
-
-        invoice:
-          currentCounters.invoice +
-          1,
-      })
-    )
-
-    return newInvoice
-  }
+      const taxRate = Number(company?.taxRate ?? ISV_POR_OMISION)
+      const tax = roundMoney(subtotal * (taxRate / 100))
+
+      return { subtotal, tax, taxRate, total: roundMoney(subtotal + tax) }
+    },
+    [company]
+  )
 
   /*
-    Registra un abono sobre una venta
-    a crédito. Al quedar el saldo en
-    cero la factura pasa a "pagada".
+    El número de factura, el estado y la descarga de inventario los decide
+    la base. La pantalla solo manda lo que el cajero eligió.
   */
-  const addPayment = (
-    saleId,
-    payment = {}
-  ) => {
-    const sale = sales.find(
-      (candidate) =>
-        String(candidate.id) ===
-        String(saleId)
-    )
+  const addSale = useCallback(
+    async (venta) => {
+      if (!venta) {
+        throw new Error("No se recibieron datos de la venta.")
+      }
 
-    if (!sale) {
-      throw new Error(
-        "La factura no existe."
+      validarRenglones(venta.items)
+
+      const renglones = armarRenglones(venta.items)
+      const totales = calcularTotales(renglones)
+      const formaPago = venta.paymentType || venta.type || "contado"
+
+      if (formaPago === "credito" && !venta.clientId) {
+        throw new Error(
+          "Para una venta a crédito debes seleccionar un cliente registrado."
+        )
+      }
+
+      const nombreCliente =
+        venta.customerName || venta.customer || "Consumidor Final"
+
+      const ventaId = await crearVenta(
+        {
+          ...venta,
+          ...totales,
+          items: renglones,
+          paymentType: formaPago,
+          customerName: nombreCliente,
+        },
+        { empresaId, usuarioId, empresa: company }
       )
-    }
 
-    if (!isCreditSale(sale)) {
-      throw new Error(
-        "Solo las facturas a crédito admiten abonos."
-      )
-    }
+      const [listaVentas] = await Promise.all([
+        traerVentas(company),
+        refrescarProductos(),
+      ])
 
-    const amount = roundMoney(
-      payment.amount
-    )
+      setSales(listaVentas)
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      throw new Error(
-        "El monto del abono debe ser mayor que cero."
-      )
-    }
+      return listaVentas.find((v) => v.id === ventaId)
+    },
+    [
+      validarRenglones,
+      armarRenglones,
+      calcularTotales,
+      empresaId,
+      usuarioId,
+      company,
+      refrescarProductos,
+    ]
+  )
 
-    const balance =
-      getSaleBalance(sale)
-
-    if (balance <= 0) {
-      throw new Error(
-        "Esta factura ya está cancelada."
-      )
-    }
-
-    if (amount > balance) {
-      throw new Error(
-        `El abono no puede superar el saldo pendiente de ${balance.toFixed(
-          2
-        )}.`
-      )
-    }
-
-    const now = new Date()
-
-    const newPayment = {
-      id: `AB-${now.getTime()}-${sufijoAleatorio(3)}`,
-
-      amount,
-
-      date: formatDate(now),
-
-      isoDate:
-        now.toISOString(),
-
-      timestamp:
-        now.getTime(),
-
-      note:
-        payment.note || "",
-    }
-
-    setSales((currentSales) =>
-      currentSales.map(
-        (candidate) => {
-          if (
-            String(
-              candidate.id
-            ) !==
-            String(saleId)
-          ) {
-            return candidate
-          }
-
-          return applyPayments(
-            candidate,
-            [
-              ...getSalePayments(
-                candidate
-              ),
-              newPayment,
-            ]
-          )
-        }
-      )
-    )
-
-    return newPayment
-  }
+  const buscarVenta = useCallback(
+    (id) => sales.find((venta) => String(venta.id) === String(id)),
+    [sales]
+  )
 
   /*
-    Permite corregir un abono mal
-    registrado; el saldo y el estado
-    se recalculan solos.
+    Registra un abono sobre una venta a crédito. Al quedar el saldo en
+    cero la factura pasa a pagada.
   */
-  const deletePayment = (
-    saleId,
-    paymentId
-  ) => {
-    setSales((currentSales) =>
-      currentSales.map(
-        (candidate) => {
-          if (
-            String(
-              candidate.id
-            ) !==
-            String(saleId)
-          ) {
-            return candidate
-          }
+  const addPayment = useCallback(
+    async (saleId, payment = {}) => {
+      const venta = buscarVenta(saleId)
 
-          return applyPayments(
-            candidate,
-            getSalePayments(
-              candidate
-            ).filter(
-              (payment) =>
-                String(
-                  payment.id
-                ) !==
-                String(paymentId)
-            )
-          )
-        }
+      if (!venta) {
+        throw new Error("La factura no existe.")
+      }
+
+      if (!isCreditSale(venta)) {
+        throw new Error("Solo las facturas a crédito admiten abonos.")
+      }
+
+      const monto = roundMoney(payment.amount)
+
+      if (!Number.isFinite(monto) || monto <= 0) {
+        throw new Error("El monto del abono debe ser mayor que cero.")
+      }
+
+      const saldo = getSaleBalance(venta)
+
+      if (saldo <= 0) {
+        throw new Error("Esta factura ya está cancelada.")
+      }
+
+      if (monto > saldo) {
+        throw new Error(
+          `El abono no puede superar el saldo pendiente de ${saldo.toFixed(2)}.`
+        )
+      }
+
+      const abono = await crearAbono(
+        saleId,
+        { ...payment, amount: monto },
+        { empresaId, usuarioId }
       )
-    )
-  }
 
-  const getSaleById = (id) => {
-    return sales.find(
-      (sale) =>
-        String(sale.id) ===
-        String(id)
-    )
-  }
+      const conElAbono = applyPayments(venta, [
+        ...getSalePayments(venta),
+        abono,
+      ])
 
-  const getSaleByInvoiceNumber = (
-    invoiceNumber
-  ) => {
-    return sales.find(
-      (sale) =>
-        String(
-          sale.invoiceNumber
-        ) ===
-        String(invoiceNumber)
-    )
-  }
+      await ajustarEstadoPorSaldo(saleId, getSaleBalance(conElAbono))
+      await refrescarVentas()
+
+      return abono
+    },
+    [buscarVenta, empresaId, usuarioId, refrescarVentas]
+  )
+
+  /*
+    Permite corregir un abono mal registrado; el saldo y el estado se
+    recalculan solos.
+  */
+  const deletePayment = useCallback(
+    async (saleId, paymentId) => {
+      const venta = buscarVenta(saleId)
+
+      if (!venta) {
+        throw new Error("La factura no existe.")
+      }
+
+      await eliminarAbono(paymentId)
+
+      const sinElAbono = applyPayments(
+        venta,
+        getSalePayments(venta).filter(
+          (abono) => String(abono.id) !== String(paymentId)
+        )
+      )
+
+      await ajustarEstadoPorSaldo(saleId, getSaleBalance(sinElAbono))
+      await refrescarVentas()
+    },
+    [buscarVenta, refrescarVentas]
+  )
+
+  const getSaleByInvoiceNumber = useCallback(
+    (invoiceNumber) =>
+      sales.find(
+        (venta) => String(venta.invoiceNumber) === String(invoiceNumber)
+      ),
+    [sales]
+  )
+
+  /*
+    Las pantallas siguen leyendo counters.invoice; la cuenta ahora la
+    lleva la empresa en la base.
+  */
+  const counters = useMemo(
+    () => ({
+      invoice: company?.nextInvoice ?? 1,
+      quote: company?.nextQuote ?? 1,
+    }),
+    [company]
+  )
+
+  const value = useMemo(
+    () => ({
+      sales,
+      cargando,
+      error,
+
+      addSale,
+      addPayment,
+      deletePayment,
+
+      getSaleById: buscarVenta,
+      getSaleByInvoiceNumber,
+
+      refrescarVentas,
+      counters,
+    }),
+    [
+      sales,
+      cargando,
+      error,
+      addSale,
+      addPayment,
+      deletePayment,
+      buscarVenta,
+      getSaleByInvoiceNumber,
+      refrescarVentas,
+      counters,
+    ]
+  )
 
   return (
-    <SalesContext.Provider
-      value={{
-        sales,
-        setSales,
-
-        addSale,
-
-        addPayment,
-        deletePayment,
-
-        getSaleById,
-        getSaleByInvoiceNumber,
-
-        counters,
-        setCounters,
-      }}
-    >
-      {children}
-    </SalesContext.Provider>
+    <SalesContext.Provider value={value}>{children}</SalesContext.Provider>
   )
 }
 

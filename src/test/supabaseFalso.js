@@ -15,23 +15,37 @@ function aplicarFiltros(filas, filtros) {
   )
 }
 
-function proyectar(fila, columnas, tablas) {
-  if (!columnas || columnas === "*") {
-    return { ...fila }
-  }
+/*
+  Las tablas hijas apuntan al padre con el nombre de la tabla en singular:
+  ventas se lee desde venta_id, usuarios desde usuario_id.
+*/
+const llaveHacia = (tablaPadre) => tablaPadre.replace(/s$/, "") + "_id"
 
-  const salida = {}
+function proyectar(fila, columnas, tablas, tablaPadre) {
+  const listaDeColumnas = (columnas || "*")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean)
 
-  for (const parte of columnas.split(",").map((c) => c.trim())) {
-    const anidada = parte.match(/^(\w+)\((.*)\)$/)
+  const salida = listaDeColumnas.includes("*") ? { ...fila } : {}
+
+  for (const parte of listaDeColumnas) {
+    if (parte === "*") continue
+
+    const anidada = parte.match(/^(\w+)\s*\(([\s\S]*)\)$/)
 
     if (anidada) {
       const [, tablaHija, columnasHijas] = anidada
+      const llave = llaveHacia(tablaPadre)
+
       const hijas = (tablas[tablaHija] || []).filter(
-        (h) => h.usuario_id === fila.id
+        (h) => h[llave] === fila.id
       )
 
-      salida[tablaHija] = hijas.map((h) => proyectar(h, columnasHijas, tablas))
+      salida[tablaHija] = hijas.map((h) =>
+        proyectar(h, columnasHijas, tablas, tablaHija)
+      )
+
       continue
     }
 
@@ -39,6 +53,31 @@ function proyectar(fila, columnas, tablas) {
   }
 
   return salida
+}
+
+/*
+  Las vistas de la base se recalculan en cada consulta, igual que en
+  PostgreSQL. Así una prueba que registra un movimiento ve el stock nuevo
+  sin tener que actualizar dos lugares a mano.
+*/
+const VISTAS = {
+  productos_con_stock: (datos) =>
+    (datos.productos || []).map((producto) => ({
+      ...producto,
+      stock: (datos.movimientos_inventario || [])
+        .filter((m) => m.producto_id === producto.id)
+        .reduce((suma, m) => suma + Number(m.cantidad), 0),
+    })),
+
+  stock_actual: (datos) =>
+    VISTAS.productos_con_stock(datos).map((p) => ({
+      producto_id: p.id,
+      empresa_id: p.empresa_id,
+      codigo: p.codigo,
+      nombre: p.nombre,
+      stock_minimo: p.stock_minimo,
+      stock: p.stock,
+    })),
 }
 
 export function crearSupabaseFalso({
@@ -56,15 +95,28 @@ export function crearSupabaseFalso({
       columnas: "*",
       filtros: [],
       registro: null,
+      ordenarPor: null,
+      tope: null,
     }
 
     const ejecutar = () => {
-      const filas = datos[nombreTabla] || []
+      const vista = VISTAS[nombreTabla]
+      const filas = vista ? vista(datos) : datos[nombreTabla] || []
 
       if (estado.accion === "select") {
-        return aplicarFiltros(filas, estado.filtros).map((f) =>
-          proyectar(f, estado.columnas, datos)
+        const encontradas = aplicarFiltros(filas, estado.filtros).map((f) =>
+          proyectar(f, estado.columnas, datos, nombreTabla)
         )
+
+        if (estado.ordenarPor) {
+          encontradas.sort((a, b) =>
+            String(a[estado.ordenarPor]).localeCompare(String(b[estado.ordenarPor]))
+          )
+        }
+
+        return estado.tope === null
+          ? encontradas
+          : encontradas.slice(0, estado.tope)
       }
 
       if (estado.accion === "insert") {
@@ -122,7 +174,12 @@ export function crearSupabaseFalso({
         estado.filtros.push([columna, valor])
         return constructor
       },
-      order() {
+      order(columna) {
+        estado.ordenarPor = columna
+        return constructor
+      },
+      limit(cantidad) {
+        estado.tope = cantidad
         return constructor
       },
       maybeSingle() {
@@ -149,10 +206,44 @@ export function crearSupabaseFalso({
     suscriptores.forEach((cb) => cb("CAMBIO", sesion))
   }
 
+  /*
+    La numeración vive en la base, así que el doble la imita: entrega el
+    número guardado y aparta el siguiente.
+  */
+  const siguienteCorrelativo = (tipo) => {
+    const columna =
+      tipo === "factura"
+        ? "proximo_correlativo_factura"
+        : "proximo_correlativo_cotizacion"
+
+    const empresa = (datos.empresas || [])[0]
+
+    if (!empresa) {
+      return { data: null, error: { message: "sin empresa" } }
+    }
+
+    const numero = empresa[columna]
+
+    empresa[columna] = numero + 1
+
+    return { data: numero, error: null }
+  }
+
   return {
     datos,
 
     from: vi.fn(consulta),
+
+    rpc: vi.fn((nombre, argumentos = {}) => {
+      if (nombre === "siguiente_correlativo") {
+        return Promise.resolve(siguienteCorrelativo(argumentos.p_tipo))
+      }
+
+      return Promise.resolve({
+        data: null,
+        error: { message: "función desconocida: " + nombre },
+      })
+    }),
 
     auth: {
       getSession: vi.fn(() =>

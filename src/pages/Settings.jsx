@@ -64,6 +64,21 @@ function Settings() {
     buildCompanyForm(company)
   )
 
+  const [
+    empresaMostrada,
+    setEmpresaMostrada,
+  ] = useState(company)
+
+  /*
+    La ferretería llega de la base después del primer render, y vuelve a
+    llegar cada vez que se guarda. Cuando cambia, el formulario se vuelve
+    a llenar con lo que quedó guardado.
+  */
+  if (company !== empresaMostrada) {
+    setEmpresaMostrada(company)
+    setCompanyForm(buildCompanyForm(company))
+  }
+
 
   const handleCompanyChange = (
     event

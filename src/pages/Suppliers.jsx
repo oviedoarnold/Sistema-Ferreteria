@@ -1,19 +1,27 @@
-import { useEffect, useMemo, useState } from "react"
+import { useContext, useMemo, useState } from "react"
 import Swal from "sweetalert2"
 
-import {
-  guardarJSON,
-} from "../utils/almacenamiento"
+import { ProductContext } from "../context/contexts"
 
 const emptyForm = { id: null, name: "", contact: "", phone: "", email: "", notes: "" }
 
 function Suppliers() {
-  const [suppliers, setSuppliers] = useState(() => JSON.parse(localStorage.getItem("suppliers") || "[]"))
+  /*
+    Antes esta pantalla guardaba su propia copia y avisaba al inventario
+    con un evento del DOM. Ahora ambas leen la misma fuente.
+  */
+  const {
+    suppliers = [],
+    cargando,
+    agregarProveedor,
+    editarProveedor,
+    quitarProveedor,
+  } = useContext(ProductContext)
+
   const [search, setSearch] = useState("")
   const [form, setForm] = useState(emptyForm)
   const [modalOpen, setModalOpen] = useState(false)
-
-  useEffect(() => { guardarJSON("suppliers", suppliers); window.dispatchEvent(new CustomEvent("suppliersUpdated", { detail: suppliers })) }, [suppliers])
+  const [guardando, setGuardando] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -23,21 +31,37 @@ function Suppliers() {
   const openNew = () => { setForm(emptyForm); setModalOpen(true) }
   const openEdit = (s) => { setForm({ ...emptyForm, ...s }); setModalOpen(true) }
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) { Swal.fire({ icon: "warning", title: "Nombre requerido" }); return }
-    if (form.id) setSuppliers((prev) => prev.map((s) => s.id === form.id ? { ...s, ...form } : s))
-    else setSuppliers((prev) => [...prev, { ...form, id: `s_${Date.now()}` }])
-    setModalOpen(false); setForm(emptyForm)
-    Swal.fire({ icon: "success", title: form.id ? "Proveedor actualizado" : "Proveedor agregado" })
+
+    setGuardando(true)
+    try {
+      if (form.id) await editarProveedor(form.id, form)
+      else await agregarProveedor(form)
+
+      setModalOpen(false); setForm(emptyForm)
+      Swal.fire({ icon: "success", title: form.id ? "Proveedor actualizado" : "Proveedor agregado" })
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo guardar", text: e.message })
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const remove = async (id) => {
     const result = await Swal.fire({ title: "¿Eliminar proveedor?", icon: "warning", showCancelButton: true, confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar" })
-    if (result.isConfirmed) setSuppliers((prev) => prev.filter((s) => s.id !== id))
+    if (!result.isConfirmed) return
+    try {
+      await quitarProveedor(id)
+      Swal.fire({ icon: "success", title: "Proveedor eliminado" })
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo eliminar", text: e.message })
+    }
   }
 
   return <div className="view active">
     <div className="view-header"><div><h2>Proveedores</h2><p className="sub">Contactos de quienes te abastecen</p></div><button className="btn btn-primary btn-lg" onClick={openNew}>+ Nuevo proveedor</button></div>
+    {cargando && <div className="empty-state">Cargando proveedores…</div>}
     <div className="toolbar"><div className="search-box"><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>⌕</span><input placeholder="Buscar proveedor..." value={search} onChange={(e) => setSearch(e.target.value)} /></div></div>
     <div className="table-wrap"><table><thead><tr><th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Suministra</th><th></th></tr></thead><tbody>
       {filtered.map((s) => <tr key={s.id}><td><span className="product-name">{s.name}</span>{s.email && <span className="product-cat">{s.email}</span>}</td><td>{s.contact || "—"}</td><td>{s.phone || "—"}</td><td>{s.notes || "—"}</td><td><div className="row-actions"><button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Editar</button><button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}>Eliminar</button></div></td></tr>)}
@@ -49,7 +73,7 @@ function Suppliers() {
       <div className="field"><label htmlFor="suppliers-telefono">Teléfono</label><input id="suppliers-telefono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
       <div className="field full"><label htmlFor="suppliers-correo">Correo</label><input id="suppliers-correo" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
       <div className="field full"><label htmlFor="suppliers-suministra-notas">Suministra / Notas</label><textarea id="suppliers-suministra-notas" rows="3" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-    </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save}>Guardar proveedor</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
+    </div></div><div className="modal-foot"><button className="btn btn-primary" onClick={save} disabled={guardando}>Guardar proveedor</button><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button></div></div></div>}
   </div>
 }
 

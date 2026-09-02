@@ -1,14 +1,42 @@
-import { describe, it, expect } from "vitest"
-import { renderHook, act } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { renderHook, act, waitFor } from "@testing-library/react"
 import { useContext } from "react"
 
 import ClientsProvider from "./ClientsContext"
+import { AuthProvider } from "./AuthContext"
 import { ClientsContext } from "./contexts"
+import { montarDatos } from "../test/pantallas"
 
-const renderClients = () =>
-  renderHook(() => useContext(ClientsContext), {
-    wrapper: ClientsProvider,
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
+
+function envoltura({ children }) {
+  return (
+    <AuthProvider>
+      <ClientsProvider>{children}</ClientsProvider>
+    </AuthProvider>
+  )
+}
+
+async function montarContexto(clientes = []) {
+  const falso = montarDatos({ clientes })
+
+  const vista = renderHook(() => useContext(ClientsContext), {
+    wrapper: envoltura,
   })
+
+  await waitFor(() => {
+    expect(falso.from).toHaveBeenCalledWith("clientes")
+  })
+
+  await act(async () => {})
+
+  return { ...vista, falso }
+}
 
 const clientePrueba = {
   name: "  Ferremax  ",
@@ -19,36 +47,24 @@ const clientePrueba = {
 }
 
 describe("ClientsContext", () => {
-  it("arranca sin clientes cuando el almacenamiento está vacío", () => {
-    const { result } = renderClients()
+  it("arranca sin clientes cuando la ferretería no tiene ninguno", async () => {
+    const { result } = await montarContexto()
+
     expect(result.current.clients).toEqual([])
   })
 
-  it("lee los clientes guardados previamente", () => {
-    localStorage.setItem(
-      "clients",
-      JSON.stringify([{ id: "c1", name: "Taller Díaz" }])
-    )
-
-    const { result } = renderClients()
+  it("lee los clientes que ya están en la base", async () => {
+    const { result } = await montarContexto([{ id: "c1", name: "Taller Díaz" }])
 
     expect(result.current.clients).toHaveLength(1)
     expect(result.current.clients[0].name).toBe("Taller Díaz")
   })
 
-  it("no revienta si el almacenamiento tiene datos corruptos", () => {
-    localStorage.setItem("clients", "{esto no es json")
+  it("agrega un cliente recortando los espacios", async () => {
+    const { result } = await montarContexto()
 
-    const { result } = renderClients()
-
-    expect(result.current.clients).toEqual([])
-  })
-
-  it("agrega un cliente recortando los espacios", () => {
-    const { result } = renderClients()
-
-    act(() => {
-      result.current.addClient(clientePrueba)
+    await act(async () => {
+      await result.current.addClient(clientePrueba)
     })
 
     const [cliente] = result.current.clients
@@ -58,62 +74,44 @@ describe("ClientsContext", () => {
     expect(cliente.address).toBe("San Pedro Sula")
   })
 
-  it("le asigna un identificador al cliente nuevo", () => {
-    const { result } = renderClients()
+  it("guarda el cliente nuevo con la empresa de quien lo crea", async () => {
+    const { result, falso } = await montarContexto()
 
-    act(() => {
-      result.current.addClient({ name: "Nuevo" })
+    await act(async () => {
+      await result.current.addClient({ name: "Nuevo" })
+    })
+
+    expect(falso.datos.clientes[0].empresa_id).toBe("empresa-prueba")
+  })
+
+  it("deja que la base asigne el identificador del cliente nuevo", async () => {
+    const { result } = await montarContexto()
+
+    await act(async () => {
+      await result.current.addClient({ name: "Nuevo" })
     })
 
     expect(result.current.clients[0].id).toBeTruthy()
   })
 
-  it("respeta el identificador si viene dado", () => {
-    const { result } = renderClients()
+  it("actualiza un cliente existente", async () => {
+    const { result } = await montarContexto([{ id: "c1", name: "Antes" }])
 
-    act(() => {
-      result.current.addClient({ id: "propio", name: "Nuevo" })
-    })
-
-    expect(result.current.clients[0].id).toBe("propio")
-  })
-
-  it("persiste los clientes en el almacenamiento", () => {
-    const { result } = renderClients()
-
-    act(() => {
-      result.current.addClient({ name: "Persistente" })
-    })
-
-    const guardado = JSON.parse(localStorage.getItem("clients"))
-
-    expect(guardado[0].name).toBe("Persistente")
-  })
-
-  it("actualiza un cliente existente", () => {
-    const { result } = renderClients()
-
-    act(() => {
-      result.current.addClient({ id: "c1", name: "Antes" })
-    })
-
-    act(() => {
-      result.current.updateClient("c1", { name: "Después" })
+    await act(async () => {
+      await result.current.updateClient("c1", { name: "Después" })
     })
 
     expect(result.current.clients[0].name).toBe("Después")
   })
 
-  it("no toca a los demás clientes al actualizar uno", () => {
-    const { result } = renderClients()
+  it("no toca a los demás clientes al actualizar uno", async () => {
+    const { result } = await montarContexto([
+      { id: "c1", name: "Uno" },
+      { id: "c2", name: "Dos" },
+    ])
 
-    act(() => {
-      result.current.addClient({ id: "c1", name: "Uno" })
-      result.current.addClient({ id: "c2", name: "Dos" })
-    })
-
-    act(() => {
-      result.current.updateClient("c1", { name: "Uno editado" })
+    await act(async () => {
+      await result.current.updateClient("c1", { name: "Uno editado" })
     })
 
     const dos = result.current.clients.find((c) => c.id === "c2")
@@ -121,32 +119,25 @@ describe("ClientsContext", () => {
     expect(dos.name).toBe("Dos")
   })
 
-  it("elimina un cliente", () => {
-    const { result } = renderClients()
+  it("elimina un cliente", async () => {
+    const { result } = await montarContexto([{ id: "c1", name: "Temporal" }])
 
-    act(() => {
-      result.current.addClient({ id: "c1", name: "Temporal" })
-    })
-
-    act(() => {
-      result.current.deleteClient("c1")
+    await act(async () => {
+      await result.current.deleteClient("c1")
     })
 
     expect(result.current.clients).toHaveLength(0)
   })
 
-  it("encuentra un cliente por identificador", () => {
-    const { result } = renderClients()
-
-    act(() => {
-      result.current.addClient({ id: "c1", name: "Buscado" })
-    })
+  it("encuentra un cliente por identificador", async () => {
+    const { result } = await montarContexto([{ id: "c1", name: "Buscado" }])
 
     expect(result.current.getClientById("c1").name).toBe("Buscado")
   })
 
-  it("devuelve algo falsy si el cliente no existe", () => {
-    const { result } = renderClients()
+  it("devuelve algo falsy si el cliente no existe", async () => {
+    const { result } = await montarContexto()
+
     expect(result.current.getClientById("no-existe")).toBeFalsy()
   })
 })

@@ -1,7 +1,7 @@
 ﻿import { useContext, useMemo } from "react"
 import { ProductContext } from "../context/contexts"
 import { SalesContext } from "../context/contexts"
-import { getSaleBalance } from "../utils/salesUtils"
+import { esVentaDelDia, esVentaDelMes, getSaleBalance } from "../utils/salesUtils"
 import { formatMoney as money } from "../utils/format"
 import { ClientsContext } from "../context/contexts"
 
@@ -12,14 +12,9 @@ function Dashboard() {
   const { clients = [] } = useContext(ClientsContext)
 
   const stats = useMemo(() => {
-    const today = new Date().toLocaleDateString("es-HN")
-    const month = new Date().getMonth()
-    const year = new Date().getFullYear()
-    const todaySales = sales.filter((s) => String(s.date || "").includes(today)).reduce((a, s) => a + Number(s.total || 0), 0)
-    const monthSales = sales.filter((s) => {
-      const d = new Date(s.timestamp || s.date)
-      return !Number.isNaN(d.getTime()) && d.getMonth() === month && d.getFullYear() === year
-    }).reduce((a, s) => a + Number(s.total || 0), 0)
+    const sumarTotales = (ventas) => ventas.reduce((a, s) => a + Number(s.total || 0), 0)
+    const todaySales = sumarTotales(sales.filter((s) => esVentaDelDia(s)))
+    const monthSales = sumarTotales(sales.filter((s) => esVentaDelMes(s)))
     const low = products.filter((p) => Number(p.stock) > 0 && Number(p.stock) <= Number(p.minStock ?? 5)).length
     const out = products.filter((p) => Number(p.stock) <= 0).length
     // Descuenta los abonos: lo pendiente es el saldo, no el total facturado.

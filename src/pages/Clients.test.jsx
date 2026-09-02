@@ -1,8 +1,17 @@
-import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent, within } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
+import { screen, fireEvent, within } from "@testing-library/react"
 
+import { AuthProvider } from "../context/AuthContext"
 import ClientsProvider from "../context/ClientsContext"
+import { renderizarPantalla } from "../test/pantallas"
 import Clients from "./Clients"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+}))
 
 const CLIENTES = [
   {
@@ -24,12 +33,13 @@ const CLIENTES = [
 ]
 
 function renderClients(clientes = CLIENTES) {
-  localStorage.setItem("clients", JSON.stringify(clientes))
-
-  return render(
-    <ClientsProvider>
-      <Clients />
-    </ClientsProvider>
+  return renderizarPantalla(
+    <AuthProvider>
+      <ClientsProvider>
+        <Clients />
+      </ClientsProvider>
+    </AuthProvider>,
+    { clientes, esperar: ["clientes"] }
   )
 }
 
@@ -39,62 +49,62 @@ const buscar = (texto) =>
   })
 
 describe("Clients", () => {
-  it("lista los clientes guardados", () => {
-    renderClients()
+  it("lista los clientes guardados", async () => {
+    await renderClients()
 
     expect(screen.getByText("Ferremax")).toBeInTheDocument()
     expect(screen.getByText("Taller Díaz")).toBeInTheDocument()
   })
 
-  it("muestra el RTN y el teléfono de cada cliente", () => {
-    renderClients()
+  it("muestra el RTN y el teléfono de cada cliente", async () => {
+    await renderClients()
 
     expect(screen.getByText("0801199912345")).toBeInTheDocument()
     expect(screen.getByText("9999-0000")).toBeInTheDocument()
   })
 
-  it("usa un guion cuando falta un dato", () => {
-    renderClients()
+  it("usa un guion cuando falta un dato", async () => {
+    await renderClients()
 
     const fila = screen.getByText("Taller Díaz").closest("tr")
 
     expect(within(fila).getAllByText("—").length).toBeGreaterThan(0)
   })
 
-  it("filtra por nombre", () => {
-    renderClients()
+  it("filtra por nombre", async () => {
+    await renderClients()
     buscar("ferremax")
 
     expect(screen.getByText("Ferremax")).toBeInTheDocument()
     expect(screen.queryByText("Taller Díaz")).not.toBeInTheDocument()
   })
 
-  it("filtra por RTN", () => {
-    renderClients()
+  it("filtra por RTN", async () => {
+    await renderClients()
     buscar("0801199912345")
 
     expect(screen.getByText("Ferremax")).toBeInTheDocument()
     expect(screen.queryByText("Taller Díaz")).not.toBeInTheDocument()
   })
 
-  it("filtra por teléfono", () => {
-    renderClients()
+  it("filtra por teléfono", async () => {
+    await renderClients()
     buscar("8888")
 
     expect(screen.getByText("Taller Díaz")).toBeInTheDocument()
     expect(screen.queryByText("Ferremax")).not.toBeInTheDocument()
   })
 
-  it("no muestra filas cuando nada coincide", () => {
-    renderClients()
+  it("no muestra filas cuando nada coincide", async () => {
+    await renderClients()
     buscar("no-existe-este-cliente")
 
     expect(screen.queryByText("Ferremax")).not.toBeInTheDocument()
     expect(screen.queryByText("Taller Díaz")).not.toBeInTheDocument()
   })
 
-  it("abre el formulario al pedir un cliente nuevo", () => {
-    renderClients()
+  it("abre el formulario al pedir un cliente nuevo", async () => {
+    await renderClients()
 
     fireEvent.click(screen.getByRole("button", { name: /nuevo cliente/i }))
 
@@ -103,8 +113,8 @@ describe("Clients", () => {
     ).toBeInTheDocument()
   })
 
-  it("cada cliente ofrece editar y eliminar", () => {
-    renderClients()
+  it("cada cliente ofrece editar y eliminar", async () => {
+    await renderClients()
 
     expect(screen.getAllByRole("button", { name: /editar/i })).toHaveLength(2)
     expect(screen.getAllByRole("button", { name: /eliminar/i })).toHaveLength(2)
