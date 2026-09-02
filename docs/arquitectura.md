@@ -44,39 +44,34 @@ C4Context
 
 ## 3. Diagrama C4 — Nivel 2: Contenedores
 
-El estado actual es una aplicación de una sola página que guarda todo en el
-navegador. La migración a PostgreSQL está documentada en el ADR-1 y aparece
-marcada como planificada.
+Una aplicación de una sola página contra PostgreSQL en Supabase. El aislamiento
+entre ferreterías no lo hace el frontend: lo aplican las políticas de acceso de
+la base, como decidió el ADR-1.
 
 ```mermaid
 flowchart TB
   subgraph navegador["Navegador del cajero"]
     spa["Aplicación React 19 + Vite<br/>Rutas protegidas por permiso"]
     sw["Service Worker<br/>Caché de la aplicación"]
-    ls[("localStorage<br/>productos, ventas,<br/>clientes, usuarios")]
   end
 
   subgraph vercel["Vercel"]
     cdn["CDN estático<br/>HTTPS + headers de seguridad"]
   end
 
-  subgraph planificado["Planificado — ADR-1"]
-    api["API de Supabase<br/>PostgREST"]
-    db[("PostgreSQL<br/>multi-empresa con RLS")]
-    auth["Supabase Auth<br/>sesiones y hashing"]
+  subgraph supabase["Supabase"]
+    api["PostgREST<br/>API sobre el esquema"]
+    db[("PostgreSQL<br/>multi-empresa con RLS<br/>inventario como libro de movimientos")]
+    auth["Supabase Auth<br/>sesiones y contraseñas"]
   end
 
-  spa -->|"lee y escribe"| ls
   spa -->|"registra"| sw
   sw -->|"sirve sin conexión"| spa
   cdn -->|"entrega"| spa
-  spa -.->|"pendiente"| api
+  spa -->|"lee y escribe"| api
   api --> db
-  spa -.->|"pendiente"| auth
+  spa -->|"inicia sesión"| auth
   auth --> db
-
-  classDef pend stroke-dasharray: 5 5
-  class api,db,auth,planificado pend
 ```
 
 ## 4. Diagrama C4 — Nivel 3: Componentes del frontend
@@ -166,10 +161,19 @@ Los headers se declaran en [`vercel.json`](../vercel.json):
 | `Referrer-Policy` | Fuga de rutas privadas hacia sitios externos |
 | `Permissions-Policy` | Acceso silencioso a cámara, micrófono y ubicación |
 
-### Limitación conocida
+### Dónde se aplica el control de acceso
 
-Mientras la persistencia siga en `localStorage`, los datos y los permisos viven en
-el navegador del cliente. El control de acceso actual **separa funciones entre
-empleados de confianza; no contiene a quien quiera burlarlo** abriendo las
-herramientas de desarrollo. Cerrar esa brecha es precisamente el objetivo del
-ADR-1: mover los datos al servidor y que las políticas se apliquen en la base.
+Ocultar botones en el frontend es comodidad, no seguridad. Lo que contiene a un
+usuario que abra las herramientas de desarrollo son las políticas de la base:
+cada tabla filtra por `empresa_del_usuario()`, y `permisos_usuario` además
+filtra por el usuario, de modo que un vendedor no puede leer ni asignarse
+permisos ajenos.
+
+Las vistas llevan `security_invoker = on`. Sin eso una vista corre con los
+permisos de quien la creó y devuelve las filas de todas las empresas: con un
+solo cliente cargado el fallo no se nota, y aparece el día que entra el segundo.
+
+Queda una limitación real: la separación entre empresas depende de que
+`empresa_del_usuario()` y las políticas sean correctas. Es un punto único, y
+por eso conviene que cualquier cambio al esquema se pruebe con dos empresas
+cargadas, no con una.

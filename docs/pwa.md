@@ -30,11 +30,13 @@ ni copia en caché, se sirve `/offline.html`.
 ## Qué funciona sin Internet
 
 - **Abrir la aplicación completa.** El HTML, el JavaScript, los estilos y los iconos
-  están en caché.
-- **Facturar, cotizar y consultar el inventario.** Los datos del negocio viven en
-  `localStorage`, que no necesita red.
-- **Registrar abonos y ver saldos.**
-- **Iniciar sesión.** Los usuarios y sus permisos también están en el navegador.
+  están en caché, así que la pantalla carga sin red.
+- **Instalarla como aplicación** en el escritorio o en el teléfono.
+
+Nada más. Al mover los datos a PostgreSQL, facturar, cotizar, consultar el
+inventario e iniciar sesión **pasaron a requerir conexión**. Antes funcionaban sin
+red porque todo vivía en el navegador; esa es la contraparte de que dos cajas
+compartan el mismo inventario.
 
 ## Qué no funciona sin Internet, y por qué se puso ahí la frontera
 
@@ -44,15 +46,16 @@ ni copia en caché, se sirve `/offline.html`.
   justo cuando el cajero está esperando.
 - **La primera visita.** Un equipo que nunca abrió el sistema no tiene nada en caché.
   El service worker se instala en la primera carga con red.
-- **Sincronizar entre equipos.** Hoy cada navegador guarda sus propios datos. Dos
-  cajas no comparten inventario ni ven las ventas de la otra. Esta es la limitación
-  que resuelve el [ADR-1](adr/adr-001-postgresql-multiempresa.md) al mover los datos
-  a PostgreSQL, conservando `localStorage` como caché con cola de sincronización.
+- **Facturar, cobrar y consultar datos.** Todo pasa por PostgREST. Sin red la
+  pantalla abre pero no hay con qué llenarla.
 
-La frontera está donde está porque **cobrar no puede depender del Internet**, pero
-compartir datos entre equipos sí. Un mostrador desconectado tiene que poder facturar;
-que esa factura tarde unos minutos en aparecer en la computadora del dueño es
-aceptable.
+Esto es un retroceso deliberado y no es el estado final. **Cobrar no debería
+depender del Internet**: un mostrador desconectado tiene que poder facturar, y que
+esa factura tarde unos minutos en aparecer en la computadora del dueño es
+aceptable. Lo que falta para volver a esa frontera es una caché local con cola de
+sincronización, que el [ADR-1](adr/adr-001-postgresql-multiempresa.md) ya
+anticipaba. Mientras no exista, una ferretería con Internet inestable va a sentirlo,
+y conviene decírselo antes de venderle el sistema.
 
 ## Verificación pendiente
 

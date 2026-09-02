@@ -10,26 +10,25 @@ corresponden a ningún cliente real.
 
 ## Credenciales
 
-| Cuenta | Usuario | Contraseña | Para qué sirve |
+| Cuenta | Correo | Contraseña | Para qué sirve |
 |---|---|---|---|
-| Vendedor de mostrador | `demo` | `Demo2026` | Ver el sistema con permisos limitados |
-| Administrador | `demo-admin` | `Admin2026` | Ver el sistema completo |
+| Vendedor de mostrador | `demo@oviedoarnold.lat` | `Demo2026` | Ver el sistema con permisos limitados |
+| Administrador | `demo-admin@oviedoarnold.lat` | (la que se le asigne) | Ver el sistema completo |
 
-Las dos se crean al abrir el paso 1. No son credenciales de ningún cliente.
+No son credenciales de ningún cliente. Las dos pertenecen a la ferretería de
+ejemplo y no ven los datos de ninguna otra.
 
 ---
 
 ## Los 4 pasos
 
-### Paso 1 · Preparar la demostración
+### Paso 1 · Ver las credenciales
 
 **URL:** https://www.oviedoarnold.lat/demo
 
-Pulse **«Preparar la demostración»**.
-
-*Qué debe observar:* un aviso verde confirmando que se cargaron **8 productos,
-3 clientes, 5 ventas y 2 cotizaciones**, y debajo las dos cuentas con sus
-contraseñas. Los datos quedan solo en este navegador.
+*Qué debe observar:* la cuenta con la que va a entrar. La ferretería de
+ejemplo ya está cargada en la base con **8 productos, 3 clientes, 5 ventas y
+2 cotizaciones**; no hay nada que preparar.
 
 ---
 
@@ -37,7 +36,7 @@ contraseñas. Los datos quedan solo en este navegador.
 
 **URL:** https://www.oviedoarnold.lat/login
 
-Entre con `demo` / `Demo2026`.
+Entre con `demo@oviedoarnold.lat` / `Demo2026`.
 
 *Qué debe observar:*
 
@@ -93,8 +92,8 @@ Busque la factura **FAC-01203** (Constructora Sula) y pulse **«Abonar»**.
 
 ## Si quiere ver el resto del sistema
 
-Cierre sesión y entre con `demo-admin` / `Admin2026`. Con esa cuenta aparecen
-las tres secciones que faltaban:
+Cierre sesión y entre con `demo-admin@oviedoarnold.lat`. Con esa cuenta
+aparecen las tres secciones que faltaban:
 
 - **Inventario** — productos con alerta de existencias bajas y agotadas
 - **Proveedores** — directorio ligado a los productos
@@ -104,14 +103,14 @@ las tres secciones que faltaban:
 
 ---
 
-## Volver a empezar
-
-Repita el paso 1: vuelve a cargar los datos de ejemplo desde cero.
-
 ## Nota sobre dónde viven los datos
 
-Todo se guarda en el navegador, así que cada persona que abra la demostración
-trabaja sobre su propia copia y nada de lo que haga afecta a otro. Esa misma
-característica es la limitación que documenta el
-[ADR-1](adr/adr-001-postgresql-multiempresa.md): mientras los datos no estén
-en una base compartida, dos cajas no ven el mismo inventario.
+Los datos viven en PostgreSQL, no en el navegador: dos cajas abiertas al mismo
+tiempo ven el mismo inventario, que es lo que resuelve el
+[ADR-1](adr/adr-001-postgresql-multiempresa.md). La contraparte es que la
+demostración es compartida: lo que registre queda guardado y lo verá quien
+entre después.
+
+Cada ferretería está aislada por `empresa_id` y por las políticas de acceso
+de la base, así que una cuenta demo no puede leer los datos de otra empresa
+aunque se lo proponga.

@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom"
 import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
 import ClientsProvider from "../context/ClientsContext"
+import QuotesProvider from "../context/QuotesContext"
 import { EMPRESA_PRUEBA, renderizarPantalla } from "../test/pantallas"
 import Quotes from "./Quotes"
 
@@ -44,19 +45,19 @@ const cotizacion = (extra = {}) => ({
 })
 
 function renderQuotes(cotizaciones = []) {
-  localStorage.setItem("quotes", JSON.stringify(cotizaciones))
-
   return renderizarPantalla(
     <AuthProvider>
       <ProductProvider>
         <ClientsProvider>
-          <MemoryRouter initialEntries={["/quotes"]}>
-            <Quotes />
-          </MemoryRouter>
+          <QuotesProvider>
+            <MemoryRouter initialEntries={["/quotes"]}>
+              <Quotes />
+            </MemoryRouter>
+          </QuotesProvider>
         </ClientsProvider>
       </ProductProvider>
     </AuthProvider>,
-    { productos: PRODUCTOS, esperar: ["productos_con_stock"] }
+    { productos: PRODUCTOS, cotizaciones, esperar: ["cotizaciones"] }
   )
 }
 

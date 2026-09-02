@@ -8,6 +8,7 @@ import {AuthProvider} from './context/AuthContext'
 import ProductProvider from './context/ProductContext'
 import SalesProvider from './context/SalesContext'
 import ClientsProvider from './context/ClientsContext'
+import QuotesProvider from './context/QuotesContext'
 
 import { registrarServiceWorker } from './registrarServiceWorker'
 
@@ -20,7 +21,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ProductProvider>
         <ClientsProvider>
           <SalesProvider>
-            <App />
+            <QuotesProvider>
+              <App />
+            </QuotesProvider>
           </SalesProvider>
         </ClientsProvider>
       </ProductProvider>

@@ -8,13 +8,10 @@ import Swal from "sweetalert2"
 
 import { ProductContext } from "../context/contexts"
 import { ClientsContext } from "../context/contexts"
+import { QuotesContext } from "../context/contexts"
 
 import QuoteTemplate from "../components/QuoteTemplate"
 
-import {
-  guardarJSON,
-  guardarTexto,
-} from "../utils/almacenamiento"
 
 import ClientAutocomplete from "../components/documents/ClientAutocomplete"
 import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
@@ -22,7 +19,6 @@ import DocumentPreviewModal from "../components/documents/DocumentPreviewModal"
 import {
   formatMoney,
   toISODateInDays,
-  todayForDisplay,
 } from "../utils/format"
 
 import {
@@ -40,11 +36,9 @@ import {
 import { useNavigate } from "react-router-dom"
 
 import {
-  buildQuoteNumber,
   buildSaleDraftFromQuote,
   findUnavailableItems,
   calculateQuoteTotals,
-  createQuoteId,
   filterQuotesBySearchText,
   getQuoteStatus,
 } from "../utils/quotes"
@@ -84,53 +78,14 @@ function Quotes() {
     addClient,
   } = useContext(ClientsContext)
 
-  /*
-   * Por ahora Cotizaciones administra
-   * únicamente sus propios datos.
-   *
-   * Después de comprobar que toda la
-   * pantalla funciona, el siguiente
-   * paso será extraer esta persistencia
-   * a QuoteContext.
-   */
-  const [quotes, setQuotes] =
-    useState(() => {
-      try {
-        const saved =
-          localStorage.getItem(
-            "quotes"
-          )
+  const {
+    quotes = [],
+    cargando: cargandoCotizaciones,
+    addQuote,
+    deleteQuote: quitarCotizacion,
+  } = useContext(QuotesContext)
 
-        return saved
-          ? JSON.parse(saved)
-          : []
-      } catch (error) {
-        console.error(
-          "Error cargando cotizaciones:",
-          error
-        )
-
-        return []
-      }
-    })
-
-  const [
-    nextQuoteNumber,
-    setNextQuoteNumber,
-  ] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem(
-          "nextQuoteNumber"
-        )
-
-      return saved
-        ? Number(saved)
-        : 1
-    } catch {
-      return 1
-    }
-  })
+  const [guardandoCotizacion, setGuardandoCotizacion] = useState(false)
 
   const [search, setSearch] =
     useState("")
@@ -461,26 +416,12 @@ function Quotes() {
   }
 
   const buildQuote = () => {
-    const quoteNumber =
-      buildQuoteNumber(
-        nextQuoteNumber
-      )
-
     const customerName =
       selectedClient?.name ||
       clientSearch.trim() ||
       "Cliente General"
 
     return {
-      id: createQuoteId(),
-
-      quoteNumber,
-
-      date: todayForDisplay(),
-
-      timestamp:
-        Date.now(),
-
       clientId:
         selectedClient?.id ||
         null,
@@ -611,51 +552,44 @@ function Quotes() {
         return
       }
 
-      const quote =
-        buildQuote()
+      setGuardandoCotizacion(true)
 
-      const updatedQuotes = [
-        quote,
-        ...quotes,
-      ]
+      try {
+        const quote = await addQuote(
+          buildQuote()
+        )
 
-      const nextNumber =
-        nextQuoteNumber + 1
+        setSelectedQuote(quote)
 
-      setQuotes(
-        updatedQuotes
-      )
+        setPreviewOpen(true)
 
-      setNextQuoteNumber(
-        nextNumber
-      )
+        /*
+         * Igual que en el HTML:
+         * generar y guardar limpia
+         * la cotización actual.
+         */
+        clearQuoteForm()
 
-      guardarJSON("quotes", updatedQuotes)
+        Swal.fire({
+          icon: "success",
 
-      guardarTexto("nextQuoteNumber", String(nextNumber)
-      )
+          title: `Cotización ${quote.quoteNumber} guardada`,
 
-      setSelectedQuote(
-        quote
-      )
+          text:
+            "El inventario no fue modificado.",
+        })
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
 
-      setPreviewOpen(true)
+          title:
+            "No se pudo guardar la cotización",
 
-      /*
-       * Igual que en el HTML:
-       * generar y guardar limpia
-       * la cotización actual.
-       */
-      clearQuoteForm()
-
-      Swal.fire({
-        icon: "success",
-
-        title: `Cotización ${quote.quoteNumber} guardada`,
-
-        text:
-          "El inventario no fue modificado.",
-      })
+          text: error.message,
+        })
+      } finally {
+        setGuardandoCotizacion(false)
+      }
     }
 
   const convertQuoteToSale = async (
@@ -743,29 +677,25 @@ function Quotes() {
       return
     }
 
-    const updatedQuotes =
-      quotes.filter(
-        (quote) =>
-          String(
-            quote.id
-          ) !==
-          String(
-            quoteId
-          )
-      )
+    try {
+      await quitarCotizacion(quoteId)
 
-    setQuotes(
-      updatedQuotes
-    )
+      Swal.fire({
+        icon: "success",
 
-    guardarJSON("quotes", updatedQuotes)
+        title:
+          "Cotización eliminada",
+      })
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
 
-    Swal.fire({
-      icon: "success",
+        title:
+          "No se pudo eliminar la cotización",
 
-      title:
-        "Cotización eliminada",
-    })
+        text: error.message,
+      })
+    }
   }
 
   const clearCurrentQuote =
@@ -1270,7 +1200,8 @@ function Quotes() {
               }}
               disabled={
                 cart.length ===
-                0
+                  0 ||
+                guardandoCotizacion
               }
               onClick={
                 generateQuote
@@ -1366,7 +1297,13 @@ function Quotes() {
         </div>
       </div>
 
-      {quotes.length === 0 ? (
+      {cargandoCotizaciones ? (
+        <div className="empty-state">
+          <strong>
+            Cargando cotizaciones…
+          </strong>
+        </div>
+      ) : quotes.length === 0 ? (
         <div className="empty-state">
           <strong>
             No hay cotizaciones

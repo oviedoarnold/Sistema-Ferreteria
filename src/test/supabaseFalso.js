@@ -16,10 +16,31 @@ function aplicarFiltros(filas, filtros) {
 }
 
 /*
-  Las tablas hijas apuntan al padre con el nombre de la tabla en singular:
-  ventas se lee desde venta_id, usuarios desde usuario_id.
+  Con qué columna apunta una tabla hija a su padre. Va explícito y no
+  deducido del plural: "cotizaciones" quitándole la s da "cotizacione",
+  y el detalle quedaba sin enlazar sin que nada avisara.
 */
-const llaveHacia = (tablaPadre) => tablaPadre.replace(/s$/, "") + "_id"
+const LLAVE_HACIA = {
+  empresas: "empresa_id",
+  usuarios: "usuario_id",
+  productos: "producto_id",
+  clientes: "cliente_id",
+  proveedores: "proveedor_id",
+  ventas: "venta_id",
+  cotizaciones: "cotizacion_id",
+}
+
+function llaveHacia(tablaPadre) {
+  const llave = LLAVE_HACIA[tablaPadre]
+
+  if (!llave) {
+    throw new Error(
+      `El doble de Supabase no sabe con qué columna se enlaza ${tablaPadre}.`
+    )
+  }
+
+  return llave
+}
 
 function proyectar(fila, columnas, tablas, tablaPadre) {
   const listaDeColumnas = (columnas || "*")

@@ -181,6 +181,43 @@ const abonosDe = (venta) =>
     nota: abono.note || "",
   }))
 
+const aFilaDeCotizacion = (cotizacion) => ({
+  id: cotizacion.id,
+  empresa_id: EMPRESA,
+  cliente_id: cotizacion.clientId || null,
+  usuario_id: USUARIO_PRUEBA.id,
+
+  numero: cotizacion.quoteNumber,
+  correlativo: cotizacion.correlativo ?? 2000,
+  fecha: cotizacion.isoDate || new Date(cotizacion.timestamp || Date.now()).toISOString(),
+  valida_hasta: cotizacion.validity || null,
+
+  nombre_cliente: cotizacion.clientName || "Cliente General",
+  rtn_cliente: cotizacion.rtn || "",
+
+  incluye_isv: cotizacion.includeTax !== false,
+  subtotal: cotizacion.subtotal ?? 0,
+  isv: cotizacion.tax ?? 0,
+  tasa_isv: cotizacion.taxRate ?? 15,
+  total: cotizacion.total ?? 0,
+
+  notas: cotizacion.notes || "",
+  venta_id: cotizacion.saleId || null,
+})
+
+const renglonesDeCotizacion = (cotizacion) =>
+  (cotizacion.items || []).map((item, indice) => ({
+    id: cotizacion.id + "-r" + indice,
+    empresa_id: EMPRESA,
+    cotizacion_id: cotizacion.id,
+    producto_id: item.productId || item.id || null,
+    nombre: item.name,
+    codigo: item.code || "",
+    cantidad: item.qty ?? item.quantity ?? 1,
+    precio: item.price ?? 0,
+    subtotal: item.subtotal ?? 0,
+  }))
+
 const aplanar = (listas) => listas.reduce((todo, lista) => todo.concat(lista), [])
 
 export function montarDatos({
@@ -188,6 +225,7 @@ export function montarDatos({
   clientes = [],
   proveedores = [],
   ventas = [],
+  cotizaciones = [],
   empresa = EMPRESA_PRUEBA,
   conSesion = true,
 } = {}) {
@@ -205,6 +243,8 @@ export function montarDatos({
       ventas: ventas.map(aFilaDeVenta),
       detalle_venta: aplanar(ventas.map(renglonesDe)),
       abonos: aplanar(ventas.map(abonosDe)),
+      cotizaciones: cotizaciones.map(aFilaDeCotizacion),
+      detalle_cotizacion: aplanar(cotizaciones.map(renglonesDeCotizacion)),
     },
     sesionInicial: conSesion ? { user: { id: AUTH_ID } } : null,
   })

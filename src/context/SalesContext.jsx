@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth"
 
 import {
   traerVentas,
+  conFormaDeApp,
   crearVenta,
   crearAbono,
   eliminarAbono,
@@ -30,7 +31,7 @@ function SalesProvider({ children }) {
     refrescarProductos,
   } = useContext(ProductContext)
 
-  const [sales, setSales] = useState([])
+  const [filas, setFilas] = useState([])
   const [empresaCargada, setEmpresaCargada] = useState(null)
   const [error, setError] = useState("")
 
@@ -46,11 +47,11 @@ function SalesProvider({ children }) {
 
     let vigente = true
 
-    traerVentas(company)
+    traerVentas()
       .then((lista) => {
         if (!vigente) return
 
-        setSales(lista)
+        setFilas(lista)
         setError("")
       })
       .catch((problema) => {
@@ -63,11 +64,21 @@ function SalesProvider({ children }) {
     return () => {
       vigente = false
     }
-  }, [empresaId, company])
+  }, [empresaId])
+
+  /*
+    Los datos de la ferretería son encabezado de la factura impresa, no
+    parte de la venta. Aplicarlos aquí evita recargar el historial entero
+    cada vez que cambian, que era donde se perdía una venta recién hecha.
+  */
+  const sales = useMemo(
+    () => conFormaDeApp(filas, company),
+    [filas, company]
+  )
 
   const refrescarVentas = useCallback(async () => {
-    setSales(await traerVentas(company))
-  }, [company])
+    setFilas(await traerVentas())
+  }, [])
 
   const buscarProducto = useCallback(
     (id) => products.find((p) => String(p.id) === String(id)),
@@ -188,13 +199,13 @@ function SalesProvider({ children }) {
       )
 
       const [listaVentas] = await Promise.all([
-        traerVentas(company),
+        traerVentas(),
         refrescarProductos(),
       ])
 
-      setSales(listaVentas)
+      setFilas(listaVentas)
 
-      return listaVentas.find((v) => v.id === ventaId)
+      return conFormaDeApp(listaVentas, company).find((v) => v.id === ventaId)
     },
     [
       validarRenglones,

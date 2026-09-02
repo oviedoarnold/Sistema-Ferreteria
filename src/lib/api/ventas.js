@@ -103,7 +103,13 @@ export function aVentaDeApp(fila, empresa) {
   }
 }
 
-export async function traerVentas(empresa) {
+/*
+  Devuelve las filas tal como vienen. Darles la forma que espera la
+  pantalla necesita los datos de la empresa, y ese es un dato de
+  presentación: mezclarlo aquí obligaría a recargar el historial completo
+  cada vez que cambia el encabezado de la factura.
+*/
+export async function traerVentas() {
   const { data, error } = await supabase
     .from("ventas")
     .select(COLUMNAS_VENTA)
@@ -111,10 +117,13 @@ export async function traerVentas(empresa) {
 
   if (error) fallo(error, "cargar el historial de facturas")
 
-  return (data || [])
+  return data || []
+}
+
+export const conFormaDeApp = (filas, empresa) =>
+  filas
     .map((fila) => aVentaDeApp(fila, empresa))
     .sort((a, b) => b.timestamp - a.timestamp)
-}
 
 export async function pedirCorrelativo(tipo) {
   const { data, error } = await supabase.rpc("siguiente_correlativo", {

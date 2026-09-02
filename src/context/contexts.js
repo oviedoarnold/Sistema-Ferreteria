@@ -8,4 +8,5 @@ import { createContext } from "react"
 export const AuthContext = createContext(null)
 export const ClientsContext = createContext(null)
 export const ProductContext = createContext(null)
+export const QuotesContext = createContext(null)
 export const SalesContext = createContext(null)
