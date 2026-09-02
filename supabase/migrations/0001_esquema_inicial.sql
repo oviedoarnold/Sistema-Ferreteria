@@ -1,11 +1,12 @@
 -- Sistema Ferretería — esquema inicial multi-empresa
--- Ejecutar en el editor SQL de Supabase.
+-- Ejecutar completo en el editor SQL de Supabase.
 --
--- Cada tabla lleva empresa_id desde el inicio: agregarlo despues, con clientes
--- en produccion, obligaria a migrar todos los datos y reescribir cada politica.
+-- Cada tabla lleva empresa_id desde el inicio: agregarlo después, con
+-- clientes en producción, obligaría a migrar todos los datos y reescribir
+-- cada política.
 
 -- ─────────────────────────────────────────────────────────
--- EMPRESAS Y USUARIOS
+-- EMPRESAS
 -- ─────────────────────────────────────────────────────────
 
 create table empresas (
@@ -16,7 +17,8 @@ create table empresas (
   moneda        text not null default 'L',
   tasa_isv      numeric(5,2) not null default 15 check (tasa_isv between 0 and 100),
 
-  -- Datos fiscales del SAR. Confirmar formato con un contador antes de facturar.
+  -- Datos fiscales del SAR. Confirmar el formato con un contador antes de
+  -- facturar formalmente.
   rtn                   text not null default '',
   cai                   text not null default '',
   establecimiento       text not null default '000',
@@ -26,19 +28,36 @@ create table empresas (
   rango_hasta           bigint,
   fecha_limite_emision  date,
 
+  -- Correlativos por empresa: dos ferreterías no comparten numeración.
+  proximo_correlativo_factura     bigint not null default 1,
+  proximo_correlativo_cotizacion  bigint not null default 1,
+
+  es_demo       boolean not null default false,
   creada_en     timestamptz not null default now()
 );
 
+-- ─────────────────────────────────────────────────────────
+-- USUARIOS
+-- ─────────────────────────────────────────────────────────
+-- Con Google no se crean usuarios con contraseña: el administrador invita
+-- por correo y el empleado queda vinculado al entrar por primera vez.
+
 create table usuarios (
-  id           uuid primary key references auth.users (id) on delete cascade,
+  id           uuid primary key default gen_random_uuid(),
+  auth_id      uuid unique references auth.users (id) on delete set null,
   empresa_id   uuid not null references empresas (id) on delete cascade,
+  email        text not null,
   nombre       text not null,
   rol          text not null default 'vendedor' check (rol in ('admin', 'vendedor')),
   activo       boolean not null default true,
-  creado_en    timestamptz not null default now()
+  invitado_en  timestamptz not null default now(),
+  entro_en     timestamptz,
+
+  unique (empresa_id, email)
 );
 
 create index idx_usuarios_empresa on usuarios (empresa_id);
+create index idx_usuarios_email on usuarios (lower(email));
 
 create table permisos_usuario (
   usuario_id  uuid not null references usuarios (id) on delete cascade,
@@ -49,8 +68,34 @@ create table permisos_usuario (
   primary key (usuario_id, seccion)
 );
 
+create index idx_permisos_empresa on permisos_usuario (empresa_id);
+
+-- Vincula la cuenta de Google (o de correo) con la invitación que ya
+-- existe para ese correo. Sin invitación previa el usuario no entra a
+-- ninguna empresa.
+create or replace function vincular_usuario_invitado()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update usuarios
+     set auth_id = new.id,
+         entro_en = coalesce(entro_en, now())
+   where auth_id is null
+     and lower(email) = lower(new.email);
+
+  return new;
+end;
+$$;
+
+create trigger al_crear_cuenta_vincular
+  after insert on auth.users
+  for each row execute function vincular_usuario_invitado();
+
 -- ─────────────────────────────────────────────────────────
--- CATALOGOS
+-- CATÁLOGOS
 -- ─────────────────────────────────────────────────────────
 
 create table proveedores (
@@ -126,7 +171,8 @@ create table ventas (
   estado            text not null default 'pendiente'
                       check (estado in ('pendiente', 'pagada', 'anulada')),
 
-  -- Copia y no referencia: renovar el CAI no debe alterar facturas ya emitidas.
+  -- Copia y no referencia: renovar el CAI no debe alterar facturas ya
+  -- emitidas.
   cai_emision                   text not null default '',
   rango_desde_emision           bigint,
   rango_hasta_emision           bigint,
@@ -181,6 +227,7 @@ create table cotizaciones (
   usuario_id      uuid references usuarios (id) on delete set null,
 
   numero          text not null,
+  correlativo     bigint not null,
   fecha           timestamptz not null default now(),
   valida_hasta    date,
 
@@ -219,9 +266,9 @@ create index idx_detalle_cotizacion on detalle_cotizacion (cotizacion_id);
 -- ─────────────────────────────────────────────────────────
 -- INVENTARIO COMO LIBRO DE MOVIMIENTOS
 -- ─────────────────────────────────────────────────────────
--- El stock no se guarda como numero mutable. Es la suma de los movimientos,
--- para que un descuadre en el conteo fisico se pueda rastrear hasta quien
--- lo movio y cuando.
+-- El stock no se guarda como número mutable: es la suma de los
+-- movimientos, para que un descuadre en el conteo físico se pueda
+-- rastrear hasta quién lo movió y cuándo.
 
 create table movimientos_inventario (
   id           bigserial primary key,
@@ -241,15 +288,18 @@ create index idx_movimientos_empresa on movimientos_inventario (empresa_id, fech
 
 create view stock_actual as
   select
-    p.id as producto_id,
+    p.id            as producto_id,
     p.empresa_id,
+    p.codigo,
+    p.nombre,
+    p.stock_minimo,
     coalesce(sum(m.cantidad), 0)::integer as stock
   from productos p
   left join movimientos_inventario m on m.producto_id = p.id
-  group by p.id, p.empresa_id;
+  group by p.id, p.empresa_id, p.codigo, p.nombre, p.stock_minimo;
 
 -- ─────────────────────────────────────────────────────────
--- POLITICAS DE ACCESO (row-level security)
+-- POLÍTICAS DE ACCESO
 -- ─────────────────────────────────────────────────────────
 -- Cada usuario solo ve las filas de su empresa. La regla se aplica en el
 -- motor, no en el frontend: aunque alguien manipule el navegador, la base
@@ -262,7 +312,11 @@ stable
 security definer
 set search_path = public
 as $$
-  select empresa_id from usuarios where id = auth.uid()
+  select empresa_id
+    from usuarios
+   where auth_id = auth.uid()
+     and activo
+   limit 1
 $$;
 
 create or replace function usuario_es_admin()
@@ -272,7 +326,10 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce((select rol = 'admin' from usuarios where id = auth.uid()), false)
+  select coalesce(
+    (select rol = 'admin' from usuarios where auth_id = auth.uid() and activo limit 1),
+    false
+  )
 $$;
 
 alter table empresas               enable row level security;
@@ -288,7 +345,7 @@ alter table cotizaciones           enable row level security;
 alter table detalle_cotizacion     enable row level security;
 alter table movimientos_inventario enable row level security;
 
--- Aislamiento por empresa en todas las tablas con empresa_id.
+-- Aislamiento por empresa en todas las tablas que la referencian.
 do $$
 declare t text;
 begin
@@ -301,6 +358,7 @@ begin
     execute format($f$
       create policy %I_de_mi_empresa on %I
         for all
+        to authenticated
         using (empresa_id = empresa_del_usuario())
         with check (empresa_id = empresa_del_usuario());
     $f$, t, t);
@@ -309,19 +367,22 @@ end $$;
 
 -- La empresa solo la ve quien pertenece a ella; solo un admin la edita.
 create policy empresas_select on empresas
-  for select using (id = empresa_del_usuario());
+  for select to authenticated
+  using (id = empresa_del_usuario());
 
 create policy empresas_update on empresas
-  for update using (id = empresa_del_usuario() and usuario_es_admin());
+  for update to authenticated
+  using (id = empresa_del_usuario() and usuario_es_admin());
 
--- Un usuario se ve a si mismo; el admin ve y administra a los de su empresa.
+-- Un usuario se ve a sí mismo; el admin ve y administra a los de su empresa.
 create policy usuarios_select on usuarios
-  for select using (
-    id = auth.uid()
+  for select to authenticated
+  using (
+    auth_id = auth.uid()
     or (empresa_id = empresa_del_usuario() and usuario_es_admin())
   );
 
 create policy usuarios_admin on usuarios
-  for all
+  for all to authenticated
   using (empresa_id = empresa_del_usuario() and usuario_es_admin())
   with check (empresa_id = empresa_del_usuario() and usuario_es_admin());
