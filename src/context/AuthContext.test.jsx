@@ -1,315 +1,343 @@
-import { describe, it, expect } from "vitest"
-import { renderHook, act } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { renderHook, act, waitFor } from "@testing-library/react"
 
-import { AuthProvider } from "./AuthContext"
-import { useAuth } from "../hooks/useAuth"
-import { PERMISSIONS } from "./permissions"
+import { crearSupabaseFalso } from "../test/supabaseFalso"
 
-const renderAuth = () =>
-  renderHook(() => useAuth(), { wrapper: AuthProvider })
+const EMPRESA = "empresa-1"
 
-const ADMIN = { username: "admin", password: "1234" }
-
-const entrarComoAdmin = (result) => {
-  act(() => {
-    result.current.login(ADMIN.username, ADMIN.password)
-  })
+const DATOS_BASE = {
+  usuarios: [
+    {
+      id: "u-admin",
+      auth_id: "auth-admin",
+      empresa_id: EMPRESA,
+      email: "admin@ferreteria.test",
+      nombre: "Administradora",
+      rol: "admin",
+      activo: true,
+      entro_en: "2026-01-01",
+    },
+    {
+      id: "u-vendedor",
+      auth_id: "auth-vendedor",
+      empresa_id: EMPRESA,
+      email: "vendedor@ferreteria.test",
+      nombre: "Vendedor de mostrador",
+      rol: "vendedor",
+      activo: true,
+      entro_en: "2026-01-02",
+    },
+    {
+      id: "u-invitado",
+      auth_id: null,
+      empresa_id: EMPRESA,
+      email: "invitado@ferreteria.test",
+      nombre: "Aún no entra",
+      rol: "vendedor",
+      activo: true,
+      entro_en: null,
+    },
+  ],
+  permisos_usuario: [
+    { usuario_id: "u-vendedor", empresa_id: EMPRESA, seccion: "pos" },
+    { usuario_id: "u-vendedor", empresa_id: EMPRESA, seccion: "sales-history" },
+    { usuario_id: "u-admin", empresa_id: EMPRESA, seccion: "settings" },
+  ],
 }
 
-const crearVendedor = (result, extra = {}) => {
-  let creado
+const CUENTAS = [
+  { id: "auth-admin", email: "admin@ferreteria.test", password: "Admin2026" },
+  { id: "auth-vendedor", email: "vendedor@ferreteria.test", password: "Vende2026" },
+  { id: "auth-huerfano", email: "huerfano@ferreteria.test", password: "Huerf2026" },
+]
 
-  act(() => {
-    creado = result.current.addUser({
-      name: "María Vendedora",
-      username: "maria",
-      password: "clave123",
-      role: "vendedor",
-      permissions: [PERMISSIONS.POS, PERMISSIONS.SALES_HISTORY],
-      ...extra,
-    })
-  })
+let falso
 
-  return creado
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+  exigirSupabase: () => globalThis.__supabaseFalso,
+}))
+
+async function renderAuth({ sesionInicial = null, tablas = DATOS_BASE } = {}) {
+  falso = crearSupabaseFalso({ tablas, cuentas: CUENTAS, sesionInicial })
+  globalThis.__supabaseFalso = falso
+
+  const { AuthProvider } = await import("./AuthContext")
+  const { useAuth } = await import("../hooks/useAuth")
+
+  const vista = renderHook(() => useAuth(), { wrapper: AuthProvider })
+
+  await waitFor(() => expect(vista.result.current.cargando).toBe(false))
+
+  return vista
 }
 
-describe("AuthProvider: sesión inicial", () => {
-  it("arranca sin usuario en sesión", () => {
-    const { result } = renderAuth()
+beforeEach(() => {
+  vi.resetModules()
+})
+
+describe("sesión inicial", () => {
+  it("arranca sin usuario cuando no hay sesión", async () => {
+    const { result } = await renderAuth()
+
     expect(result.current.user).toBeNull()
   })
 
-  it("crea el administrador inicial en el primer arranque", () => {
-    const { result } = renderAuth()
+  it("deja de cargar aunque no haya sesión", async () => {
+    const { result } = await renderAuth()
 
-    expect(result.current.users).toHaveLength(1)
-    expect(result.current.users[0].username).toBe("admin")
+    expect(result.current.cargando).toBe(false)
   })
 
-  it("nunca expone el hash de la contraseña", () => {
-    const { result } = renderAuth()
-    expect(result.current.users[0].passwordHash).toBeUndefined()
+  it("recupera la sesión guardada al arrancar", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-vendedor" } },
+    })
+
+    expect(result.current.user.name).toBe("Vendedor de mostrador")
+  })
+
+  it("no da acceso a una cuenta que nadie invitó", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-huerfano" } },
+    })
+
+    expect(result.current.user).toBeNull()
+  })
+
+  it("no da acceso a un usuario desactivado", async () => {
+    const tablas = {
+      ...DATOS_BASE,
+      usuarios: DATOS_BASE.usuarios.map((u) =>
+        u.id === "u-vendedor" ? { ...u, activo: false } : u
+      ),
+    }
+
+    const { result } = await renderAuth({
+      tablas,
+      sesionInicial: { user: { id: "auth-vendedor" } },
+    })
+
+    expect(result.current.user).toBeNull()
   })
 })
 
 describe("login", () => {
-  it("acepta las credenciales correctas", () => {
-    const { result } = renderAuth()
+  it("acepta las credenciales correctas", async () => {
+    const { result } = await renderAuth()
 
-    let exito
-    act(() => {
-      exito = result.current.login(ADMIN.username, ADMIN.password)
+    let respuesta
+    await act(async () => {
+      respuesta = await result.current.login(
+        "vendedor@ferreteria.test",
+        "Vende2026"
+      )
     })
 
-    expect(exito).toBe(true)
-    expect(result.current.user.username).toBe("admin")
+    expect(respuesta.ok).toBe(true)
+    expect(result.current.user.name).toBe("Vendedor de mostrador")
   })
 
-  it("rechaza una contraseña incorrecta", () => {
-    const { result } = renderAuth()
+  it("rechaza una contraseña incorrecta", async () => {
+    const { result } = await renderAuth()
 
-    let exito
-    act(() => {
-      exito = result.current.login("admin", "equivocada")
+    let respuesta
+    await act(async () => {
+      respuesta = await result.current.login(
+        "vendedor@ferreteria.test",
+        "equivocada"
+      )
     })
 
-    expect(exito).toBeFalsy()
+    expect(respuesta.ok).toBe(false)
+    expect(respuesta.mensaje).toMatch(/incorrect/i)
     expect(result.current.user).toBeNull()
   })
 
-  it("rechaza un usuario inexistente", () => {
-    const { result } = renderAuth()
+  it("ignora mayúsculas y espacios en el correo", async () => {
+    const { result } = await renderAuth()
 
-    let exito
-    act(() => {
-      exito = result.current.login("fantasma", "1234")
+    let respuesta
+    await act(async () => {
+      respuesta = await result.current.login(
+        "  VENDEDOR@Ferreteria.TEST  ",
+        "Vende2026"
+      )
     })
 
-    expect(exito).toBeFalsy()
+    expect(respuesta.ok).toBe(true)
   })
 
-  it("ignora mayúsculas y espacios en el nombre de usuario", () => {
-    const { result } = renderAuth()
+  it("explica cuándo la cuenta no está asignada a una ferretería", async () => {
+    const { result } = await renderAuth()
 
-    let exito
-    act(() => {
-      exito = result.current.login("  ADMIN  ", "1234")
+    let respuesta
+    await act(async () => {
+      respuesta = await result.current.login(
+        "huerfano@ferreteria.test",
+        "Huerf2026"
+      )
     })
 
-    expect(exito).toBe(true)
+    expect(respuesta.ok).toBe(false)
+    expect(respuesta.mensaje).toMatch(/no está asignada/i)
   })
 
-  it("guarda la sesión para que sobreviva al refresco", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
+  it("cierra la sesión de la cuenta sin asignar, para no dejarla a medias", async () => {
+    const { result } = await renderAuth()
 
-    expect(localStorage.getItem("ferreteria_session_user_id")).toBeTruthy()
+    await act(async () => {
+      await result.current.login("huerfano@ferreteria.test", "Huerf2026")
+    })
+
+    expect(falso.auth.signOut).toHaveBeenCalled()
+    expect(result.current.user).toBeNull()
   })
 })
 
 describe("logout", () => {
-  it("cierra la sesión y borra el rastro guardado", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
+  it("cierra la sesión", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-vendedor" } },
+    })
 
-    act(() => {
-      result.current.logout()
+    await act(async () => {
+      await result.current.logout()
     })
 
     expect(result.current.user).toBeNull()
-    expect(localStorage.getItem("ferreteria_session_user_id")).toBeNull()
+    expect(falso.auth.signOut).toHaveBeenCalled()
   })
 })
 
 describe("hasPermission", () => {
-  it("niega todo sin sesión", () => {
-    const { result } = renderAuth()
-    expect(result.current.hasPermission(PERMISSIONS.POS)).toBe(false)
+  it("niega todo sin sesión", async () => {
+    const { result } = await renderAuth()
+
+    expect(result.current.hasPermission("pos")).toBe(false)
   })
 
-  it("el administrador tiene acceso a todo", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-
-    Object.values(PERMISSIONS).forEach((permiso) => {
-      expect(result.current.hasPermission(permiso)).toBe(true)
-    })
-  })
-
-  it("el vendedor solo tiene lo que se le habilitó", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    crearVendedor(result)
-
-    act(() => {
-      result.current.login("maria", "clave123")
+  it("el vendedor solo tiene lo que se le habilitó", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-vendedor" } },
     })
 
-    expect(result.current.hasPermission(PERMISSIONS.POS)).toBe(true)
-    expect(result.current.hasPermission(PERMISSIONS.SETTINGS)).toBe(false)
-    expect(result.current.hasPermission(PERMISSIONS.PRODUCTS)).toBe(false)
+    expect(result.current.hasPermission("pos")).toBe(true)
+    expect(result.current.hasPermission("sales-history")).toBe(true)
+    expect(result.current.hasPermission("products")).toBe(false)
+    expect(result.current.hasPermission("settings")).toBe(false)
   })
 
-  it("isAdmin distingue el rol", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
+  it("el administrador tiene acceso a todo aunque su lista sea corta", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
+    })
 
+    expect(result.current.hasPermission("products")).toBe(true)
+    expect(result.current.hasPermission("suppliers")).toBe(true)
     expect(result.current.isAdmin).toBe(true)
   })
 })
 
-describe("addUser", () => {
-  it("agrega un vendedor a la lista", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    crearVendedor(result)
-
-    expect(result.current.users).toHaveLength(2)
-  })
-
-  it("el usuario nuevo puede iniciar sesión con su contraseña", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    crearVendedor(result)
-
-    let exito
-    act(() => {
-      exito = result.current.login("maria", "clave123")
+describe("administración de usuarios", () => {
+  it("lista los usuarios de la empresa", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
     })
 
-    expect(exito).toBe(true)
+    await waitFor(() => expect(result.current.users.length).toBe(3))
   })
 
-  it("no permite repetir el nombre de usuario", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
+  it("marca quién todavía no acepta la invitación", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
+    })
 
-    expect(() => {
-      crearVendedor(result, { username: "admin" })
-    }).toThrow()
+    await waitFor(() => expect(result.current.users.length).toBe(3))
+
+    const pendiente = result.current.users.find(
+      (u) => u.email === "invitado@ferreteria.test"
+    )
+
+    expect(pendiente.aceptoInvitacion).toBe(false)
   })
-})
 
-describe("updateUser", () => {
-  it("cambia los permisos de un vendedor", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
+  it("no muestra usuarios sin sesión", async () => {
+    const { result } = await renderAuth()
 
-    act(() => {
-      result.current.updateUser(vendedor.id, {
-        permissions: [PERMISSIONS.CLIENTS],
+    expect(result.current.users).toEqual([])
+  })
+
+  it("invita a un usuario nuevo por correo", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
+    })
+
+    await act(async () => {
+      await result.current.addUser({
+        name: "Nuevo Cajero",
+        email: "  NUEVO@ferreteria.test ",
+        role: "vendedor",
+        permissions: ["pos"],
       })
     })
 
-    act(() => {
-      result.current.login("maria", "clave123")
-    })
+    const creado = falso.datos.usuarios.find(
+      (u) => u.email === "nuevo@ferreteria.test"
+    )
 
-    expect(result.current.hasPermission(PERMISSIONS.CLIENTS)).toBe(true)
-    expect(result.current.hasPermission(PERMISSIONS.POS)).toBe(false)
+    expect(creado).toBeTruthy()
+    expect(creado.nombre).toBe("Nuevo Cajero")
   })
 
-  it("conserva la contraseña si no se envía una nueva", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
-
-    act(() => {
-      result.current.updateUser(vendedor.id, { name: "María Editada" })
+  it("exige nombre", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
     })
 
-    let exito
-    act(() => {
-      exito = result.current.login("maria", "clave123")
-    })
-
-    expect(exito).toBe(true)
-  })
-})
-
-describe("setUserActive", () => {
-  it("un usuario desactivado no puede iniciar sesión", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
-
-    act(() => {
-      result.current.setUserActive(vendedor.id, false)
-    })
-
-    let exito
-    act(() => {
-      exito = result.current.login("maria", "clave123")
-    })
-
-    expect(exito).toBeFalsy()
+    await expect(
+      result.current.addUser({ name: "  ", email: "x@y.test" })
+    ).rejects.toThrow(/nombre/i)
   })
 
-  it("al reactivarlo vuelve a poder entrar", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
-
-    act(() => {
-      result.current.setUserActive(vendedor.id, false)
+  it("exige un correo válido", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
     })
 
-    act(() => {
-      result.current.setUserActive(vendedor.id, true)
-    })
-
-    let exito
-    act(() => {
-      exito = result.current.login("maria", "clave123")
-    })
-
-    expect(exito).toBe(true)
-  })
-})
-
-describe("deleteUser", () => {
-  it("quita el usuario de la lista", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
-
-    act(() => {
-      result.current.deleteUser(vendedor.id)
-    })
-
-    expect(result.current.users).toHaveLength(1)
+    await expect(
+      result.current.addUser({ name: "Alguien", email: "no-es-correo" })
+    ).rejects.toThrow(/correo/i)
   })
 
-  it("el usuario eliminado ya no puede entrar", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
-
-    act(() => {
-      result.current.deleteUser(vendedor.id)
+  it("desactivar a alguien lo marca inactivo", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
     })
 
-    let exito
-    act(() => {
-      exito = result.current.login("maria", "clave123")
+    await act(async () => {
+      await result.current.setUserActive("u-vendedor", false)
     })
 
-    expect(exito).toBeFalsy()
-  })
-})
+    const fila = falso.datos.usuarios.find((u) => u.id === "u-vendedor")
 
-describe("getUserById", () => {
-  it("encuentra al usuario creado", () => {
-    const { result } = renderAuth()
-    entrarComoAdmin(result)
-    const vendedor = crearVendedor(result)
-
-    expect(result.current.getUserById(vendedor.id).username).toBe("maria")
+    expect(fila.activo).toBe(false)
   })
 
-  it("devuelve null si no existe", () => {
-    const { result } = renderAuth()
-    expect(result.current.getUserById("no-existe")).toBeNull()
+  it("elimina un usuario", async () => {
+    const { result } = await renderAuth({
+      sesionInicial: { user: { id: "auth-admin" } },
+    })
+
+    await act(async () => {
+      await result.current.deleteUser("u-invitado")
+    })
+
+    expect(
+      falso.datos.usuarios.some((u) => u.id === "u-invitado")
+    ).toBe(false)
   })
 })

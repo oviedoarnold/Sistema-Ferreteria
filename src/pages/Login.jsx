@@ -1,21 +1,33 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+
 import { useAuth } from "../hooks/useAuth"
 
 function Login() {
-  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
+  const [entrando, setEntrando] = useState(false)
+
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setError("")
-    const success = login(username.trim(), password)
-    if (success) navigate("/dashboard")
-    else setError("Usuario o contraseña incorrectos.")
+    setEntrando(true)
+
+    const resultado = await login(email, password)
+
+    setEntrando(false)
+
+    if (resultado.ok) {
+      navigate("/dashboard")
+      return
+    }
+
+    setError(resultado.mensaje)
   }
 
   return (
@@ -28,17 +40,47 @@ function Login() {
 
         <form onSubmit={handleLogin}>
           <div className="field">
-            <label htmlFor="login-usuario">Usuario</label>
-            <input id="login-usuario" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} />
+            <label htmlFor="login-correo">Correo</label>
+            <input
+              id="login-correo"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
+
           <div className="field">
             <label htmlFor="login-password">Contraseña</label>
             <div className="pw-wrap">
-              <input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-              <button type="button" className="pw-toggle" onClick={() => setShowPassword((v) => !v)} aria-label="Mostrar u ocultar contraseña">{showPassword ? "🙈" : "👁"}</button>
+              <input
+                id="login-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="pw-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label="Mostrar u ocultar contraseña"
+              >
+                {showPassword ? "🙈" : "👁"}
+              </button>
             </div>
           </div>
-          <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 4 }} type="submit">Ingresar</button>
+
+          <button
+            className="btn btn-primary btn-lg btn-block"
+            style={{ marginTop: 4 }}
+            type="submit"
+            disabled={entrando}
+          >
+            {entrando ? "Entrando…" : "Ingresar"}
+          </button>
         </form>
       </div>
     </div>

@@ -1,32 +1,36 @@
-import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 
-import { AuthProvider } from "../context/AuthContext"
-import NotFound from "./NotFound"
+import {
+  montarSupabaseFalso,
+  usuarioDePrueba,
+  sesionDe,
+} from "../test/auth"
 
-function renderNotFound({ conSesion = false } = {}) {
-  if (conSesion) {
-    localStorage.setItem(
-      "ferreteria_users",
-      JSON.stringify([
-        {
-          id: "u1",
-          name: "Administrador",
-          username: "admin",
-          passwordHash: "irrelevante",
-          role: "admin",
-          active: true,
-          permissions: [],
-          createdAt: new Date().toISOString(),
-        },
-      ])
-    )
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+  exigirSupabase: () => globalThis.__supabaseFalso,
+}))
 
-    localStorage.setItem("ferreteria_session_user_id", "u1")
-  }
+beforeEach(() => {
+  vi.resetModules()
+})
 
-  return render(
+async function renderNotFound({ conSesion = false } = {}) {
+  montarSupabaseFalso(
+    conSesion
+      ? { usuarios: [usuarioDePrueba()], sesionInicial: sesionDe("auth-1") }
+      : {}
+  )
+
+  const { AuthProvider } = await import("../context/AuthContext")
+  const NotFound = (await import("./NotFound")).default
+
+  render(
     <AuthProvider>
       <MemoryRouter>
         <NotFound />
@@ -36,29 +40,31 @@ function renderNotFound({ conSesion = false } = {}) {
 }
 
 describe("NotFound", () => {
-  it("muestra el código 404", () => {
-    renderNotFound()
+  it("muestra el código 404", async () => {
+    await renderNotFound()
     expect(screen.getByText("404")).toBeInTheDocument()
   })
 
-  it("explica qué pasó sin tecnicismos", () => {
-    renderNotFound()
+  it("explica qué pasó sin tecnicismos", async () => {
+    await renderNotFound()
     expect(screen.getByText(/esta página no existe/i)).toBeInTheDocument()
   })
 
-  it("sin sesión ofrece volver al inicio", () => {
-    renderNotFound()
+  it("sin sesión ofrece volver al inicio", async () => {
+    await renderNotFound()
 
-    const enlace = screen.getByRole("link", { name: /ir al inicio/i })
-
-    expect(enlace).toHaveAttribute("href", "/")
+    expect(
+      await screen.findByRole("link", { name: /ir al inicio/i })
+    ).toHaveAttribute("href", "/")
   })
 
-  it("con sesión ofrece volver al panel", () => {
-    renderNotFound({ conSesion: true })
+  it("con sesión ofrece volver al panel", async () => {
+    await renderNotFound({ conSesion: true })
 
-    const enlace = screen.getByRole("link", { name: /volver al panel/i })
-
-    expect(enlace).toHaveAttribute("href", "/dashboard")
+    await waitFor(async () =>
+      expect(
+        screen.getByRole("link", { name: /volver al panel/i })
+      ).toHaveAttribute("href", "/dashboard")
+    )
   })
 })

@@ -1,12 +1,52 @@
-import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 
-import { AuthProvider } from "../context/AuthContext"
-import Login from "./Login"
+import {
+  montarSupabaseFalso,
+  usuarioDePrueba,
+  permisosDe,
+} from "../test/auth"
 
-function renderLogin() {
-  return render(
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+  exigirSupabase: () => globalThis.__supabaseFalso,
+}))
+
+const CUENTAS = [
+  { id: "auth-1", email: "vendedor@ferreteria.test", password: "Vende2026" },
+  { id: "auth-huerfano", email: "huerfano@ferreteria.test", password: "Huerf2026" },
+]
+
+beforeEach(() => {
+  vi.resetModules()
+})
+
+async function renderLogin() {
+  const falso = montarSupabaseFalso({
+    usuarios: [usuarioDePrueba({ email: "vendedor@ferreteria.test" })],
+    permisos: permisosDe("u-1", ["dashboard"]),
+  })
+
+  falso.auth.signInWithPassword.mockImplementation(({ email, password }) => {
+    const cuenta = CUENTAS.find(
+      (c) => c.email === email && c.password === password
+    )
+
+    return Promise.resolve(
+      cuenta
+        ? { data: { user: { id: cuenta.id, email } }, error: null }
+        : { data: { user: null }, error: { message: "credenciales" } }
+    )
+  })
+
+  const { AuthProvider } = await import("../context/AuthContext")
+  const Login = (await import("./Login")).default
+
+  render(
     <AuthProvider>
       <MemoryRouter initialEntries={["/login"]}>
         <Routes>
@@ -16,11 +56,13 @@ function renderLogin() {
       </MemoryRouter>
     </AuthProvider>
   )
+
+  await screen.findByLabelText(/^correo$/i)
 }
 
-const escribirCredenciales = (usuario, clave) => {
-  fireEvent.change(screen.getByLabelText(/usuario/i), {
-    target: { value: usuario },
+const escribir = (correo, clave) => {
+  fireEvent.change(screen.getByLabelText(/^correo$/i), {
+    target: { value: correo },
   })
 
   fireEvent.change(screen.getByLabelText(/^contraseña$/i), {
@@ -32,52 +74,82 @@ const enviar = () =>
   fireEvent.click(screen.getByRole("button", { name: /ingresar/i }))
 
 describe("Login", () => {
-  it("muestra el formulario", () => {
-    renderLogin()
+  it("muestra el formulario", async () => {
+    await renderLogin()
 
-    expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^correo$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^contraseña$/i)).toBeInTheDocument()
   })
 
-  it("entra al panel con las credenciales correctas", () => {
-    renderLogin()
-    escribirCredenciales("admin", "1234")
-    enviar()
+  it("pide un correo, no un nombre de usuario", async () => {
+    await renderLogin()
 
-    expect(screen.getByText("Dashboard")).toBeInTheDocument()
+    expect(screen.getByLabelText(/^correo$/i)).toHaveAttribute("type", "email")
   })
 
-  it("avisa cuando las credenciales son incorrectas", () => {
-    renderLogin()
-    escribirCredenciales("admin", "equivocada")
+  it("entra al panel con las credenciales correctas", async () => {
+    await renderLogin()
+    escribir("vendedor@ferreteria.test", "Vende2026")
     enviar()
 
-    expect(screen.getByText(/incorrect/i)).toBeInTheDocument()
+    expect(await screen.findByText("Dashboard")).toBeInTheDocument()
   })
 
-  it("no deja pasar al panel con la clave equivocada", () => {
-    renderLogin()
-    escribirCredenciales("admin", "equivocada")
+  it("avisa cuando las credenciales son incorrectas", async () => {
+    await renderLogin()
+    escribir("vendedor@ferreteria.test", "equivocada")
     enviar()
+
+    expect(await screen.findByText(/incorrect/i)).toBeInTheDocument()
+  })
+
+  it("no deja pasar al panel con la clave equivocada", async () => {
+    await renderLogin()
+    escribir("vendedor@ferreteria.test", "equivocada")
+    enviar()
+
+    await screen.findByText(/incorrect/i)
 
     expect(screen.queryByText("Dashboard")).not.toBeInTheDocument()
   })
 
-  it("la contraseña se oculta por defecto", () => {
-    renderLogin()
+  it("explica cuándo la cuenta no está asignada a una ferretería", async () => {
+    await renderLogin()
+    escribir("huerfano@ferreteria.test", "Huerf2026")
+    enviar()
+
+    expect(await screen.findByText(/no está asignada/i)).toBeInTheDocument()
+  })
+
+  it("la contraseña se oculta por defecto", async () => {
+    await renderLogin()
+
     expect(screen.getByLabelText(/^contraseña$/i)).toHaveAttribute(
       "type",
       "password"
     )
   })
 
-  it("el botón del ojo revela la contraseña", () => {
-    renderLogin()
+  it("el botón del ojo revela la contraseña", async () => {
+    await renderLogin()
 
     fireEvent.click(
       screen.getByRole("button", { name: /mostrar u ocultar/i })
     )
 
-    expect(screen.getByLabelText(/^contraseña$/i)).toHaveAttribute("type", "text")
+    expect(screen.getByLabelText(/^contraseña$/i)).toHaveAttribute(
+      "type",
+      "text"
+    )
+  })
+
+  it("desactiva el botón mientras entra", async () => {
+    await renderLogin()
+    escribir("vendedor@ferreteria.test", "Vende2026")
+    enviar()
+
+    await waitFor(() =>
+      expect(screen.queryByText("Dashboard")).toBeInTheDocument()
+    )
   })
 })

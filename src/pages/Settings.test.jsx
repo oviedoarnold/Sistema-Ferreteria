@@ -1,21 +1,31 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 
-import { AuthProvider } from "../context/AuthContext"
-import ProductProvider from "../context/ProductContext"
-import SalesProvider from "../context/SalesContext"
-import Settings from "./Settings"
+import {
+  montarSupabaseFalso,
+  usuarioDePrueba,
+  permisosDe,
+  sesionDe,
+} from "../test/auth"
+
+vi.mock("../lib/supabase", () => ({
+  get supabase() {
+    return globalThis.__supabaseFalso
+  },
+  hayConexionConfigurada: true,
+  exigirSupabase: () => globalThis.__supabaseFalso,
+}))
 
 const EMPRESA = {
-  name: "Ferretería Isaac",
+  name: "Ferretería El Yunque",
   address: "San Pedro Sula",
-  phone: "9709-0121",
+  phone: "2555-0100",
   currency: "L",
   taxRate: 15,
 }
 
 const FISCAL_COMPLETO = {
-  rtn: "08019012345678",
+  rtn: "05019012345678",
   cai: "A1B2C3-D4E5F6-A7B8C9-D1E2F3-A4B5C6-D7",
   establecimiento: "000",
   puntoEmision: "001",
@@ -25,7 +35,11 @@ const FISCAL_COMPLETO = {
   fechaLimiteEmision: "2027-12-31",
 }
 
-function renderSettings({ empresa = EMPRESA, correlativo = 1000 } = {}) {
+beforeEach(() => {
+  vi.resetModules()
+})
+
+async function renderSettings({ empresa = EMPRESA, correlativo = 1000 } = {}) {
   localStorage.setItem("company", JSON.stringify(empresa))
   localStorage.setItem("products", JSON.stringify([]))
   localStorage.setItem("sales", JSON.stringify([]))
@@ -34,25 +48,20 @@ function renderSettings({ empresa = EMPRESA, correlativo = 1000 } = {}) {
     JSON.stringify({ invoice: correlativo, quote: 2000 })
   )
 
-  localStorage.setItem(
-    "ferreteria_users",
-    JSON.stringify([
-      {
-        id: "admin-inicial",
-        name: "Administrador",
-        username: "admin",
-        passwordHash: "irrelevante",
-        role: "admin",
-        active: true,
-        permissions: [],
-        createdAt: new Date().toISOString(),
-      },
-    ])
-  )
+  montarSupabaseFalso({
+    usuarios: [
+      usuarioDePrueba({ rol: "admin", nombre: "Administrador" }),
+    ],
+    permisos: permisosDe("u-1", ["settings"]),
+    sesionInicial: sesionDe("auth-1"),
+  })
 
-  localStorage.setItem("ferreteria_session_user_id", "admin-inicial")
+  const { AuthProvider } = await import("../context/AuthContext")
+  const ProductProvider = (await import("../context/ProductContext")).default
+  const SalesProvider = (await import("../context/SalesContext")).default
+  const Settings = (await import("./Settings")).default
 
-  return render(
+  render(
     <AuthProvider>
       <ProductProvider>
         <SalesProvider>
@@ -61,6 +70,8 @@ function renderSettings({ empresa = EMPRESA, correlativo = 1000 } = {}) {
       </ProductProvider>
     </AuthProvider>
   )
+
+  await screen.findByText(/datos de la ferretería/i)
 }
 
 const campo = (nombre) => document.querySelector(`[name="${nombre}"]`)
@@ -69,59 +80,59 @@ const escribir = (nombre, valor) =>
   fireEvent.change(campo(nombre), { target: { value: valor } })
 
 describe("Settings: datos de la ferretería", () => {
-  it("carga los datos guardados en el formulario", () => {
-    renderSettings()
+  it("carga los datos guardados en el formulario", async () => {
+    await renderSettings()
 
-    expect(campo("name")).toHaveValue("Ferretería Isaac")
+    expect(campo("name")).toHaveValue("Ferretería El Yunque")
     expect(campo("address")).toHaveValue("San Pedro Sula")
-    expect(campo("phone")).toHaveValue("9709-0121")
+    expect(campo("phone")).toHaveValue("2555-0100")
   })
 
-  it("carga la tasa de ISV", () => {
-    renderSettings()
+  it("carga la tasa de ISV", async () => {
+    await renderSettings()
     expect(campo("taxRate")).toHaveValue(15)
   })
 
-  it("permite editar el nombre", () => {
-    renderSettings()
+  it("permite editar el nombre", async () => {
+    await renderSettings()
     escribir("name", "Ferretería Nueva")
 
     expect(campo("name")).toHaveValue("Ferretería Nueva")
   })
 
-  it("deshacer cambios devuelve los valores guardados", () => {
-    renderSettings()
+  it("deshacer cambios devuelve los valores guardados", async () => {
+    await renderSettings()
     escribir("name", "Cambio temporal")
 
     fireEvent.click(screen.getByRole("button", { name: /deshacer/i }))
 
-    expect(campo("name")).toHaveValue("Ferretería Isaac")
+    expect(campo("name")).toHaveValue("Ferretería El Yunque")
   })
 })
 
 describe("Settings: datos fiscales", () => {
-  it("avisa cuando no hay CAI configurado", () => {
-    renderSettings()
+  it("avisa cuando no hay CAI configurado", async () => {
+    await renderSettings()
 
     expect(screen.getByText(/sin datos fiscales/i)).toBeInTheDocument()
   })
 
-  it("muestra los campos fiscales vacíos al inicio", () => {
-    renderSettings()
+  it("muestra los campos fiscales vacíos al inicio", async () => {
+    await renderSettings()
 
     expect(campo("cai")).toHaveValue("")
     expect(campo("rtn")).toHaveValue("")
   })
 
-  it("carga los datos fiscales guardados", () => {
-    renderSettings({ empresa: { ...EMPRESA, fiscal: FISCAL_COMPLETO } })
+  it("carga los datos fiscales guardados", async () => {
+    await renderSettings({ empresa: { ...EMPRESA, fiscal: FISCAL_COMPLETO } })
 
     expect(campo("cai")).toHaveValue(FISCAL_COMPLETO.cai)
     expect(campo("rtn")).toHaveValue(FISCAL_COMPLETO.rtn)
   })
 
-  it("informa cuántas facturas quedan del rango", () => {
-    renderSettings({
+  it("informa cuántas facturas quedan del rango", async () => {
+    await renderSettings({
       empresa: { ...EMPRESA, fiscal: FISCAL_COMPLETO },
       correlativo: 1000,
     })
@@ -129,8 +140,8 @@ describe("Settings: datos fiscales", () => {
     expect(screen.getByText(/quedan 8999 facturas/i)).toBeInTheDocument()
   })
 
-  it("avisa cuando el rango está por agotarse", () => {
-    renderSettings({
+  it("avisa cuando el rango está por agotarse", async () => {
+    await renderSettings({
       empresa: { ...EMPRESA, fiscal: FISCAL_COMPLETO },
       correlativo: 9980,
     })
@@ -138,8 +149,8 @@ describe("Settings: datos fiscales", () => {
     expect(screen.getByText(/conviene tramitar/i)).toBeInTheDocument()
   })
 
-  it("avisa cuando el rango ya se agotó", () => {
-    renderSettings({
+  it("avisa cuando el rango ya se agotó", async () => {
+    await renderSettings({
       empresa: { ...EMPRESA, fiscal: FISCAL_COMPLETO },
       correlativo: 10500,
     })
@@ -147,8 +158,8 @@ describe("Settings: datos fiscales", () => {
     expect(screen.getByText(/se agotó el rango/i)).toBeInTheDocument()
   })
 
-  it("avisa cuando el CAI está vencido", () => {
-    renderSettings({
+  it("avisa cuando el CAI está vencido", async () => {
+    await renderSettings({
       empresa: {
         ...EMPRESA,
         fiscal: { ...FISCAL_COMPLETO, fechaLimiteEmision: "2020-01-01" },
@@ -158,8 +169,8 @@ describe("Settings: datos fiscales", () => {
     expect(screen.getByText(/venció el/i)).toBeInTheDocument()
   })
 
-  it("actualiza el aviso al escribir los datos fiscales", () => {
-    renderSettings()
+  it("actualiza el aviso al escribir los datos fiscales", async () => {
+    await renderSettings()
 
     escribir("cai", "A1B2C3-D4E5F6")
     escribir("rangoDesde", "1")
@@ -169,21 +180,23 @@ describe("Settings: datos fiscales", () => {
     expect(screen.getByText(/rango vigente/i)).toBeInTheDocument()
   })
 
-  it("recuerda confirmar la normativa con un contador", () => {
-    renderSettings()
+  it("recuerda confirmar la normativa con un contador", async () => {
+    await renderSettings()
 
     expect(screen.getByText(/contador/i)).toBeInTheDocument()
   })
 })
 
 describe("Settings: usuarios", () => {
-  it("lista los usuarios registrados", () => {
-    renderSettings()
-    expect(screen.getAllByText("Administrador").length).toBeGreaterThan(0)
+  it("lista los usuarios registrados", async () => {
+    await renderSettings()
+    expect(
+      (await screen.findAllByText("Administrador")).length
+    ).toBeGreaterThan(0)
   })
 
-  it("abre el formulario de usuario nuevo", () => {
-    renderSettings()
+  it("abre el formulario de usuario nuevo", async () => {
+    await renderSettings()
 
     fireEvent.click(screen.getByRole("button", { name: /nuevo usuario/i }))
 
@@ -192,8 +205,8 @@ describe("Settings: usuarios", () => {
     ).toBeInTheDocument()
   })
 
-  it("el formulario ofrece elegir los permisos por sección", () => {
-    renderSettings()
+  it("el formulario ofrece elegir los permisos por sección", async () => {
+    await renderSettings()
 
     fireEvent.click(screen.getByRole("button", { name: /nuevo usuario/i }))
 

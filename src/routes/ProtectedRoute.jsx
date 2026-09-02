@@ -50,17 +50,57 @@ function NoAccess() {
   )
 }
 
+function ComprobandoSesion() {
+  return (
+    <div id="login-screen">
+      <div
+        className="login-card"
+        style={{ textAlign: "center" }}
+      >
+        <div
+          style={{
+            fontSize: 32,
+            marginBottom: 10,
+          }}
+        >
+          🔧
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            color: "var(--steel)",
+            fontSize: 15,
+          }}
+        >
+          Comprobando tu sesión…
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function ProtectedRoute({
   children,
   permission = null,
 }) {
   const {
     user,
+    cargando,
     hasPermission,
   } = useAuth()
 
   const location =
     useLocation()
+
+  /*
+    Mientras se resuelve la sesión no se decide nada. Redirigir aquí
+    expulsaría al usuario en cada refresco, porque la consulta a Supabase
+    todavía no ha respondido.
+  */
+  if (cargando) {
+    return <ComprobandoSesion />
+  }
 
   if (!user) {
     return (

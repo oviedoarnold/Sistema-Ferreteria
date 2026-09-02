@@ -6,15 +6,7 @@ import {
 } from "react"
 
 import { AuthContext } from "./contexts"
-
-import {
-  guardarJSON,
-  guardarTexto,
-  borrar,
-} from "../utils/almacenamiento"
-
-import { crearId } from "../utils/ids"
-import { hashPassword } from "../utils/password"
+import { supabase } from "../lib/supabase"
 
 import {
   PERMISSIONS,
@@ -22,764 +14,344 @@ import {
   SELLER_PERMISSIONS,
 } from "./permissions"
 
-const USERS_STORAGE_KEY =
-  "ferreteria_users"
-
-const SESSION_STORAGE_KEY =
-  "ferreteria_session_user_id"
-
-function createBootstrapAdmin() {
-  return {
-    id: "admin-inicial",
-
-    name: "Administrador",
-
-    username: "admin",
-
-    passwordHash:
-      hashPassword("1234"),
-
-    role: "admin",
-
-    active: true,
-
-    permissions:
-      ADMIN_PERMISSIONS,
-
-    createdAt:
-      new Date().toISOString(),
-  }
-}
-
-function normalizeUser(user) {
-  const role =
-    user?.role === "admin"
-      ? "admin"
-      : "vendedor"
-
-  return {
-    ...user,
-
-    name:
-      user?.name ||
-      user?.displayName ||
-      "Usuario",
-
-    username:
-      String(
-        user?.username || ""
-      )
-        .trim()
-        .toLowerCase(),
-
-    role,
-
-    active:
-      user?.active !== false,
-
-    permissions:
-      role === "admin"
-        ? ADMIN_PERMISSIONS
-        : Array.isArray(
-              user?.permissions
-            )
-          ? user.permissions
-          : SELLER_PERMISSIONS,
-  }
-}
-
-function loadUsers() {
-  try {
-    const saved =
-      localStorage.getItem(
-        USERS_STORAGE_KEY
-      )
-
-    if (!saved) {
-      const initialUsers = [
-        createBootstrapAdmin(),
-      ]
-
-      guardarJSON(USERS_STORAGE_KEY, initialUsers)
-
-      return initialUsers
-    }
-
-    const parsed =
-      JSON.parse(saved)
-
-    if (
-      !Array.isArray(parsed) ||
-      parsed.length === 0
-    ) {
-      const initialUsers = [
-        createBootstrapAdmin(),
-      ]
-
-      guardarJSON(USERS_STORAGE_KEY, initialUsers)
-
-      return initialUsers
-    }
-
-    return parsed.map(
-      normalizeUser
-    )
-  } catch (error) {
-    console.error(
-      "Error cargando usuarios:",
-      error
-    )
-
-    return [
-      createBootstrapAdmin(),
-    ]
-  }
-}
-
-function readStoredSessionId() {
-  try {
-    return localStorage.getItem(
-      SESSION_STORAGE_KEY
-    )
-  } catch (error) {
-    console.error(
-      "Error leyendo la sesión guardada:",
-      error
-    )
-
-    return null
-  }
-}
-
-function withoutPasswordHash(user) {
-  const publicUser = { ...user }
-
-  delete publicUser.passwordHash
-
-  return publicUser
-}
-
 /*
- * Devuelve null si al usuario en sesión
- * lo eliminaron o desactivaron, para que
- * el cambio surta efecto sin esperar a
- * que vuelva a entrar.
- */
-function findActiveSessionUser(
-  users,
-  sessionUserId
-) {
-  if (!sessionUserId) {
+  Carga el perfil del usuario en sesión junto con sus permisos.
+
+  Devuelve null si la cuenta existe en Supabase pero nadie la invitó a una
+  empresa: tener credenciales válidas no da acceso por sí solo.
+*/
+async function cargarPerfil(authId) {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("id, empresa_id, email, nombre, rol, activo")
+    .eq("auth_id", authId)
+    .eq("activo", true)
+    .maybeSingle()
+
+  if (error || !data) {
     return null
   }
 
-  const sessionUser = users.find(
-    (currentUser) =>
-      String(currentUser.id) ===
-      String(sessionUserId)
-  )
+  const { data: filas } = await supabase
+    .from("permisos_usuario")
+    .select("seccion")
+    .eq("usuario_id", data.id)
 
-  if (
-    !sessionUser ||
-    !sessionUser.active
-  ) {
-    return null
+  return {
+    ...data,
+    name: data.nombre,
+    role: data.rol,
+    permissions: (filas || []).map((f) => f.seccion),
   }
-
-  return normalizeUser(sessionUser)
 }
 
-export function AuthProvider({
-  children,
-}) {
-  const [users, setUsers] =
-    useState(loadUsers)
+async function traerUsuariosDeLaEmpresa() {
+  if (!supabase) {
+    return []
+  }
+
+  const { data } = await supabase
+    .from("usuarios")
+    .select("id, email, nombre, rol, activo, entro_en, permisos_usuario(seccion)")
+    .order("nombre")
+
+  return (data || []).map((fila) => ({
+    id: fila.id,
+    email: fila.email,
+    name: fila.nombre,
+    username: fila.email,
+    role: fila.rol,
+    active: fila.activo,
+    // Sin entro_en, la invitación sigue sin aceptarse.
+    aceptoInvitacion: Boolean(fila.entro_en),
+    permissions: (fila.permisos_usuario || []).map((p) => p.seccion),
+  }))
+}
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null)
 
   /*
-   * El identificador se lee de forma
-   * síncrona. Si la sesión se recuperara
-   * dentro de un efecto, el primer render
-   * vería user = null y las rutas
-   * protegidas mandarían al login en cada
-   * refresco.
-   */
-  const [
-    sessionUserId,
-    setSessionUserId,
-  ] = useState(readStoredSessionId)
-
-  /*
-   * El usuario se deriva de la lista, no se
-   * copia: así quitarle permisos o
-   * desactivarlo se refleja de inmediato sin
-   * un efecto que sincronice.
-   */
-  const user = useMemo(
-    () =>
-      findActiveSessionUser(
-        users,
-        sessionUserId
-      ),
-    [users, sessionUserId]
-  )
+    Arranca en true cuando hay conexión que consultar: si ProtectedRoute
+    viera user = null mientras la sesión todavía se resuelve, mandaría al
+    login en cada refresco. Es el mismo error que ya corregimos con
+    localStorage, y contra la red es más fácil de reintroducir.
+  */
+  const [cargando, setCargando] = useState(() => Boolean(supabase))
 
   useEffect(() => {
-    guardarJSON(USERS_STORAGE_KEY, users)
-  }, [users])
-
-  useEffect(() => {
-    if (sessionUserId && !user) {
-      borrar(SESSION_STORAGE_KEY)
-    }
-  }, [sessionUserId, user])
-
-  /*
-   * LOGIN
-   */
-  const login = useCallback((
-    username,
-    password
-  ) => {
-    const normalizedUsername =
-      String(username || "")
-        .trim()
-        .toLowerCase()
-
-    const passwordHash =
-      hashPassword(
-        String(password || "")
-      )
-
-    const foundUser =
-      users.find(
-        (currentUser) =>
-          currentUser.username ===
-          normalizedUsername
-      )
-
-    if (!foundUser) {
-      return false
+    if (!supabase) {
+      return
     }
 
-    if (!foundUser.active) {
-      return false
+    let vigente = true
+
+    const aplicarSesion = async (sesion) => {
+      const perfil = sesion?.user
+        ? await cargarPerfil(sesion.user.id)
+        : null
+
+      if (vigente) {
+        setUser(perfil)
+        setCargando(false)
+      }
     }
 
-    if (
-      foundUser.passwordHash !==
-      passwordHash
-    ) {
-      return false
-    }
+    supabase.auth
+      .getSession()
+      .then(({ data }) => aplicarSesion(data.session))
 
-    const authenticatedUser =
-      normalizeUser(
-        foundUser
-      )
-
-    setSessionUserId(
-      String(authenticatedUser.id)
+    const { data: suscripcion } = supabase.auth.onAuthStateChange(
+      (_evento, sesion) => {
+        aplicarSesion(sesion)
+      }
     )
 
-    guardarTexto(SESSION_STORAGE_KEY, String(
-        authenticatedUser.id)
-    )
-
-    /*
-     * Eliminamos la sesión antigua
-     * que utilizaba la versión anterior.
-     */
-    borrar("user")
-
-    return true
-  }, [users])
-
-  /*
-   * LOGOUT
-   */
-  const logout = useCallback(() => {
-    setSessionUserId(null)
-
-    borrar(SESSION_STORAGE_KEY)
-
-    borrar("user")
+    return () => {
+      vigente = false
+      suscripcion.subscription.unsubscribe()
+    }
   }, [])
 
-  /*
-   * COMPROBAR PERMISOS
-   */
-  const hasPermission = useCallback((
-    permission
-  ) => {
+  const login = useCallback(async (email, password) => {
+    if (!supabase) {
+      return { ok: false, mensaje: "Falta configurar la conexión." }
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: String(email || "").trim().toLowerCase(),
+      password,
+    })
+
+    if (error) {
+      return { ok: false, mensaje: "Correo o contraseña incorrectos." }
+    }
+
+    const perfil = await cargarPerfil(data.user.id)
+
+    if (!perfil) {
+      await supabase.auth.signOut()
+
+      return {
+        ok: false,
+        mensaje:
+          "Tu cuenta no está asignada a ninguna ferretería. Pídele al administrador que te dé acceso.",
+      }
+    }
+
+    setUser(perfil)
+
+    return { ok: true }
+  }, [])
+
+  const logout = useCallback(async () => {
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
+
+    setUser(null)
+  }, [])
+
+  const [users, setUsers] = useState([])
+
+  const recargarUsuarios = useCallback(async () => {
+    setUsers(await traerUsuariosDeLaEmpresa())
+  }, [])
+
+  useEffect(() => {
     if (!user) {
-      return false
+      return
     }
 
-    /*
-     * Admin siempre tiene
-     * acceso completo.
-     */
-    if (
-      user.role === "admin"
-    ) {
-      return true
-    }
+    let vigente = true
 
-    return (
-      Array.isArray(
-        user.permissions
-      ) &&
-      user.permissions.includes(
-        permission
-      )
-    )
+    traerUsuariosDeLaEmpresa().then((lista) => {
+      if (vigente) {
+        setUsers(lista)
+      }
+    })
+
+    return () => {
+      vigente = false
+    }
   }, [user])
 
-  const addUser = useCallback(({
-    name,
-    username,
-    password,
-    role = "vendedor",
-    permissions = [],
-    active = true,
-  }) => {
-    const cleanName =
-      String(name || "").trim()
+  const guardarPermisos = useCallback(
+    async (usuarioId, secciones) => {
+      await supabase
+        .from("permisos_usuario")
+        .delete()
+        .eq("usuario_id", usuarioId)
 
-    const cleanUsername =
-      String(username || "")
-        .trim()
-        .toLowerCase()
-
-    const cleanPassword =
-      String(password || "")
-
-    if (!cleanName) {
-      throw new Error(
-        "El nombre es obligatorio."
-      )
-    }
-
-    if (!cleanUsername) {
-      throw new Error(
-        "El usuario es obligatorio."
-      )
-    }
-
-    if (
-      cleanUsername.length < 3
-    ) {
-      throw new Error(
-        "El usuario debe tener al menos 3 caracteres."
-      )
-    }
-
-    if (
-      cleanPassword.length < 4
-    ) {
-      throw new Error(
-        "La contraseña debe tener al menos 4 caracteres."
-      )
-    }
-
-    const usernameExists =
-      users.some(
-        (currentUser) =>
-          currentUser.username ===
-          cleanUsername
-      )
-
-    if (usernameExists) {
-      throw new Error(
-        "Ese nombre de usuario ya existe."
-      )
-    }
-
-    const normalizedRole =
-      role === "admin"
-        ? "admin"
-        : "vendedor"
-
-    const newUser = {
-      id: crearId("USR"),
-
-      name: cleanName,
-
-      username:
-        cleanUsername,
-
-      passwordHash:
-        hashPassword(
-          cleanPassword
-        ),
-
-      role:
-        normalizedRole,
-
-      active:
-        Boolean(active),
-
-      permissions:
-        normalizedRole ===
-        "admin"
-          ? ADMIN_PERMISSIONS
-          : Array.from(
-              new Set(
-                permissions
-              )
-            ),
-
-      createdAt:
-        new Date().toISOString(),
-    }
-
-    setUsers(
-      (currentUsers) => [
-        ...currentUsers,
-        newUser,
-      ]
-    )
-
-    return newUser
-  }, [users])
-
-  const updateUser = useCallback((
-    userId,
-    changes
-  ) => {
-    const existingUser =
-      users.find(
-        (currentUser) =>
-          String(
-            currentUser.id
-          ) ===
-          String(userId)
-      )
-
-    if (!existingUser) {
-      throw new Error(
-        "Usuario no encontrado."
-      )
-    }
-
-    const cleanName =
-      String(
-        changes.name ??
-          existingUser.name
-      ).trim()
-
-    const cleanUsername =
-      String(
-        changes.username ??
-          existingUser.username
-      )
-        .trim()
-        .toLowerCase()
-
-    if (!cleanName) {
-      throw new Error(
-        "El nombre es obligatorio."
-      )
-    }
-
-    if (!cleanUsername) {
-      throw new Error(
-        "El usuario es obligatorio."
-      )
-    }
-
-    const duplicatedUsername =
-      users.some(
-        (currentUser) =>
-          String(
-            currentUser.id
-          ) !==
-            String(userId) &&
-          currentUser.username ===
-            cleanUsername
-      )
-
-    if (
-      duplicatedUsername
-    ) {
-      throw new Error(
-        "Ese nombre de usuario ya existe."
-      )
-    }
-
-    const nextRole =
-      changes.role === "admin"
-        ? "admin"
-        : changes.role ===
-            "vendedor"
-          ? "vendedor"
-          : existingUser.role
-
-    if (
-      existingUser.role ===
-        "admin" &&
-      nextRole !== "admin"
-    ) {
-      const activeAdmins =
-        users.filter(
-          (currentUser) =>
-            currentUser.role ===
-              "admin" &&
-            currentUser.active
-        )
-
-      if (
-        activeAdmins.length <= 1
-      ) {
-        throw new Error(
-          "Debe existir al menos un administrador activo."
-        )
-      }
-    }
-
-    if (
-      existingUser.role ===
-        "admin" &&
-      changes.active ===
-        false
-    ) {
-      const activeAdmins =
-        users.filter(
-          (currentUser) =>
-            currentUser.role ===
-              "admin" &&
-            currentUser.active
-        )
-
-      if (
-        activeAdmins.length <= 1
-      ) {
-        throw new Error(
-          "No puedes desactivar al último administrador."
-        )
-      }
-    }
-
-    const updatedUser = {
-      ...existingUser,
-
-      ...changes,
-
-      name: cleanName,
-
-      username:
-        cleanUsername,
-
-      role:
-        nextRole,
-
-      permissions:
-        nextRole === "admin"
-          ? ADMIN_PERMISSIONS
-          : Array.isArray(
-                changes.permissions
-              )
-            ? Array.from(
-                new Set(
-                  changes.permissions
-                )
-              )
-            : existingUser.permissions,
-    }
-
-    if (
-      changes.password
-    ) {
-      if (
-        String(
-          changes.password
-        ).length < 4
-      ) {
-        throw new Error(
-          "La contraseña debe tener al menos 4 caracteres."
-        )
+      if (!secciones.length) {
+        return
       }
 
-      updatedUser.passwordHash =
-        hashPassword(
-          String(
-            changes.password
-          )
-        )
-    }
-
-    delete updatedUser.password
-
-    setUsers(
-      (currentUsers) =>
-        currentUsers.map(
-          (currentUser) =>
-            String(
-              currentUser.id
-            ) ===
-            String(userId)
-              ? updatedUser
-              : currentUser
-        )
-    )
-
-    return updatedUser
-  }, [users])
-
-  const deleteUser = useCallback((
-    userId
-  ) => {
-    const userToDelete =
-      users.find(
-        (currentUser) =>
-          String(
-            currentUser.id
-          ) ===
-          String(userId)
+      await supabase.from("permisos_usuario").insert(
+        secciones.map((seccion) => ({
+          usuario_id: usuarioId,
+          empresa_id: user.empresa_id,
+          seccion,
+        }))
       )
-
-    if (!userToDelete) {
-      throw new Error(
-        "Usuario no encontrado."
-      )
-    }
-
-    if (
-      user &&
-      String(user.id) ===
-        String(userId)
-    ) {
-      throw new Error(
-        "No puedes eliminar tu propio usuario mientras tienes la sesión iniciada."
-      )
-    }
-
-    if (
-      userToDelete.role ===
-      "admin"
-    ) {
-      const activeAdmins =
-        users.filter(
-          (currentUser) =>
-            currentUser.role ===
-              "admin" &&
-            currentUser.active
-        )
-
-      if (
-        activeAdmins.length <= 1
-      ) {
-        throw new Error(
-          "No puedes eliminar al último administrador."
-        )
-      }
-    }
-
-    setUsers(
-      (currentUsers) =>
-        currentUsers.filter(
-          (currentUser) =>
-            String(
-              currentUser.id
-            ) !==
-            String(userId)
-        )
-    )
-
-    return true
-  }, [user, users])
+    },
+    [user]
+  )
 
   /*
-   * ACTIVAR / DESACTIVAR
-   */
-  const setUserActive = useCallback((
-    userId,
-    active
-  ) => {
-    return updateUser(
-      userId,
-      {
-        active:
-          Boolean(active),
+    Con Supabase Auth no se crean contraseñas desde aquí: se invita por
+    correo y la persona se registra con esa misma dirección. Un trigger
+    en la base la vincula a la empresa al hacerlo.
+  */
+  const addUser = useCallback(
+    async ({ name, email, role = "vendedor", permissions = [], active = true }) => {
+      const correo = String(email || "").trim().toLowerCase()
+      const nombre = String(name || "").trim()
+
+      if (!nombre) throw new Error("El nombre es obligatorio.")
+      if (!correo.includes("@")) throw new Error("Escribe un correo válido.")
+
+      const { data, error } = await supabase
+        .from("usuarios")
+        .insert({
+          empresa_id: user.empresa_id,
+          email: correo,
+          nombre,
+          rol: role,
+          activo: active,
+        })
+        .select("id")
+        .single()
+
+      if (error) {
+        throw new Error(
+          error.code === "23505"
+            ? "Ya existe un usuario con ese correo."
+            : "No se pudo crear el usuario."
+        )
       }
-    )
-  }, [updateUser])
 
-  
-  const getUserById = useCallback((
-    userId
-  ) => {
-    return (
-      users.find(
-        (currentUser) =>
-          String(
-            currentUser.id
-          ) ===
-          String(userId)
-      ) || null
-    )
-  }, [users])
+      await guardarPermisos(
+        data.id,
+        role === "admin" ? ADMIN_PERMISSIONS : permissions
+      )
 
-  const publicUsers = useMemo(
-    () => users.map(withoutPasswordHash),
+      await recargarUsuarios()
+
+      return data
+    },
+    [user, guardarPermisos, recargarUsuarios]
+  )
+
+  const updateUser = useCallback(
+    async (id, { name, role, active, permissions }) => {
+      const cambios = {}
+
+      if (name !== undefined) cambios.nombre = String(name).trim()
+      if (role !== undefined) cambios.rol = role
+      if (active !== undefined) cambios.activo = active
+
+      if (Object.keys(cambios).length) {
+        const { error } = await supabase
+          .from("usuarios")
+          .update(cambios)
+          .eq("id", id)
+
+        if (error) throw new Error("No se pudo actualizar el usuario.")
+      }
+
+      if (permissions !== undefined || role !== undefined) {
+        await guardarPermisos(
+          id,
+          role === "admin" ? ADMIN_PERMISSIONS : permissions || []
+        )
+      }
+
+      await recargarUsuarios()
+    },
+    [guardarPermisos, recargarUsuarios]
+  )
+
+  const deleteUser = useCallback(
+    async (id) => {
+      const { error } = await supabase.from("usuarios").delete().eq("id", id)
+
+      if (error) throw new Error("No se pudo eliminar el usuario.")
+
+      await recargarUsuarios()
+    },
+    [recargarUsuarios]
+  )
+
+  const setUserActive = useCallback(
+    (id, active) => updateUser(id, { active }),
+    [updateUser]
+  )
+
+  const getUserById = useCallback(
+    (id) => users.find((u) => String(u.id) === String(id)) || null,
     [users]
   )
 
-  const contextValue =
-    useMemo(
-      () => ({
-        user,
+  const hasPermission = useCallback(
+    (permission) => {
+      if (!user) {
+        return false
+      }
 
-        users:
-          publicUsers,
+      if (user.role === "admin") {
+        return true
+      }
 
-        login,
+      return (
+        Array.isArray(user.permissions) &&
+        user.permissions.includes(permission)
+      )
+    },
+    [user]
+  )
 
-        logout,
+  const contextValue = useMemo(
+    () => ({
+      user,
+      cargando,
 
-        hasPermission,
+      login,
+      logout,
+      hasPermission,
 
-        addUser,
+      // Sin sesión no hay lista que mostrar: se deriva en vez de
+      // vaciarla desde un efecto.
+      users: user ? users : [],
+      addUser,
+      updateUser,
+      deleteUser,
+      setUserActive,
+      getUserById,
 
-        updateUser,
+      permissions: PERMISSIONS,
+      adminPermissions: ADMIN_PERMISSIONS,
+      sellerPermissions: SELLER_PERMISSIONS,
 
-        deleteUser,
-
-        setUserActive,
-
-        getUserById,
-
-        permissions:
-          PERMISSIONS,
-
-        adminPermissions:
-          ADMIN_PERMISSIONS,
-
-        sellerPermissions:
-          SELLER_PERMISSIONS,
-
-        isAdmin:
-          user?.role ===
-          "admin",
-      }),
-      [
-        user,
-        publicUsers,
-        login,
-        logout,
-        hasPermission,
-        addUser,
-        updateUser,
-        deleteUser,
-        setUserActive,
-        getUserById,
-      ]
-    )
+      isAdmin: user?.role === "admin",
+    }),
+    [
+      user,
+      cargando,
+      login,
+      logout,
+      hasPermission,
+      users,
+      addUser,
+      updateUser,
+      deleteUser,
+      setUserActive,
+      getUserById,
+    ]
+  )
 
   return (
-    <AuthContext.Provider
-      value={contextValue}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )
