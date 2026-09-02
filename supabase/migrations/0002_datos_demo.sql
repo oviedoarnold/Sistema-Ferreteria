@@ -4,8 +4,8 @@
 -- La ferretería, los clientes y las ventas son ficticios. No corresponden
 -- a ningún cliente real.
 --
--- ANTES DE EJECUTAR: cambia el correo de la línea marcada por el tuyo,
--- para quedar como administrador al entrar con Google.
+-- Los usuarios quedan invitados por correo. Al registrarse en Supabase
+-- con esa misma dirección, un trigger los vincula a la empresa.
 
 do $$
 declare
@@ -20,8 +20,10 @@ declare
   v_venta        uuid;
   v_cotizacion   uuid;
 
-  -- ⬇⬇⬇ CAMBIA ESTE CORREO POR EL TUYO ⬇⬇⬇
-  correo_admin text := 'tu-correo@gmail.com';
+  -- Quedan invitados por correo. Al registrarse en Supabase con esta
+  -- misma dirección, el trigger los vincula a la empresa.
+  correo_admin text := 'thebigmaza@hotmail.com';
+  correo_demo  text := 'demo@oviedoarnold.lat';
 
   p_cemento uuid; p_martillo uuid; p_tornillo uuid; p_pintura  uuid;
   p_cable   uuid; p_cinta    uuid; p_candado  uuid; p_tubo     uuid;
@@ -47,7 +49,7 @@ begin
   returning id into v_admin;
 
   insert into usuarios (empresa_id, email, nombre, rol)
-  values (v_empresa, 'demo@oviedoarnold.lat', 'Vendedor de mostrador', 'vendedor')
+  values (v_empresa, correo_demo, 'Vendedor de mostrador', 'vendedor')
   returning id into v_vendedor;
 
   insert into permisos_usuario (usuario_id, empresa_id, seccion)
@@ -233,4 +235,5 @@ begin
 
   raise notice 'Datos demo cargados. Empresa: %', v_empresa;
   raise notice 'Administrador invitado: %', correo_admin;
+  raise notice 'Vendedor demo invitado: %', correo_demo;
 end $$;
