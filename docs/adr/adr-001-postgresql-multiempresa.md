@@ -70,17 +70,42 @@ suma.
 
 ## Qué se sacrificó, y por qué valió la pena para el cliente
 
-**Se sacrificó la simplicidad del acceso síncrono a los datos.** Hoy leer el
-inventario es una línea que devuelve el resultado de inmediato. Después será una
-llamada asíncrona que puede fallar, tardar o volver vacía, y cada pantalla tendrá
-que manejar esos tres casos. Eso encarece cada funcionalidad futura.
+**Se sacrificó el acceso síncrono a los datos.** Leer el inventario era una
+lectura de `localStorage` que devolvía el arreglo en el mismo ciclo de
+renderizado. Pasa a ser una consulta HTTP asíncrona contra la API REST que
+PostgREST expone sobre PostgreSQL, sujeta a latencia de red y a fallos
+parciales. Los cuatro contextos de React —productos, clientes, ventas y
+cotizaciones— hay que reescribirlos con estados de carga y de error, y cada
+mutación deja de ser una asignación para volverse un `INSERT` o un `UPDATE`
+que puede violar una restricción de integridad y devolver un código de error
+que la pantalla tiene que traducir. Eso encarece cada funcionalidad futura.
 
-Valió la pena porque **lo que se compra a cambio es lo que hace vendible el
-producto**: que los datos de un cliente no sean visibles para otro, que las
-contraseñas de sus empleados estén realmente protegidas, y que el inventario tenga
-un rastro auditable. Un sistema que guarda todo en el navegador puede demostrarse,
-pero no se le puede cobrar a una ferretería que confía sus números y los datos de
-sus clientes.
+Valió la pena porque lo que se compra a cambio es **lo que hace vendible el
+producto**:
+
+- **Aislamiento entre clientes.** `empresa_id` en las doce tablas y políticas
+  de *row-level security* que filtran por `empresa_del_usuario()`. La regla se
+  evalúa en el motor, no en el frontend: sin un JWT válido, PostgREST no
+  devuelve una sola fila. Las dos vistas llevan `security_invoker = on`, porque
+  por omisión una vista corre con los permisos de quien la creó y habría
+  devuelto los productos de todas las ferreterías.
+- **Contraseñas protegidas.** El hash era el `hashCode` de Java, 32 bits,
+  calculado en el navegador y guardado junto a los datos que protegía. Pasa a
+  GoTrue, el servicio de autenticación de Supabase, que las hashea en el
+  servidor y emite sesiones con JWT y refresco de token.
+- **Inventario auditable.** El stock deja de ser una columna mutable y pasa a
+  ser la suma de `movimientos_inventario`, un *ledger* append-only con
+  índice por producto y fecha. Cuando el conteo físico no cuadra, hay a quién
+  y a cuándo señalar.
+- **Numeración fiscal correcta.** El correlativo lo entrega una función
+  `security definer` que toma el candado de la fila de la empresa, así que dos
+  cajas concurrentes no pueden leer el mismo número. Con el cálculo en el
+  navegador, la restricción `unique (empresa_id, numero_factura)` habría
+  rechazado la segunda factura, y el SAR exige una secuencia continua.
+
+Un sistema que guarda todo en el navegador se puede demostrar, pero no se le
+puede cobrar a una ferretería que le confía sus números y los datos de sus
+clientes.
 
 Para no sacrificar además el trabajo sin conexión —que en Honduras no es un lujo—
 `localStorage` **no se elimina**: se convierte en caché con cola de sincronización.
