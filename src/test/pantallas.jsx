@@ -236,7 +236,7 @@ export function montarDatos({
       permisos_usuario: [],
       productos: productos.map(aFilaDeProducto),
       movimientos_inventario: productos
-        .map(aMovimientoInicial)
+        .map((producto, indice) => aMovimientoInicial(producto, indice))
         .filter((m) => m.cantidad !== 0),
       clientes: clientes.map(aFilaDeCliente),
       proveedores: proveedores.map(aFilaDeProveedor),

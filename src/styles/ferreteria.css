@@ -602,3 +602,6 @@ td.num,th.num{text-align:right;font-family:var(--font-mono);}
 
 /* Con la miniatura delante, el texto ocupa el resto y el precio no se corre. */
 .picker-item .info { flex: 1; min-width: 0; }
+
+/* Nombre de un grupo de controles; se ve igual que la etiqueta de un campo. */
+.rotulo-de-grupo { display: block; font-size: 13.5px; font-weight: 600; color: var(--steel); }

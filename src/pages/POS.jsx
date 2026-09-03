@@ -825,15 +825,25 @@ function POS() {
               🧾 Venta actual
             </h3>
 
+            {/*
+              No es la etiqueta de un campo sino el nombre de un grupo de
+              botones. Como <label> no anunciaba nada y dejaba el grupo sin
+              nombre, pasa a rotularlo con aria-labelledby.
+            */}
             <div
               className="field"
+              role="group"
+              aria-labelledby="pos-forma-pago"
               style={{
                 marginBottom: 8,
               }}
             >
-              <label>
+              <span
+                id="pos-forma-pago"
+                className="rotulo-de-grupo"
+              >
                 Forma de pago
-              </label>
+              </span>
 
               <div className="pay-toggle">
                 <button

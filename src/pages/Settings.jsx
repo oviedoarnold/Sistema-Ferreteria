@@ -1604,6 +1604,7 @@ function Settings() {
                                 key={
                                   permission.id
                                 }
+                                htmlFor={`permiso-${permission.id}`}
                                 className="card"
                                 style={{
                                   padding:
@@ -1628,6 +1629,7 @@ function Settings() {
                               >
 
                                 <input
+                                  id={`permiso-${permission.id}`}
                                   type="checkbox"
                                   checked={
                                     checked
