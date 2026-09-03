@@ -16,6 +16,7 @@ export const aProductoDeApp = (fila) => ({
   stock: Number(fila.stock) || 0,
   minStock: Number(fila.stock_minimo) || 0,
   supplierId: fila.proveedor_id || "",
+  imageUrl: fila.imagen_url || "",
 })
 
 const aProductoDeBase = (producto, empresaId) => ({
@@ -27,6 +28,7 @@ const aProductoDeBase = (producto, empresaId) => ({
   costo: Number(producto.costPrice) || 0,
   stock_minimo: Number(producto.minStock) || 0,
   proveedor_id: producto.supplierId || null,
+  imagen_url: producto.imageUrl || null,
 })
 
 export const aClienteDeApp = (fila) => ({
@@ -331,4 +333,78 @@ export async function actualizarEmpresa(id, empresa) {
     .eq("id", id)
 
   if (error) fallo(error, "guardar los datos de la ferretería")
+}
+
+// ── IMÁGENES DE PRODUCTO ───────────────────────────────────
+
+const CUBETA = "productos"
+
+export const TAMANO_MAXIMO_IMAGEN = 2 * 1024 * 1024
+
+export const FORMATOS_DE_IMAGEN = ["image/jpeg", "image/png", "image/webp"]
+
+/*
+  Revisa el archivo antes de subirlo. El bucket aplica los mismos límites,
+  porque esto es comodidad para el usuario y no una defensa: cualquiera
+  puede llamar a la API sin pasar por el formulario.
+*/
+export function revisarImagen(archivo) {
+  if (!FORMATOS_DE_IMAGEN.includes(archivo.type)) {
+    throw new Error("La imagen debe ser JPG, PNG o WebP.")
+  }
+
+  if (archivo.size > TAMANO_MAXIMO_IMAGEN) {
+    const megas = (archivo.size / 1024 / 1024).toFixed(1)
+
+    throw new Error(`La imagen pesa ${megas} MB y el máximo es 2 MB.`)
+  }
+}
+
+const extensionDe = (archivo) =>
+  ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" })[archivo.type]
+
+/*
+  El archivo va en una carpeta con el id de la empresa: de ahí sale el
+  aislamiento entre ferreterías, porque las políticas del bucket comparan
+  esa carpeta contra la empresa de quien sube.
+
+  Al nombre se le agrega la marca de tiempo para que el navegador no siga
+  mostrando la foto anterior desde su caché al reemplazarla.
+*/
+export async function subirImagenDeProducto(archivo, productoId, empresaId) {
+  revisarImagen(archivo)
+
+  const ruta = `${empresaId}/${productoId}-${Date.now()}.${extensionDe(archivo)}`
+
+  const { error } = await supabase.storage
+    .from(CUBETA)
+    .upload(ruta, archivo, { contentType: archivo.type, upsert: true })
+
+  if (error) fallo(error, "subir la imagen del producto")
+
+  const { data } = supabase.storage.from(CUBETA).getPublicUrl(ruta)
+
+  return data.publicUrl
+}
+
+const rutaDentroDelBucket = (url) => {
+  const marca = `/${CUBETA}/`
+  const corte = String(url || "").indexOf(marca)
+
+  return corte === -1 ? null : url.slice(corte + marca.length)
+}
+
+/*
+  Borrar la imagen vieja no puede tumbar la operación: si falla, queda un
+  archivo huérfano ocupando espacio, que es mucho menos grave que impedirle
+  al usuario cambiar la foto de un producto.
+*/
+export async function borrarImagenDeProducto(url) {
+  const ruta = rutaDentroDelBucket(url)
+
+  if (!ruta) return
+
+  const { error } = await supabase.storage.from(CUBETA).remove([ruta])
+
+  if (error) console.error("No se pudo borrar la imagen anterior:", error)
 }

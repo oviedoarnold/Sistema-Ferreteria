@@ -546,3 +546,59 @@ td.num,th.num{text-align:right;font-family:var(--font-mono);}
 .inv-fiscal-row{display:flex;justify-content:space-between;gap:20px;font-size:11.5px;}
 .inv-fiscal-row span{color:var(--steel);}
 .inv-fiscal-row b{font-family:var(--font-mono);font-weight:600;text-align:right;}
+
+/* ── Imágenes de producto ───────────────────────────────── */
+
+.miniatura {
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--cream);
+  flex-shrink: 0;
+  display: block;
+}
+
+.miniatura-vacia {
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--steel);
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.selector-imagen {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.selector-imagen-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.selector-imagen-ayuda,
+.selector-imagen-error {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.selector-imagen-ayuda {
+  color: var(--steel);
+}
+
+.selector-imagen-error {
+  color: var(--danger, #c0392b);
+  font-weight: 600;
+}
+
+/* La celda de la miniatura no debe estirarse con el resto de la fila. */
+.celda-miniatura {
+  width: 56px;
+}
+
+/* Con la miniatura delante, el texto ocupa el resto y el precio no se corre. */
+.picker-item .info { flex: 1; min-width: 0; }

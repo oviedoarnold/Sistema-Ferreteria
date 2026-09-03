@@ -8,6 +8,8 @@ import {
   crearProducto,
   actualizarProducto,
   desactivarProducto,
+  subirImagenDeProducto,
+  borrarImagenDeProducto,
   traerProveedores,
   crearProveedor,
   actualizarProveedor,
@@ -76,23 +78,52 @@ function ProductProvider({ children }) {
     setProducts(await traerProductos())
   }, [])
 
+  /*
+    La imagen se sube después de crear el producto porque su ruta lleva el
+    id, y ese id lo asigna la base.
+  */
   const agregarProducto = useCallback(
-    async (producto) => {
-      await crearProducto(producto, empresaId, usuarioId)
+    async (producto, imagen) => {
+      const id = await crearProducto(producto, empresaId, usuarioId)
+
+      if (imagen) {
+        const url = await subirImagenDeProducto(imagen, id, empresaId)
+
+        await actualizarProducto(
+          id,
+          { ...producto, imageUrl: url },
+          { empresaId, usuarioId, stockAnterior: producto.stock }
+        )
+      }
+
       await refrescarProductos()
     },
     [empresaId, usuarioId, refrescarProductos]
   )
 
   const editarProducto = useCallback(
-    async (id, producto) => {
+    async (id, producto, imagen) => {
       const anterior = products.find((p) => String(p.id) === String(id))
 
-      await actualizarProducto(id, producto, {
+      const conImagen = imagen
+        ? { ...producto, imageUrl: await subirImagenDeProducto(imagen, id, empresaId) }
+        : producto
+
+      await actualizarProducto(id, conImagen, {
         empresaId,
         usuarioId,
         stockAnterior: anterior?.stock ?? 0,
       })
+
+      /*
+        La foto anterior se borra solo después de que la nueva quedó
+        guardada: al revés, un fallo dejaría al producto sin ninguna.
+      */
+      const anteriorUrl = anterior?.imageUrl
+
+      if (anteriorUrl && anteriorUrl !== conImagen.imageUrl) {
+        await borrarImagenDeProducto(anteriorUrl)
+      }
 
       await refrescarProductos()
     },

@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom"
 import Swal from "sweetalert2"
 import { ProductContext } from "../context/contexts"
+import { MiniaturaDeProducto } from "../components/ImagenDeProducto"
 import { SalesContext } from "../context/contexts"
 import { ClientsContext } from "../context/contexts"
 import InvoiceTemplate from "../components/InvoiceTemplate"
@@ -727,6 +728,12 @@ function POS() {
                           : ""
                       }`}
                     >
+                      <MiniaturaDeProducto
+                        url={product.imageUrl}
+                        nombre={product.name}
+                        tamano={44}
+                      />
+
                       <div className="info">
                         <strong>
                           {

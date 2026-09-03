@@ -250,8 +250,45 @@ export function crearSupabaseFalso({
     return { data: numero, error: null }
   }
 
+  /*
+    Almacenamiento en memoria. Guarda las rutas subidas para poder
+    comprobar que la imagen queda en la carpeta de su empresa, que es de
+    donde sale el aislamiento entre ferreterías.
+  */
+  const archivos = new Map()
+
+  const cubeta = (nombreCubeta) => ({
+    upload: vi.fn((ruta, archivo) => {
+      archivos.set(nombreCubeta + "/" + ruta, {
+        tipo: archivo?.type || "",
+        tamano: archivo?.size || 0,
+      })
+
+      return Promise.resolve({ data: { path: ruta }, error: null })
+    }),
+
+    remove: vi.fn((rutas) => {
+      rutas.forEach((r) => archivos.delete(nombreCubeta + "/" + r))
+
+      return Promise.resolve({ data: [], error: null })
+    }),
+
+    getPublicUrl: vi.fn((ruta) => ({
+      data: {
+        publicUrl:
+          "https://ejemplo.supabase.co/storage/v1/object/public/" +
+          nombreCubeta +
+          "/" +
+          ruta,
+      },
+    })),
+  })
+
   return {
     datos,
+    archivos,
+
+    storage: { from: vi.fn(cubeta) },
 
     from: vi.fn(consulta),
 
