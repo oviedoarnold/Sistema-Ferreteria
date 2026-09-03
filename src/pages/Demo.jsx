@@ -25,9 +25,9 @@ function Demo() {
         <h2>Demostración guiada</h2>
 
         <p className="sub">
-          La ferretería de ejemplo ya está cargada con productos, clientes,
-          ventas a crédito y cotizaciones. Entre con la cuenta de abajo para
-          recorrer el sistema sin capturar nada a mano.
+          Entre con la cuenta de abajo para recorrer el sistema. Ya hay
+          productos, clientes, ventas a crédito y cotizaciones cargados, así
+          que no hace falta capturar nada a mano.
         </p>
 
         <div
@@ -81,9 +81,9 @@ function Demo() {
             lineHeight: 1.6,
           }}
         >
-          Los datos son ficticios y no corresponden a ninguna ferretería real.
-          Lo que registre durante la demostración queda guardado, así que la
-          verá quien entre después.
+          Esta cuenta entra al sistema de una ferretería en funcionamiento.
+          Lo que registre queda guardado y lo verá quien entre después, así
+          que conviene no borrar nada que no haya creado usted.
         </p>
       </div>
     </div>

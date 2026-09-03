@@ -2,9 +2,12 @@
 
 Código de verificación: `LEARN-CAP-50768C03`
 
-Recorrido de **5 minutos** para probar el sistema sin ayuda. Los datos son
-ficticios: la ferretería, los clientes y las ventas son inventados, y no
-corresponden a ningún cliente real.
+Recorrido de **5 minutos** para probar el sistema sin ayuda.
+
+La cuenta demo entra a la ferretería que usa el sistema en el día a día. No
+son las credenciales de nadie: es un usuario aparte, con permisos
+recortados, creado para esto. Pero los datos que verá son los del negocio, y
+lo que registre queda guardado.
 
 ---
 
@@ -26,9 +29,9 @@ ejemplo y no ven los datos de ninguna otra.
 
 **URL:** https://www.oviedoarnold.lat/demo
 
-*Qué debe observar:* la cuenta con la que va a entrar. La ferretería de
-ejemplo ya está cargada en la base con **8 productos, 3 clientes, 5 ventas y
-2 cotizaciones**; no hay nada que preparar.
+*Qué debe observar:* la cuenta con la que va a entrar. La base ya tiene
+**productos, clientes, ventas y cotizaciones** cargados; no hay nada que
+preparar.
 
 ---
 
