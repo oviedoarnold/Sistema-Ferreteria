@@ -1,10 +1,14 @@
 
 import { formatMoney } from "../utils/format"
+/*
+  Sin datos de la ferretería el encabezado sale vacío, y así debe ser: el
+  sistema se vende a varias, y un documento con el nombre y la dirección de
+  otra es peor que un documento incompleto.
+*/
 const DEFAULT_COMPANY = {
-  name: "Ferretería Isaac",
-  address:
-    "Asentamientos Humanos, San Pedro Sula, Cortés",
-  phone: "9709-0121",
+  name: "",
+  address: "",
+  phone: "",
   currency: "L",
   taxRate: 15,
 }

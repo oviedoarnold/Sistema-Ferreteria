@@ -23,24 +23,38 @@ beforeEach(() => {
   vi.resetModules()
 })
 
-async function renderNavbar({ rol = "vendedor", secciones = [] } = {}) {
+const FERRETERIA = { name: "Ferretería de prueba" }
+
+async function renderNavbar({
+  rol = "vendedor",
+  secciones = [],
+  empresa = FERRETERIA,
+} = {}) {
   montarSupabaseFalso({
     usuarios: [usuarioDePrueba({ rol, nombre: "María Vendedora" })],
     permisos: permisosDe("u-1", secciones),
     sesionInicial: sesionDe("auth-1"),
   })
 
+  /*
+    Los tres se importan después de resetModules y no arriba: con el
+    registro de módulos reiniciado, un contexto importado antes es otro
+    objeto distinto del que Navbar consume, y el proveedor no lo alcanza.
+  */
   const { AuthProvider } = await import("../context/AuthContext")
+  const { ProductContext } = await import("../context/contexts")
   const Navbar = (await import("./Navbar")).default
 
   render(
     <AuthProvider>
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <Routes>
-          <Route path="/dashboard" element={<Navbar />} />
-          <Route path="/login" element={<h1>Pantalla de login</h1>} />
-        </Routes>
-      </MemoryRouter>
+      <ProductContext.Provider value={{ company: empresa }}>
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <Routes>
+            <Route path="/dashboard" element={<Navbar />} />
+            <Route path="/login" element={<h1>Pantalla de login</h1>} />
+          </Routes>
+        </MemoryRouter>
+      </ProductContext.Provider>
     </AuthProvider>
   )
 
@@ -51,6 +65,23 @@ const enlaces = () =>
   screen.queryAllByRole("link").map((a) => a.getAttribute("href"))
 
 describe("Navbar", () => {
+  it("muestra el nombre de la ferretería que trae la base", async () => {
+    await renderNavbar({ secciones: [PERMISSIONS.DASHBOARD] })
+
+    expect(screen.getByText("Ferretería de prueba")).toBeInTheDocument()
+  })
+
+  /*
+    Antes el nombre estaba escrito en el código, así que toda ferretería
+    veía el de la primera. Sin datos cargados se muestra el del sistema y
+    no el de nadie.
+  */
+  it("sin datos de la ferretería no muestra el nombre de otra", async () => {
+    await renderNavbar({ secciones: [PERMISSIONS.DASHBOARD], empresa: null })
+
+    expect(screen.getByText("Sistema Ferretería")).toBeInTheDocument()
+  })
+
   it("muestra el nombre del usuario en sesión", async () => {
     await renderNavbar({ secciones: [PERMISSIONS.DASHBOARD] })
 

@@ -1,6 +1,9 @@
 import { NavLink,  useNavigate,} from "react-router-dom"
 
+import { useContext } from "react"
+
 import { useAuth } from "../hooks/useAuth"
+import { ProductContext } from "../context/contexts"
 import { PERMISSIONS } from "../context/permissions"
 
 import {
@@ -16,6 +19,8 @@ import {
 
 function Navbar() {
   const { user, logout, hasPermission, } = useAuth()
+
+  const { company } = useContext(ProductContext)
 
   const navigate = useNavigate()
 
@@ -113,7 +118,7 @@ const visibleTabs = tabs.filter((tab) =>
                   margin: 0,
                 }}
               >
-                Ferretería Isaac
+                {company?.name || "Sistema Ferretería"}
               </h1>
 
               <p

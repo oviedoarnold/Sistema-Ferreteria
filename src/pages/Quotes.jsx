@@ -499,8 +499,7 @@ function Quotes() {
 
       company: {
         name:
-          company?.name ||
-          "Ferretería Isaac",
+          company?.name || "",
 
         address:
           company?.address ||
