@@ -88,3 +88,25 @@ El mostrador sigue vendiendo desconectado y sincroniza al volver la señal. Esa
 decisión se toma ahora y no después, porque reconvertir una aplicación que asume
 servidor siempre disponible en una que tolera estar desconectada es de las
 reescrituras más caras que existen.
+
+## Seguimiento — 2026-09-03
+
+La migración se completó: catálogos, ventas, abonos y cotizaciones viven en
+PostgreSQL, `empresa_id` está en las doce tablas, las políticas de fila se
+aplican en el motor y el inventario es el libro de movimientos que se
+describió arriba.
+
+**Lo que no se cumplió de este ADR es la última parte.** `localStorage` no se
+convirtió en caché con cola de sincronización: se eliminó. Hoy la aplicación
+necesita conexión para todo lo que no sea abrir la pantalla, y una ferretería
+con Internet inestable lo va a sentir en la caja.
+
+Se deja anotado aquí y no se corrige el texto de arriba a propósito: el ADR
+registra lo que se decidió el 28 de agosto, y lo que pasó después es
+información distinta. La decisión de posponer la cola de sincronización se
+tomó por tiempo, no porque el argumento original —que reconvertir después es
+de las reescrituras más caras— haya dejado de ser válido. Sigue siendo
+válido, y el costo de haberla pospuesto lo pagará quien la implemente.
+
+El estado real del funcionamiento sin conexión está documentado en
+[../pwa.md](../pwa.md).
