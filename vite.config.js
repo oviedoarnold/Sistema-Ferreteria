@@ -1,12 +1,83 @@
-import { defineConfig } from 'vite'
+import { readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+
+import { defineConfig, build as construir } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+
+const CARPETA_TEMPORAL = 'dist-prerender'
+
+/*
+  Escribe dist/login.html con el formulario de acceso ya dibujado dentro.
+
+  Sin esto, /login llega al navegador como un div vacío que solo se llena
+  cuando termina de cargar y ejecutarse el JavaScript. El formulario se
+  genera desde el mismo componente que usa la aplicación, así que no puede
+  quedar desactualizado respecto a lo que el usuario ve.
+*/
+function prerenderizarLogin() {
+  let esCompilacionDeServidor = false
+
+  return {
+    name: 'prerenderizar-login',
+    apply: 'build',
+
+    configResolved(configuracion) {
+      esCompilacionDeServidor = Boolean(configuracion.build.ssr)
+    },
+
+    async closeBundle() {
+      // La compilación de servidor la lanza este mismo plugin: sin esta
+      // guarda se llamaría a sí misma sin fin.
+      if (esCompilacionDeServidor) return
+
+      await construir({
+        configFile: false,
+        logLevel: 'warn',
+        plugins: [react()],
+        build: {
+          ssr: 'src/prerender/login.jsx',
+          outDir: CARPETA_TEMPORAL,
+          emptyOutDir: true,
+        },
+      })
+
+      const modulo = await import(
+        pathToFileURL(`${process.cwd()}/${CARPETA_TEMPORAL}/login.js`).href
+      )
+
+      const plantilla = readFileSync('dist/index.html', 'utf8')
+
+      const conFormulario = plantilla.replace(
+        '<div id="root"></div>',
+        `<div id="root">${modulo.renderizarLogin()}</div>`
+      )
+
+      writeFileSync('dist/login.html', conFormulario)
+
+      rmSync(CARPETA_TEMPORAL, { recursive: true, force: true })
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    prerenderizarLogin(),
   ],
+
+  build: {
+    /*
+      Sin esto el minificador reescribe las media queries a la sintaxis de
+      rango: @media(max-width:720px) sale publicado como (width<=620px).
+      Safari anterior a 16.4 y Chrome anterior a 104 no la entienden, y en
+      esos navegadores el diseño responsive se pierde por completo. En una
+      caja de ferretería es perfectamente posible encontrarse una máquina
+      así.
+    */
+    cssTarget: ['chrome87', 'safari14', 'firefox78', 'edge88'],
+  },
 
   test: {
     environment: 'jsdom',
@@ -22,6 +93,7 @@ export default defineConfig({
       include: ['src/**/*.{js,jsx}'],
       exclude: [
         'src/main.jsx',
+        'src/prerender/**',
         'src/test/**',
         'src/**/*.{test,spec}.{js,jsx}',
         // Plantillas de impresión: son marcado, se validan mirando el PDF.

@@ -2,7 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/(demo|dashboard|pos|products|clients|suppliers|sales-history|quotes|settings)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(demo|dashboard|pos|products|clients|suppliers|sales-history|quotes|settings)/(.*)",
       "destination": "/index.html"
     }
   ],

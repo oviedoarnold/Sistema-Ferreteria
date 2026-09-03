@@ -19,8 +19,9 @@ export default defineConfig([
     },
   },
   {
-    // Las funciones de api/ corren en Node, no en el navegador.
-    files: ["api/**/*.js"],
+    // Estos corren en Node y no en el navegador: las funciones de api/, la
+    // configuracion de compilacion y el middleware del borde.
+    files: ["api/**/*.js", "vite.config.js", "middleware.js"],
     languageOptions: { globals: globals.node },
   },
 ])

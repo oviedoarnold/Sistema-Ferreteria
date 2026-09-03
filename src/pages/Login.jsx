@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { useAuth } from "../hooks/useAuth"
+import FormularioDeLogin from "../components/FormularioDeLogin"
 
 function Login() {
   const [email, setEmail] = useState("")
@@ -31,59 +32,17 @@ function Login() {
   }
 
   return (
-    <div id="login-screen">
-      <div className="login-card">
-        <div style={{ fontSize: 36, marginBottom: 10 }}>🔧</div>
-        <h2>Iniciar sesión</h2>
-        <p className="sub">Accede al sistema de tu ferretería</p>
-        <div className={`login-error ${error ? "show" : ""}`}>{error}</div>
-
-        <form onSubmit={handleLogin}>
-          <div className="field">
-            <label htmlFor="login-correo">Correo</label>
-            <input
-              id="login-correo"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="login-password">Contraseña</label>
-            <div className="pw-wrap">
-              <input
-                id="login-password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                className="pw-toggle"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label="Mostrar u ocultar contraseña"
-              >
-                {showPassword ? "🙈" : "👁"}
-              </button>
-            </div>
-          </div>
-
-          <button
-            className="btn btn-primary btn-lg btn-block"
-            style={{ marginTop: 4 }}
-            type="submit"
-            disabled={entrando}
-          >
-            {entrando ? "Entrando…" : "Ingresar"}
-          </button>
-        </form>
-      </div>
-    </div>
+    <FormularioDeLogin
+      email={email}
+      password={password}
+      error={error}
+      showPassword={showPassword}
+      entrando={entrando}
+      onEmailChange={setEmail}
+      onPasswordChange={setPassword}
+      onTogglePassword={() => setShowPassword((v) => !v)}
+      onSubmit={handleLogin}
+    />
   )
 }
 

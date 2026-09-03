@@ -7,6 +7,7 @@ import {
 
 import { AuthContext } from "./contexts"
 import { supabase } from "../lib/supabase"
+import { marcarSesionAbierta, borrarMarcaDeSesion } from "../lib/marcaDeSesion"
 
 import {
   PERMISSIONS,
@@ -90,6 +91,14 @@ export function AuthProvider({ children }) {
       const perfil = sesion?.user
         ? await cargarPerfil(sesion.user.id)
         : null
+
+      /*
+        La marca acompaña al perfil y no a la sesión de Supabase: una
+        cuenta válida que no está asignada a ninguna ferretería no entra,
+        y no debe quedar marcada como si hubiera entrado.
+      */
+      if (perfil) marcarSesionAbierta()
+      else borrarMarcaDeSesion()
 
       if (vigente) {
         setUser(perfil)
