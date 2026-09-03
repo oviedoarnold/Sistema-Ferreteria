@@ -100,8 +100,11 @@ rls as (
 vistas as (
   select
     c.relname as nombre,
+    -- PostgreSQL guarda el valor tal como se escribio en el CREATE VIEW:
+    -- "security_invoker=on". Comparar solo contra 'true' reportaba que la
+    -- vista no lo tenia, cuando si lo tiene.
     coalesce(
-      (select option_value = 'true'
+      (select lower(option_value) in ('on', 'true', 'yes', '1')
        from pg_options_to_table(c.reloptions)
        where option_name = 'security_invoker'),
       false
