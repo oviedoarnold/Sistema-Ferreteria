@@ -65,6 +65,10 @@ npm run build    # build de producción
 npm run lint     # ESLint
 ```
 
+Antes del primer arranque hacen falta las dos variables de Supabase, en un
+`.env.local` que no se versiona. La plantilla y la diferencia entre las dos
+claves están en [Configuración](docs/configuracion.md).
+
 ## Estructura
 
 ```
@@ -110,6 +114,7 @@ está en [docs/demo.md](docs/demo.md).
 
 | Documento | Contenido |
 |---|---|
+| [Configuración](docs/configuracion.md) | Variables de entorno y cuál clave va dónde |
 | [Arquitectura](docs/arquitectura.md) | Diagramas C4 y decisiones |
 | [ADR-1](docs/adr/adr-001-postgresql-multiempresa.md) | PostgreSQL multi-empresa |
 | [ADR-2](docs/adr/adr-002-permisos-por-ruta.md) | Permisos por ruta |
