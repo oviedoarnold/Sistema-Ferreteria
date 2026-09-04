@@ -19,6 +19,7 @@ const CACHE_NAME = "ferreteria-v1"
 const ARCHIVOS_BASE = [
   "/",
   "/index.html",
+  "/login.html",
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icons/icon-192.png",
@@ -26,14 +27,73 @@ const ARCHIVOS_BASE = [
   "/offline.html",
 ]
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(ARCHIVOS_BASE))
-      .then(() => self.skipWaiting())
+/*
+  Los archivos que produce la compilacion llevan el hash del contenido en
+  el nombre, asi que este archivo no puede saberlos de antemano: la lista
+  la inyecta el paso de compilacion.
+
+  Sin ella, una instalacion nueva guardaba el HTML pero no el JavaScript
+  que lo hace funcionar, y abrir la aplicacion sin conexion mostraba una
+  pantalla en blanco. Solo servia si el usuario ya habia entrado antes con
+  red y el navegador habia cacheado los archivos por su cuenta.
+*/
+const ARCHIVOS_DEL_BUILD = []
+
+const TODO_LO_PRECARGADO = [...ARCHIVOS_BASE, ...ARCHIVOS_DEL_BUILD]
+
+/*
+  Se guarda archivo por archivo y no con addAll, que falla entero si uno
+  solo falla. Con addAll, un archivo que no respondiera dejaría al service
+  worker sin instalar y sin nada en caché; así, lo que se pudo guardar
+  queda guardado.
+*/
+async function precargar() {
+  const cache = await caches.open(CACHE_NAME)
+
+  const resultados = await Promise.allSettled(
+    TODO_LO_PRECARGADO.map((ruta) => cache.add(ruta))
   )
+
+  const fallidos = resultados.filter((r) => r.status === "rejected").length
+
+  if (fallidos > 0) {
+    console.warn(
+      "Service Worker: " +
+        fallidos +
+        " de " +
+        TODO_LO_PRECARGADO.length +
+        " archivos no se pudieron precargar."
+    )
+  }
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(precargar().then(() => self.skipWaiting()))
 })
+
+/*
+  Borra los archivos con hash de compilaciones anteriores.
+
+  El nombre del cache no lleva version a proposito: cambiarlo tiraria
+  tambien lo que se fue guardando en uso. Se limpian solo las entradas de
+  /assets/ que ya no estan en esta compilacion, que son exactamente las que
+  nadie va a volver a pedir.
+*/
+async function limpiarAssetsViejos() {
+  const cache = await caches.open(CACHE_NAME)
+  const guardados = await cache.keys()
+  const vigentes = new Set(ARCHIVOS_DEL_BUILD)
+
+  await Promise.all(
+    guardados
+      .filter((peticion) => {
+        const ruta = new URL(peticion.url).pathname
+
+        return ruta.startsWith("/assets/") && !vigentes.has(ruta)
+      })
+      .map((peticion) => cache.delete(peticion))
+  )
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -46,6 +106,7 @@ self.addEventListener("activate", (event) => {
             .map((nombre) => caches.delete(nombre))
         )
       )
+      .then(limpiarAssetsViejos)
       .then(() => self.clients.claim())
   )
 })

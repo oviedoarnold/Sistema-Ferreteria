@@ -60,11 +60,49 @@ function prerenderizarLogin() {
   }
 }
 
+/*
+  Escribe en dist/sw.js la lista de archivos que produjo la compilación.
+
+  Sus nombres llevan el hash del contenido, así que el service worker no
+  puede conocerlos de antemano. Sin esta lista guardaba el HTML pero no el
+  JavaScript que lo hace funcionar: una instalación nueva abierta sin
+  conexión mostraba una pantalla en blanco, y solo servía si el usuario ya
+  había entrado antes con red y el navegador había cacheado los archivos
+  por su cuenta.
+*/
+function precargarArchivosDelBuild() {
+  return {
+    name: 'precargar-archivos-del-build',
+    apply: 'build',
+
+    writeBundle(opciones, paquete) {
+      // Solo la compilación del cliente escribe en dist/.
+      if (opciones.dir && !opciones.dir.endsWith('dist')) return
+
+      const rutas = Object.keys(paquete)
+        .filter((archivo) => /\.(js|css|woff2?)$/.test(archivo))
+        .map((archivo) => '/' + archivo)
+        .sort()
+
+      const sw = readFileSync('dist/sw.js', 'utf8')
+
+      writeFileSync(
+        'dist/sw.js',
+        sw.replace(
+          'const ARCHIVOS_DEL_BUILD = []',
+          'const ARCHIVOS_DEL_BUILD = ' + JSON.stringify(rutas, null, 2)
+        )
+      )
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     prerenderizarLogin(),
+    precargarArchivosDelBuild(),
   ],
 
   build: {
