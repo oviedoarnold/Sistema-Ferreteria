@@ -6,8 +6,12 @@
   descarga la versión nueva para el próximo arranque. En un mostrador
   importa más abrir rápido que tener el último byte.
 
-  Los datos del negocio no pasan por aquí: hoy viven en localStorage, que
-  ya funciona sin conexión por sí mismo.
+  Los datos del negocio no pasan por aquí, y eso hoy es una limitación:
+  desde que viven en PostgreSQL, consultarlos exige conexión. Antes estaban
+  en localStorage y el mostrador seguía facturando desconectado. Recuperar
+  eso pide una caché de datos con cola de sincronización, que no está
+  hecha; mientras tanto, sin señal la pantalla abre pero no hay con qué
+  llenarla.
 */
 
 const CACHE_NAME = "ferreteria-v1"
