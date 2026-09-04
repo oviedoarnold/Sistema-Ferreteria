@@ -6,7 +6,7 @@ import { AuthProvider } from "./AuthContext"
 import ProductProvider from "./ProductContext"
 import QuotesProvider from "./QuotesContext"
 import { QuotesContext } from "./contexts"
-import { montarDatos } from "../test/pantallas"
+import { esperarQueSeAsiente, montarDatos } from "../test/pantallas"
 
 vi.mock("../lib/supabase", () => ({
   get supabase() {
@@ -60,7 +60,7 @@ async function montarCotizaciones(cotizaciones = []) {
     expect(vista.result.current.cargando).toBe(false)
   })
 
-  await act(async () => {})
+  await esperarQueSeAsiente(falso)
 
   return { ...vista, falso }
 }

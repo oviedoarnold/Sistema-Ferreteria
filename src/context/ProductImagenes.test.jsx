@@ -5,7 +5,7 @@ import { useContext } from "react"
 import { AuthProvider } from "./AuthContext"
 import ProductProvider from "./ProductContext"
 import { ProductContext } from "./contexts"
-import { EMPRESA, montarDatos } from "../test/pantallas"
+import { EMPRESA, esperarQueSeAsiente, montarDatos } from "../test/pantallas"
 
 vi.mock("../lib/supabase", () => ({
   get supabase() {
@@ -49,7 +49,7 @@ async function montarInventario(productos = []) {
     expect(vista.result.current.cargando).toBe(false)
   })
 
-  await act(async () => {})
+  await esperarQueSeAsiente(falso)
 
   return { ...vista, falso }
 }

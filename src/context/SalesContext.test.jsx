@@ -6,7 +6,7 @@ import { AuthProvider } from "./AuthContext"
 import ProductProvider from "./ProductContext"
 import SalesProvider from "./SalesContext"
 import { SalesContext } from "./contexts"
-import { EMPRESA_PRUEBA, montarDatos } from "../test/pantallas"
+import { EMPRESA_PRUEBA, esperarQueSeAsiente, montarDatos } from "../test/pantallas"
 
 vi.mock("../lib/supabase", () => ({
   get supabase() {
@@ -59,7 +59,7 @@ async function montarVentas(empresa = SIN_DATOS_FISCALES) {
     expect(vista.result.current.cargando).toBe(false)
   })
 
-  await act(async () => {})
+  await esperarQueSeAsiente(falso)
 
   return { ...vista, falso }
 }

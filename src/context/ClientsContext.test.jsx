@@ -5,7 +5,7 @@ import { useContext } from "react"
 import ClientsProvider from "./ClientsContext"
 import { AuthProvider } from "./AuthContext"
 import { ClientsContext } from "./contexts"
-import { montarDatos } from "../test/pantallas"
+import { esperarQueSeAsiente, montarDatos } from "../test/pantallas"
 
 vi.mock("../lib/supabase", () => ({
   get supabase() {
@@ -33,7 +33,7 @@ async function montarContexto(clientes = []) {
     expect(falso.from).toHaveBeenCalledWith("clientes")
   })
 
-  await act(async () => {})
+  await esperarQueSeAsiente(falso)
 
   return { ...vista, falso }
 }

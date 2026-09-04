@@ -255,6 +255,28 @@ export function montarDatos({
 }
 
 /*
+  Vacía las microtareas hasta que la pantalla deja de consultar la base.
+
+  Un solo vaciado alcanza en una máquina descansada, pero una carga
+  encadena varias consultas y cada una despierta a la siguiente en un turno
+  distinto. En un runner de integración continua, con la máquina ocupada,
+  ese turno de más llega tarde y la prueba mira el DOM antes de tiempo.
+  Esperar a que el número de consultas se estabilice no depende de cuántos
+  turnos hagan falta.
+*/
+export async function esperarQueSeAsiente(falso) {
+  let consultasPrevias = -1
+  let vueltas = 0
+
+  while (consultasPrevias !== falso.from.mock.calls.length && vueltas < 20) {
+    consultasPrevias = falso.from.mock.calls.length
+    vueltas += 1
+
+    await act(async () => {})
+  }
+}
+
+/*
   Devuelve cuando la pantalla ya consultó las tablas que necesita, para
   que las pruebas no tengan que repetir el waitFor de la carga inicial.
 
@@ -271,7 +293,7 @@ export async function renderizarPantalla(ui, { esperar = [], ...datos } = {}) {
     })
   }
 
-  await act(async () => {})
+  await esperarQueSeAsiente(falso)
 
   return { ...resultado, falso }
 }
