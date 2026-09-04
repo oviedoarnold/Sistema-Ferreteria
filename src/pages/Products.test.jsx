@@ -143,6 +143,9 @@ describe("Products: imagen del producto", () => {
     })
 
     expect(falso.archivos.size).toBe(1)
+
+    // Sin esto la prueba pasaria aunque el guardado fallara.
+    expect(falso.datos.productos.map((p) => p.nombre)).toContain("Taladro")
   })
 
   /*
@@ -172,5 +175,6 @@ describe("Products: imagen del producto", () => {
     })
 
     expect(falso.archivos.size).toBe(0)
+    expect(falso.datos.productos.map((p) => p.nombre)).toContain("Serrucho")
   })
 })

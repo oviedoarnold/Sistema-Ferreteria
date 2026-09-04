@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, rmSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { defineConfig, build as construir } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -81,6 +81,18 @@ export default defineConfig({
 
   test: {
     environment: 'jsdom',
+
+    /*
+      SweetAlert2 monta nodos en el body y guarda estado global entre
+      llamadas; si una prueba termina con un diálogo animándose y la
+      siguiente abre otro, la librería revienta. Se sustituye por un doble.
+    */
+    alias: {
+      sweetalert2: fileURLToPath(
+        new URL('./src/test/dialogoFalso.js', import.meta.url)
+      ),
+    },
+
     globals: true,
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.{test,spec}.{js,jsx}'],
