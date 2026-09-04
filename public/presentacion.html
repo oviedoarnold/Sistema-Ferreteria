@@ -172,8 +172,9 @@
     reportes a nadie.
   </p>
   <p>
-    Funciona en cualquier navegador, se instala como aplicación en el teléfono y sigue
-    funcionando cuando se cae el Internet, que en Honduras no es un detalle menor.
+    Funciona en cualquier navegador y se instala como aplicación en el teléfono o en la
+    computadora del mostrador. Varias cajas trabajan sobre el mismo inventario a la vez,
+    y cada ferretería ve solo sus datos.
   </p>
 </section>
 
@@ -290,16 +291,16 @@
 
       <rect x="30" y="118" width="210" height="46" rx="9" fill="#FCE4D6" stroke="#E8590C"/>
       <text x="135" y="140" text-anchor="middle" font-size="13" font-weight="600" fill="#B8480A">Service Worker</text>
-      <text x="135" y="156" text-anchor="middle" font-size="11.5" fill="#B8480A">Funciona sin Internet</text>
+      <text x="135" y="156" text-anchor="middle" font-size="11.5" fill="#B8480A">Abre sin conexión</text>
 
       <rect x="30" y="178" width="210" height="46" rx="9" fill="#E1F2EE" stroke="#2F7A6E"/>
-      <text x="135" y="200" text-anchor="middle" font-size="13" font-weight="600" fill="#2F7A6E">localStorage</text>
-      <text x="135" y="216" text-anchor="middle" font-size="11.5" fill="#2F7A6E">Productos, ventas, clientes</text>
+      <text x="135" y="200" text-anchor="middle" font-size="13" font-weight="600" fill="#2F7A6E">Caché de la aplicación</text>
+      <text x="135" y="216" text-anchor="middle" font-size="11.5" fill="#2F7A6E">HTML, estilos y código</text>
 
       <rect x="30" y="238" width="210" height="66" rx="9" fill="#fff" stroke="#E4DCCB"/>
       <text x="135" y="260" text-anchor="middle" font-size="13" font-weight="600" fill="#23272A">Lógica de negocio</text>
       <text x="135" y="277" text-anchor="middle" font-size="11.5" fill="#5C6B78">carrito · saldos · fiscal</text>
-      <text x="135" y="293" text-anchor="middle" font-size="11.5" fill="#2F7A6E">98% cubierta por pruebas</text>
+      <text x="135" y="293" text-anchor="middle" font-size="11.5" fill="#2F7A6E">93% cubierta por pruebas</text>
 
       <rect x="300" y="70" width="230" height="120" rx="12" fill="#E8EEFB" stroke="#3457A6"/>
       <text x="415" y="96" text-anchor="middle" font-size="14" font-weight="700" fill="#3457A6">Vercel</text>
@@ -307,20 +308,20 @@
       <text x="415" y="144" text-anchor="middle" font-size="12.5" fill="#3457A6">5 headers de seguridad</text>
       <text x="415" y="166" text-anchor="middle" font-size="12.5" fill="#3457A6">www.oviedoarnold.lat</text>
 
-      <rect x="570" y="40" width="255" height="180" rx="12" fill="#FAF6EF" stroke="#D7CCB4" stroke-dasharray="6 4"/>
-      <text x="697" y="66" text-anchor="middle" font-size="14" font-weight="700" fill="#5C6B78">Planificado — ADR-1</text>
-      <rect x="590" y="80" width="215" height="42" rx="8" fill="#fff" stroke="#E4DCCB" stroke-dasharray="4 3"/>
-      <text x="697" y="106" text-anchor="middle" font-size="12.5" fill="#5C6B78">API de Supabase</text>
-      <rect x="590" y="132" width="215" height="42" rx="8" fill="#fff" stroke="#E4DCCB" stroke-dasharray="4 3"/>
-      <text x="697" y="158" text-anchor="middle" font-size="12.5" fill="#5C6B78">PostgreSQL multi-empresa</text>
-      <text x="697" y="196" text-anchor="middle" font-size="11.5" fill="#5C6B78">Políticas por fila (RLS)</text>
+      <rect x="570" y="40" width="255" height="180" rx="12" fill="#E1F2EE" stroke="#2F7A6E"/>
+      <text x="697" y="66" text-anchor="middle" font-size="14" font-weight="700" fill="#2F7A6E">Supabase</text>
+      <rect x="590" y="80" width="215" height="42" rx="8" fill="#fff" stroke="#2F7A6E"/>
+      <text x="697" y="106" text-anchor="middle" font-size="12.5" fill="#2F7A6E">PostgreSQL · 12 tablas</text>
+      <rect x="590" y="132" width="215" height="42" rx="8" fill="#fff" stroke="#2F7A6E"/>
+      <text x="697" y="158" text-anchor="middle" font-size="12.5" fill="#2F7A6E">Políticas por fila (RLS)</text>
+      <text x="697" y="196" text-anchor="middle" font-size="11.5" fill="#2F7A6E">Autenticación y almacenamiento</text>
 
       <line x1="300" y1="130" x2="245" y2="90" stroke="#3457A6" stroke-width="2"/>
       <polygon points="245,90 256,92 252,101" fill="#3457A6"/>
-      <line x1="530" y1="130" x2="588" y2="130" stroke="#5C6B78" stroke-width="2" stroke-dasharray="5 4"/>
-      <polygon points="588,130 577,125 577,135" fill="#5C6B78"/>
+      <line x1="530" y1="130" x2="588" y2="130" stroke="#2F7A6E" stroke-width="2"/>
+      <polygon points="588,130 577,125 577,135" fill="#2F7A6E"/>
     </svg>
-    <figcaption>Estado actual en trazo continuo; la migración a base de datos, en trazo punteado.</figcaption>
+    <figcaption>Los datos viven en PostgreSQL; el aislamiento entre ferreterías lo aplica la base, no el navegador.</figcaption>
   </figure>
 
   <h3>Control de acceso</h3>
@@ -331,11 +332,19 @@
     error.
   </p>
 
+  <p>
+    Ocultar botones es comodidad, no seguridad. Lo que de verdad contiene a alguien con
+    conocimientos técnicos son las políticas de la base: cada tabla filtra por la
+    ferretería del usuario, y sin una sesión válida Supabase no devuelve una sola fila
+    de ninguna de las doce tablas. La regla se evalúa en el motor, no en el navegador.
+  </p>
+
   <div class="aviso">
-    <b>Limitación declarada:</b> mientras los datos vivan en el navegador, el control de
-    acceso separa funciones entre empleados de confianza pero no contiene a alguien con
-    conocimientos técnicos. Cerrar esa brecha es el objetivo de la migración documentada
-    en el ADR-1.
+    <b>Limitación declarada:</b> desde que los datos viven en la base, cobrar exige
+    conexión. Antes el mostrador seguía facturando desconectado porque todo estaba en el
+    navegador, y eso se perdió al ganar que dos cajas compartan el mismo inventario.
+    Recuperarlo pide una caché local con cola de sincronización, que está documentada y
+    no implementada.
   </div>
 </section>
 
@@ -355,7 +364,8 @@
         <tr><td>Pruebas</td><td>Vitest y Testing Library</td><td>Lógica y componentes, con reporte de cobertura</td></tr>
         <tr><td>Integración</td><td>GitHub Actions</td><td>Lint, pruebas y build en cada cambio</td></tr>
         <tr><td>Publicación</td><td>Vercel</td><td>HTTPS, dominio propio y headers de seguridad</td></tr>
-        <tr><td>Base de datos</td><td>PostgreSQL (planificado)</td><td>Multi-empresa con políticas de acceso por fila</td></tr>
+        <tr><td>Base de datos</td><td>PostgreSQL en Supabase</td><td>Doce tablas, multi-empresa con políticas de acceso por fila</td></tr>
+        <tr><td>Sesiones</td><td>Supabase Auth</td><td>Contraseñas hasheadas en el servidor, permisos por sección</td></tr>
       </tbody>
     </table>
   </div>
@@ -437,15 +447,21 @@
     en cada momento.
   </p>
   <p>
-    La necesidad de trabajar sin Internet también viene del cliente. En la zona el
-    servicio se cae con frecuencia, y una ferretería no puede dejar de cobrar porque no
-    haya señal. De ahí que el sistema guarde los datos en el equipo y siga funcionando
-    desconectado.
+    Trabajar sin Internet también salió de esa conversación. En la zona el servicio se
+    cae con frecuencia, y una ferretería no puede dejar de cobrar porque no haya señal.
+    La primera versión guardaba todo en el equipo y seguía funcionando desconectada.
   </p>
   <p>
-    El siguiente paso, ya documentado, es llevar los datos a una base compartida para que
-    varias cajas trabajen sobre el mismo inventario y el producto se pueda vender a otras
-    ferreterías.
+    <b>Eso se perdió al llevar los datos a una base compartida</b>, y conviene decirlo
+    sin rodeos. A cambio se ganó lo que hace vendible el producto: varias cajas sobre el
+    mismo inventario, contraseñas protegidas en el servidor y datos que una ferretería no
+    puede ver de otra. Hoy la aplicación abre sin conexión, pero cobrar requiere señal.
+  </p>
+  <p>
+    El siguiente paso, ya documentado, es devolverle al mostrador el trabajo
+    desconectado: una caché local con cola de sincronización que deje facturar sin red y
+    suba las ventas cuando vuelva. Está pendiente, y hasta que exista es una limitación
+    real para un negocio con conexión inestable.
   </p>
 </section>
 
