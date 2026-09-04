@@ -200,6 +200,31 @@ describe("addSale: factura generada", () => {
     expect(segunda.correlativo).toBe(primera.correlativo + 1)
   })
 
+  /*
+    Con el reloj detenido, dos facturas caen en el mismo milisegundo. El
+    doble numeraba los identificadores con Date.now(), asi que las dos
+    recibian el mismo id y quien buscaba la recien creada encontraba la
+    anterior: la prueba comparaba la primera consigo misma. Pasaba en
+    maquinas rapidas y por eso solo se veia en integracion continua.
+  */
+  it("numera dos facturas emitidas en el mismo milisegundo", async () => {
+    const { result } = await montarVentas()
+
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    vi.setSystemTime(new Date("2026-09-04T12:00:00Z"))
+
+    try {
+      const primera = await facturar(result, ventaContado())
+      const segunda = await facturar(result, ventaContado())
+
+      expect(segunda.id).not.toBe(primera.id)
+      expect(segunda.correlativo).toBe(primera.correlativo + 1)
+      expect(segunda.invoiceNumber).not.toBe(primera.invoiceNumber)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("descarga el inventario con un movimiento de salida", async () => {
     const { result, falso } = await montarVentas()
 

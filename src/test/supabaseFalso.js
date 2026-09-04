@@ -101,6 +101,40 @@ const VISTAS = {
     })),
 }
 
+/*
+  Los identificadores se numeran con un contador y no con la hora.
+
+  Antes eran `nuevo-${Date.now()}-${i}`, y dos inserciones dentro del mismo
+  milisegundo recibían el mismo id. Lo que se rompía no era la inserción
+  sino la lectura posterior: quien buscaba el registro recién creado por su
+  id encontraba el anterior, y una prueba de dos facturas seguidas comparaba
+  la primera consigo misma. Pasaba solo en máquinas rápidas.
+*/
+let ultimoId = 0
+
+const siguienteId = () => `fila-${++ultimoId}`
+
+/*
+  Columnas que la base rellena sola. El código de la aplicación no las
+  envía porque el esquema las declara con default now(); sin esto llegan
+  sin fecha y cualquier orden por fecha queda al azar.
+*/
+const COLUMNA_DE_FECHA = {
+  ventas: "fecha",
+  cotizaciones: "fecha",
+  abonos: "fecha",
+  movimientos_inventario: "fecha",
+  productos: "creado_en",
+  clientes: "creado_en",
+  proveedores: "creado_en",
+}
+
+function valoresPorOmision(tabla) {
+  const columna = COLUMNA_DE_FECHA[tabla]
+
+  return columna ? { [columna]: new Date().toISOString() } : {}
+}
+
 export function crearSupabaseFalso({
   tablas = {},
   cuentas = [],
@@ -143,7 +177,11 @@ export function crearSupabaseFalso({
       if (estado.accion === "insert") {
         const nuevos = (
           Array.isArray(estado.registro) ? estado.registro : [estado.registro]
-        ).map((r, i) => ({ id: r.id || `nuevo-${Date.now()}-${i}`, ...r }))
+        ).map((r) => ({
+          id: r.id || siguienteId(),
+          ...valoresPorOmision(nombreTabla),
+          ...r,
+        }))
 
         datos[nombreTabla] = [...filas, ...nuevos]
 
