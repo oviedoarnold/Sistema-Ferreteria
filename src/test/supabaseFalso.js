@@ -139,10 +139,26 @@ export function crearSupabaseFalso({
   tablas = {},
   cuentas = [],
   sesionInicial = null,
+  fallarEn = {},
 } = {}) {
   const datos = JSON.parse(JSON.stringify(tablas))
   let sesion = sesionInicial
   const suscriptores = []
+
+  /*
+    Devuelve el error configurado para esa tabla, si lo hay. Acepta tanto
+    { productos: error } como { productos: { insert: error } }, para poder
+    romper solo una operacion.
+  */
+  const fallaDe = (nombreTabla, accion) => {
+    const configurada = fallarEn[nombreTabla]
+
+    if (!configurada) return null
+
+    if (configurada.message || configurada.code) return configurada
+
+    return configurada[accion] || null
+  }
 
   const consulta = (nombreTabla) => {
     const estado = {
@@ -241,11 +257,22 @@ export function crearSupabaseFalso({
         estado.tope = cantidad
         return constructor
       },
+      /*
+        fallarEn permite provocar el error que devolveria la base. Sin esto
+        no habia forma de comprobar que la aplicacion avisa cuando algo
+        falla, que es justo lo que el usuario ve cuando algo se rompe.
+      */
       maybeSingle() {
+        const falla = fallaDe(nombreTabla, estado.accion)
+        if (falla) return Promise.resolve({ data: null, error: falla })
+
         const filas = ejecutar()
         return Promise.resolve({ data: filas[0] || null, error: null })
       },
       single() {
+        const falla = fallaDe(nombreTabla, estado.accion)
+        if (falla) return Promise.resolve({ data: null, error: falla })
+
         const filas = ejecutar()
         return Promise.resolve(
           filas.length
@@ -254,7 +281,11 @@ export function crearSupabaseFalso({
         )
       },
       then(resolver) {
-        return Promise.resolve({ data: ejecutar(), error: null }).then(resolver)
+        const falla = fallaDe(nombreTabla, estado.accion)
+
+        return Promise.resolve(
+          falla ? { data: null, error: falla } : { data: ejecutar(), error: null }
+        ).then(resolver)
       },
     }
 
