@@ -100,7 +100,28 @@ export const conFormaDeApp = (filas, empresa) =>
     .map((fila) => aCotizacionDeApp(fila, empresa))
     .sort((a, b) => b.timestamp - a.timestamp)
 
-export async function crearCotizacion(cotizacion, { empresaId, usuarioId }) {
+async function cotizacionConClave(clave, empresaId) {
+  if (!clave) return null
+
+  const { data } = await supabase
+    .from("cotizaciones")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("clave_idempotencia", clave)
+    .maybeSingle()
+
+  return data?.id || null
+}
+
+export async function crearCotizacion(
+  cotizacion,
+  { empresaId, usuarioId, clave = null }
+) {
+  // Antes de pedir correlativo: repetirlo quemaria un numero para nada.
+  const yaGuardada = await cotizacionConClave(clave, empresaId)
+
+  if (yaGuardada) return yaGuardada
+
   const correlativo = await pedirCorrelativo("cotizacion")
 
   const { data: cabecera, error } = await supabase
@@ -125,9 +146,16 @@ export async function crearCotizacion(cotizacion, { empresaId, usuarioId }) {
       total: cotizacion.total,
 
       notas: cotizacion.notes || "",
+      clave_idempotencia: clave,
     })
     .select("id")
     .single()
+
+  if (error?.code === "23505" && clave) {
+    const guardadaPorOtroIntento = await cotizacionConClave(clave, empresaId)
+
+    if (guardadaPorOtroIntento) return guardadaPorOtroIntento
+  }
 
   if (error) fallo(error, "guardar la cotización")
 

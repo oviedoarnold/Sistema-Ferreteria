@@ -8,8 +8,7 @@
 --
 -- Ahora cada quien ve los suyos, y el administrador ve los de su empresa.
 
-drop policy if exists permisos_usuario_de_mi_empresa on permisos_usuario;
-
+drop policy if exists permisos_propios_select on permisos_usuario;
 create policy permisos_propios_select on permisos_usuario
   for select
   to authenticated
@@ -21,6 +20,7 @@ create policy permisos_propios_select on permisos_usuario
   );
 
 -- Solo un administrador reparte permisos.
+drop policy if exists permisos_admin_escribe on permisos_usuario;
 create policy permisos_admin_escribe on permisos_usuario
   for all
   to authenticated

@@ -5,6 +5,7 @@
 } from "react"
 
 import Swal from "sweetalert2"
+import { claveDeIdempotencia } from "../utils/ids"
 
 import { SalesContext } from "../context/contexts"
 
@@ -81,6 +82,16 @@ function SalesHistory() {
     payingSaleId,
     setPayingSaleId,
   ] = useState(null)
+
+  const [abonando, setAbonando] = useState(false)
+
+  /*
+    Identifica al intento de abono, no al clic. Si la red tarda y el
+    cajero vuelve a pulsar, viaja la misma clave y la base devuelve el
+    abono que ya registro en vez de cobrarle dos veces al cliente. Se
+    renueva al abrir el formulario para otra factura.
+  */
+  const [claveDelAbono, setClaveDelAbono] = useState(claveDeIdempotencia)
 
   const [
     paymentAmount,
@@ -253,6 +264,7 @@ function SalesHistory() {
   const openPaymentModal = (
     sale
   ) => {
+    setClaveDelAbono(claveDeIdempotencia())
     setPayingSaleId(sale.id)
     setPaymentAmount("")
     setPaymentNote("")
@@ -264,13 +276,15 @@ function SalesHistory() {
   ) => {
     event.preventDefault()
 
-    if (!payingSale) {
+    if (!payingSale || abonando) {
       return
     }
 
     const wasLastPayment =
       Number(paymentAmount) >=
       payingBalance
+
+    setAbonando(true)
 
     try {
       await addPayment(
@@ -279,7 +293,8 @@ function SalesHistory() {
           amount:
             paymentAmount,
           note: paymentNote,
-        }
+        },
+        claveDelAbono
       )
     } catch (error) {
       setPaymentError(
@@ -287,6 +302,8 @@ function SalesHistory() {
       )
 
       return
+    } finally {
+      setAbonando(false)
     }
 
     closePaymentModal()
@@ -1172,8 +1189,11 @@ function SalesHistory() {
                 <button
                   type="submit"
                   className="btn btn-primary"
+                  disabled={abonando}
                 >
-                  Registrar abono
+                  {abonando
+                    ? "Registrando…"
+                    : "Registrar abono"}
                 </button>
               </div>
             </form>

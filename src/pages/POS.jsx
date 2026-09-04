@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import Swal from "sweetalert2"
 import { ProductContext } from "../context/contexts"
 import { MiniaturaDeProducto } from "../components/ImagenDeProducto"
+import { claveDeIdempotencia } from "../utils/ids"
 import { SalesContext } from "../context/contexts"
 import { ClientsContext } from "../context/contexts"
 import InvoiceTemplate from "../components/InvoiceTemplate"
@@ -39,6 +40,17 @@ function POS() {
     hacía que cambiarla en Configuración no afectara lo que se cobra.
   */
   const tasaISV = Number(company?.taxRate ?? ISV_POR_OMISION)
+
+  /*
+    Identifica al intento de cobro, no al clic. Se conserva mientras la
+    venta no se haya emitido: si el cajero vuelve a pulsar porque la red
+    tardo y no vio respuesta, viaja la misma clave y la base devuelve la
+    factura que ya existe en vez de emitir otra. Se renueva al limpiar la
+    venta, que es cuando empieza un cobro distinto.
+  */
+  const [claveDeVenta, setClaveDeVenta] = useState(claveDeIdempotencia)
+
+  const [facturando, setFacturando] = useState(false)
   const { clients = [], addClient } = useContext(ClientsContext)
 
   const location = useLocation()
@@ -525,6 +537,9 @@ function POS() {
   }
 
   const clearSaleForm = () => {
+    // Termino un cobro: el siguiente es una operacion distinta.
+    setClaveDeVenta(claveDeIdempotencia())
+
     setCart([])
     setQtyMap({})
     setSearch("")
@@ -540,9 +555,16 @@ function POS() {
       return null
     }
 
+    if (facturando) {
+      return null
+    }
+
+    setFacturando(true)
+
     try {
       const createdSale = await addSale(
-        buildSalePayload()
+        buildSalePayload(),
+        claveDeVenta
       )
 
       if (!createdSale) {
@@ -599,6 +621,8 @@ function POS() {
       })
 
       return null
+    } finally {
+      setFacturando(false)
     }
   }
 
@@ -1116,11 +1140,14 @@ function POS() {
                 marginTop: 14,
               }}
               disabled={
-                cart.length === 0
+                cart.length === 0 ||
+                facturando
               }
               onClick={generateSale}
             >
-              Generar factura
+              {facturando
+                ? "Registrando…"
+                : "Generar factura"}
             </button>
 
             <button

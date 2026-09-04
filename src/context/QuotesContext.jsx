@@ -70,8 +70,8 @@ function QuotesProvider({ children }) {
     cotización guardada se vuelve a leer en vez de armarse aquí.
   */
   const addQuote = useCallback(
-    async (cotizacion) => {
-      const id = await crearCotizacion(cotizacion, { empresaId, usuarioId })
+    async (cotizacion, clave = null) => {
+      const id = await crearCotizacion(cotizacion, { empresaId, usuarioId, clave })
       const lista = await traerCotizaciones()
 
       setFilas(lista)

@@ -29,6 +29,17 @@ declare
   p_cable   uuid; p_cinta    uuid; p_candado  uuid; p_tubo     uuid;
 begin
 
+  /*
+    Sembrar dos veces duplicaria la ferreteria entera: otra empresa, otros
+    ocho productos, otras cuatro ventas. Se reconoce por el correo del
+    administrador invitado, que es lo unico que esta migracion crea y que
+    nada mas modifica despues.
+  */
+  if exists (select 1 from usuarios where email = correo_admin) then
+    raise notice 'Los datos de demostración ya estaban cargados; no se hace nada.';
+    return;
+  end if;
+
   -- EMPRESA ────────────────────────────────────────────────
   insert into empresas (
     nombre, direccion, telefono, moneda, tasa_isv,

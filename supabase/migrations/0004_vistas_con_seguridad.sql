@@ -14,7 +14,7 @@
 
 drop view if exists stock_actual;
 
-create view stock_actual
+create or replace view stock_actual
 with (security_invoker = on)
 as
   select
@@ -30,7 +30,7 @@ as
 
 -- Vista completa para el catálogo: evita que el frontend tenga que pedir
 -- los productos y sus existencias por separado y unirlos a mano.
-create view productos_con_stock
+create or replace view productos_con_stock
 with (security_invoker = on)
 as
   select

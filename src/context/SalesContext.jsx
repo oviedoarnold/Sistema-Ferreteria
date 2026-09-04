@@ -167,7 +167,7 @@ function SalesProvider({ children }) {
     la base. La pantalla solo manda lo que el cajero eligió.
   */
   const addSale = useCallback(
-    async (venta) => {
+    async (venta, clave = null) => {
       if (!venta) {
         throw new Error("No se recibieron datos de la venta.")
       }
@@ -195,7 +195,7 @@ function SalesProvider({ children }) {
           paymentType: formaPago,
           customerName: nombreCliente,
         },
-        { empresaId, usuarioId, empresa: company }
+        { empresaId, usuarioId, empresa: company, clave }
       )
 
       const [listaVentas] = await Promise.all([
@@ -228,7 +228,7 @@ function SalesProvider({ children }) {
     cero la factura pasa a pagada.
   */
   const addPayment = useCallback(
-    async (saleId, payment = {}) => {
+    async (saleId, payment = {}, clave = null) => {
       const venta = buscarVenta(saleId)
 
       if (!venta) {
@@ -260,7 +260,7 @@ function SalesProvider({ children }) {
       const abono = await crearAbono(
         saleId,
         { ...payment, amount: monto },
-        { empresaId, usuarioId }
+        { empresaId, usuarioId, clave }
       )
 
       const conElAbono = applyPayments(venta, [

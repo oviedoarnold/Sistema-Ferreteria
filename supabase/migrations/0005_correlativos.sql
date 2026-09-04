@@ -10,7 +10,7 @@
 -- el candado de la fila, así que entre leer y apartar el siguiente número
 -- no cabe otra venta.
 
-create function siguiente_correlativo(p_tipo text)
+create or replace function siguiente_correlativo(p_tipo text)
 returns bigint
 language plpgsql
 security definer

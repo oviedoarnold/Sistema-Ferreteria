@@ -6,13 +6,13 @@
 -- la pantalla que tiene que responder rápido. En productos queda solo la
 -- dirección del archivo.
 
-alter table productos add column imagen_url text;
+alter table productos add column if not exists imagen_url text;
 
 -- La vista enumera columnas, así que hay que recrearla para que la nueva
 -- llegue al frontend.
 drop view if exists productos_con_stock;
 
-create view productos_con_stock
+create or replace view productos_con_stock
 with (security_invoker = on)
 as
   select
@@ -69,14 +69,11 @@ on conflict (id) do update
 */
 
 drop policy if exists imagenes_de_producto_lectura on storage.objects;
-drop policy if exists imagenes_de_producto_escritura on storage.objects;
-drop policy if exists imagenes_de_producto_reemplazo on storage.objects;
-drop policy if exists imagenes_de_producto_borrado on storage.objects;
-
 create policy imagenes_de_producto_lectura on storage.objects
   for select
   using (bucket_id = 'productos');
 
+drop policy if exists imagenes_de_producto_escritura on storage.objects;
 create policy imagenes_de_producto_escritura on storage.objects
   for insert
   to authenticated
@@ -85,6 +82,7 @@ create policy imagenes_de_producto_escritura on storage.objects
     and (storage.foldername(name))[1] = empresa_del_usuario()::text
   );
 
+drop policy if exists imagenes_de_producto_reemplazo on storage.objects;
 create policy imagenes_de_producto_reemplazo on storage.objects
   for update
   to authenticated
@@ -93,6 +91,7 @@ create policy imagenes_de_producto_reemplazo on storage.objects
     and (storage.foldername(name))[1] = empresa_del_usuario()::text
   );
 
+drop policy if exists imagenes_de_producto_borrado on storage.objects;
 create policy imagenes_de_producto_borrado on storage.objects
   for delete
   to authenticated

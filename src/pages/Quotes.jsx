@@ -9,6 +9,7 @@ import Swal from "sweetalert2"
 import { ProductContext } from "../context/contexts"
 import { ClientsContext } from "../context/contexts"
 import { QuotesContext } from "../context/contexts"
+import { claveDeIdempotencia } from "../utils/ids"
 
 import QuoteTemplate from "../components/QuoteTemplate"
 
@@ -86,6 +87,12 @@ function Quotes() {
   } = useContext(QuotesContext)
 
   const [guardandoCotizacion, setGuardandoCotizacion] = useState(false)
+
+  /*
+    Identifica al intento y no al clic: si se reintenta, la base devuelve
+    la cotizacion que ya guardo en vez de gastar otro correlativo.
+  */
+  const [claveDeCotizacion, setClaveDeCotizacion] = useState(claveDeIdempotencia)
 
   const [search, setSearch] =
     useState("")
@@ -517,6 +524,9 @@ function Quotes() {
   }
 
   const clearQuoteForm = () => {
+    // Termino una cotizacion: la siguiente es otra operacion.
+    setClaveDeCotizacion(claveDeIdempotencia())
+
     setSearch("")
     setCart([])
     setQtyMap({})
@@ -551,11 +561,16 @@ function Quotes() {
         return
       }
 
+      if (guardandoCotizacion) {
+        return
+      }
+
       setGuardandoCotizacion(true)
 
       try {
         const quote = await addQuote(
-          buildQuote()
+          buildQuote(),
+          claveDeCotizacion
         )
 
         setSelectedQuote(quote)

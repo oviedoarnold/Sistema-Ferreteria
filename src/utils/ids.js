@@ -32,3 +32,16 @@ export function sufijoAleatorio(bytes = 6) {
 export function crearId(prefijo) {
   return `${prefijo}-${Date.now().toString(36)}-${sufijoAleatorio()}`
 }
+
+/*
+  Identifica un intento de operación, no un clic.
+
+  El navegador la genera una vez por operación y la reenvía tal cual si hay
+  que reintentar. La base tiene una restricción única sobre ella, así que
+  el segundo intento choca en vez de emitir un documento nuevo: es lo único
+  que protege cuando la factura se guardó pero la respuesta se perdió en el
+  camino y el cajero, que no vio nada, vuelve a cobrar.
+*/
+export function claveDeIdempotencia() {
+  return `${Date.now().toString(36)}-${sufijoAleatorio(8)}`
+}

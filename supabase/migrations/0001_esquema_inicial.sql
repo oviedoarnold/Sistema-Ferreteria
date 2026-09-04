@@ -9,7 +9,7 @@
 -- EMPRESAS
 -- ─────────────────────────────────────────────────────────
 
-create table empresas (
+create table if not exists empresas (
   id            uuid primary key default gen_random_uuid(),
   nombre        text not null,
   direccion     text not null default '',
@@ -42,7 +42,7 @@ create table empresas (
 -- Con Google no se crean usuarios con contraseña: el administrador invita
 -- por correo y el empleado queda vinculado al entrar por primera vez.
 
-create table usuarios (
+create table if not exists usuarios (
   id           uuid primary key default gen_random_uuid(),
   auth_id      uuid unique references auth.users (id) on delete set null,
   empresa_id   uuid not null references empresas (id) on delete cascade,
@@ -56,10 +56,10 @@ create table usuarios (
   unique (empresa_id, email)
 );
 
-create index idx_usuarios_empresa on usuarios (empresa_id);
-create index idx_usuarios_email on usuarios (lower(email));
+create index if not exists idx_usuarios_empresa on usuarios (empresa_id);
+create index if not exists idx_usuarios_email on usuarios (lower(email));
 
-create table permisos_usuario (
+create table if not exists permisos_usuario (
   usuario_id  uuid not null references usuarios (id) on delete cascade,
   empresa_id  uuid not null references empresas (id) on delete cascade,
   seccion     text not null check (seccion in (
@@ -68,7 +68,7 @@ create table permisos_usuario (
   primary key (usuario_id, seccion)
 );
 
-create index idx_permisos_empresa on permisos_usuario (empresa_id);
+create index if not exists idx_permisos_empresa on permisos_usuario (empresa_id);
 
 -- Vincula la cuenta de Google (o de correo) con la invitación que ya
 -- existe para ese correo. Sin invitación previa el usuario no entra a
@@ -90,6 +90,8 @@ begin
 end;
 $$;
 
+drop trigger if exists al_crear_cuenta_vincular on auth.users;
+
 create trigger al_crear_cuenta_vincular
   after insert on auth.users
   for each row execute function vincular_usuario_invitado();
@@ -98,7 +100,7 @@ create trigger al_crear_cuenta_vincular
 -- CATÁLOGOS
 -- ─────────────────────────────────────────────────────────
 
-create table proveedores (
+create table if not exists proveedores (
   id          uuid primary key default gen_random_uuid(),
   empresa_id  uuid not null references empresas (id) on delete cascade,
   nombre      text not null,
@@ -109,9 +111,9 @@ create table proveedores (
   creado_en   timestamptz not null default now()
 );
 
-create index idx_proveedores_empresa on proveedores (empresa_id);
+create index if not exists idx_proveedores_empresa on proveedores (empresa_id);
 
-create table clientes (
+create table if not exists clientes (
   id          uuid primary key default gen_random_uuid(),
   empresa_id  uuid not null references empresas (id) on delete cascade,
   nombre      text not null,
@@ -122,10 +124,10 @@ create table clientes (
   creado_en   timestamptz not null default now()
 );
 
-create index idx_clientes_empresa on clientes (empresa_id);
-create index idx_clientes_nombre on clientes (empresa_id, lower(nombre));
+create index if not exists idx_clientes_empresa on clientes (empresa_id);
+create index if not exists idx_clientes_nombre on clientes (empresa_id, lower(nombre));
 
-create table productos (
+create table if not exists productos (
   id            uuid primary key default gen_random_uuid(),
   empresa_id    uuid not null references empresas (id) on delete cascade,
   proveedor_id  uuid references proveedores (id) on delete set null,
@@ -142,13 +144,13 @@ create table productos (
   unique (empresa_id, codigo)
 );
 
-create index idx_productos_empresa on productos (empresa_id);
+create index if not exists idx_productos_empresa on productos (empresa_id);
 
 -- ─────────────────────────────────────────────────────────
 -- VENTAS
 -- ─────────────────────────────────────────────────────────
 
-create table ventas (
+create table if not exists ventas (
   id                uuid primary key default gen_random_uuid(),
   empresa_id        uuid not null references empresas (id) on delete cascade,
   cliente_id        uuid references clientes (id) on delete set null,
@@ -185,11 +187,11 @@ create table ventas (
     check (forma_pago = 'contado' or cliente_id is not null)
 );
 
-create index idx_ventas_empresa_fecha on ventas (empresa_id, fecha desc);
-create index idx_ventas_pendientes on ventas (empresa_id, estado)
+create index if not exists idx_ventas_empresa_fecha on ventas (empresa_id, fecha desc);
+create index if not exists idx_ventas_pendientes on ventas (empresa_id, estado)
   where estado = 'pendiente';
 
-create table detalle_venta (
+create table if not exists detalle_venta (
   id           uuid primary key default gen_random_uuid(),
   empresa_id   uuid not null references empresas (id) on delete cascade,
   venta_id     uuid not null references ventas (id) on delete cascade,
@@ -202,9 +204,9 @@ create table detalle_venta (
   subtotal     numeric(12,2) not null
 );
 
-create index idx_detalle_venta on detalle_venta (venta_id);
+create index if not exists idx_detalle_venta on detalle_venta (venta_id);
 
-create table abonos (
+create table if not exists abonos (
   id           uuid primary key default gen_random_uuid(),
   empresa_id   uuid not null references empresas (id) on delete cascade,
   venta_id     uuid not null references ventas (id) on delete cascade,
@@ -214,13 +216,13 @@ create table abonos (
   nota         text not null default ''
 );
 
-create index idx_abonos_venta on abonos (venta_id);
+create index if not exists idx_abonos_venta on abonos (venta_id);
 
 -- ─────────────────────────────────────────────────────────
 -- COTIZACIONES
 -- ─────────────────────────────────────────────────────────
 
-create table cotizaciones (
+create table if not exists cotizaciones (
   id              uuid primary key default gen_random_uuid(),
   empresa_id      uuid not null references empresas (id) on delete cascade,
   cliente_id      uuid references clientes (id) on delete set null,
@@ -246,9 +248,9 @@ create table cotizaciones (
   unique (empresa_id, numero)
 );
 
-create index idx_cotizaciones_empresa on cotizaciones (empresa_id, fecha desc);
+create index if not exists idx_cotizaciones_empresa on cotizaciones (empresa_id, fecha desc);
 
-create table detalle_cotizacion (
+create table if not exists detalle_cotizacion (
   id              uuid primary key default gen_random_uuid(),
   empresa_id      uuid not null references empresas (id) on delete cascade,
   cotizacion_id   uuid not null references cotizaciones (id) on delete cascade,
@@ -261,7 +263,7 @@ create table detalle_cotizacion (
   subtotal        numeric(12,2) not null
 );
 
-create index idx_detalle_cotizacion on detalle_cotizacion (cotizacion_id);
+create index if not exists idx_detalle_cotizacion on detalle_cotizacion (cotizacion_id);
 
 -- ─────────────────────────────────────────────────────────
 -- INVENTARIO COMO LIBRO DE MOVIMIENTOS
@@ -270,7 +272,7 @@ create index idx_detalle_cotizacion on detalle_cotizacion (cotizacion_id);
 -- movimientos, para que un descuadre en el conteo físico se pueda
 -- rastrear hasta quién lo movió y cuándo.
 
-create table movimientos_inventario (
+create table if not exists movimientos_inventario (
   id           bigserial primary key,
   empresa_id   uuid not null references empresas (id) on delete cascade,
   producto_id  uuid not null references productos (id) on delete cascade,
@@ -283,10 +285,10 @@ create table movimientos_inventario (
   fecha        timestamptz not null default now()
 );
 
-create index idx_movimientos_producto on movimientos_inventario (producto_id, fecha desc);
-create index idx_movimientos_empresa on movimientos_inventario (empresa_id, fecha desc);
+create index if not exists idx_movimientos_producto on movimientos_inventario (producto_id, fecha desc);
+create index if not exists idx_movimientos_empresa on movimientos_inventario (empresa_id, fecha desc);
 
-create view stock_actual as
+create or replace view stock_actual as
   select
     p.id            as producto_id,
     p.empresa_id,
@@ -366,15 +368,18 @@ begin
 end $$;
 
 -- La empresa solo la ve quien pertenece a ella; solo un admin la edita.
+drop policy if exists empresas_select on empresas;
 create policy empresas_select on empresas
   for select to authenticated
   using (id = empresa_del_usuario());
 
+drop policy if exists empresas_update on empresas;
 create policy empresas_update on empresas
   for update to authenticated
   using (id = empresa_del_usuario() and usuario_es_admin());
 
 -- Un usuario se ve a sí mismo; el admin ve y administra a los de su empresa.
+drop policy if exists usuarios_select on usuarios;
 create policy usuarios_select on usuarios
   for select to authenticated
   using (
@@ -382,6 +387,7 @@ create policy usuarios_select on usuarios
     or (empresa_id = empresa_del_usuario() and usuario_es_admin())
   );
 
+drop policy if exists usuarios_admin on usuarios;
 create policy usuarios_admin on usuarios
   for all to authenticated
   using (empresa_id = empresa_del_usuario() and usuario_es_admin())

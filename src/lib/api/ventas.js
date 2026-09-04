@@ -145,7 +145,37 @@ const numeroDeFactura = (correlativo, fiscal) =>
   falla después de crear la cabecera se borra: una factura sin renglones
   descuadraría el reporte de ventas.
 */
-export async function crearVenta(venta, { empresaId, usuarioId, empresa }) {
+/*
+  Devuelve el documento que ya se emitio con esa clave, si lo hay.
+
+  Es lo que convierte a la operacion en idempotente: el segundo intento no
+  crea nada, encuentra el primero.
+*/
+async function ventaConClave(clave, empresaId) {
+  if (!clave) return null
+
+  const { data } = await supabase
+    .from("ventas")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("clave_idempotencia", clave)
+    .maybeSingle()
+
+  return data?.id || null
+}
+
+export async function crearVenta(
+  venta,
+  { empresaId, usuarioId, empresa, clave = null }
+) {
+  /*
+    Antes de pedir correlativo: si esta venta ya se emitio, pedir otro
+    numero quemaria un correlativo de la numeracion autorizada para nada.
+  */
+  const yaEmitida = await ventaConClave(clave, empresaId)
+
+  if (yaEmitida) return yaEmitida
+
   const fiscal = empresa?.fiscal
   const correlativo = await pedirCorrelativo("factura")
   const esCredito = venta.paymentType === "credito"
@@ -178,9 +208,20 @@ export async function crearVenta(venta, { empresaId, usuarioId, empresa }) {
       fecha_limite_emision_emision: fiscal?.fechaLimiteEmision || null,
 
       nota: venta.note || "",
+      clave_idempotencia: clave,
     })
     .select("id")
     .single()
+
+  /*
+    23505 es la violacion de unicidad. Con clave, significa que otro
+    intento de esta misma venta gano la carrera: se devuelve el suyo.
+  */
+  if (error?.code === "23505" && clave) {
+    const emitidaPorOtroIntento = await ventaConClave(clave, empresaId)
+
+    if (emitidaPorOtroIntento) return emitidaPorOtroIntento
+  }
 
   if (error) fallo(error, "registrar la venta")
 
@@ -235,11 +276,28 @@ async function descargarInventario(ventaId, items, empresaId, usuarioId) {
 
 // ── ABONOS ─────────────────────────────────────────────────
 
+async function abonoConClave(clave, empresaId) {
+  if (!clave) return null
+
+  const { data } = await supabase
+    .from("abonos")
+    .select("*")
+    .eq("empresa_id", empresaId)
+    .eq("clave_idempotencia", clave)
+    .maybeSingle()
+
+  return data || null
+}
+
 export async function crearAbono(
   ventaId,
   { amount, note },
-  { empresaId, usuarioId }
+  { empresaId, usuarioId, clave = null }
 ) {
+  const yaRegistrado = await abonoConClave(clave, empresaId)
+
+  if (yaRegistrado) return aAbonoDeApp(yaRegistrado)
+
   const { data, error } = await supabase
     .from("abonos")
     .insert({
@@ -248,9 +306,16 @@ export async function crearAbono(
       usuario_id: usuarioId || null,
       monto: amount,
       nota: note || "",
+      clave_idempotencia: clave,
     })
     .select("*")
     .single()
+
+  if (error?.code === "23505" && clave) {
+    const registradoPorOtroIntento = await abonoConClave(clave, empresaId)
+
+    if (registradoPorOtroIntento) return aAbonoDeApp(registradoPorOtroIntento)
+  }
 
   if (error) fallo(error, "registrar el abono")
 
