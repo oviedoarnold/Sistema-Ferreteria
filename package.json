@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "coverage:ci": "vitest run --coverage --reporter=default --reporter=json --outputFile=test-report.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

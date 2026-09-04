@@ -46,7 +46,14 @@ jobs:
         run: npm run lint
 
       - name: Tests con cobertura
-        run: npm run coverage
+        run: npm run coverage:ci
+
+      # Sin esto, saber que prueba fallo exige permisos de administrador
+      # para descargar los logs. Con esto queda escrito en la pagina del
+      # run, que cualquiera con acceso al repositorio puede leer.
+      - name: Anotar las pruebas que fallaron
+        if: failure()
+        run: node scripts/resumir-fallos.mjs >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build de producción
         run: npm run build

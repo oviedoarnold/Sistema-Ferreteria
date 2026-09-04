@@ -26,3 +26,6 @@ dist-ssr
 # Cobertura: solo se versiona el resumen, que el requisito pide
 coverage/*
 !coverage/coverage-summary.json
+
+# Reporte que genera el paso de pruebas en CI para explicar los fallos.
+test-report.json
