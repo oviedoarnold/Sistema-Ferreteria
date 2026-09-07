@@ -18,8 +18,8 @@ lo que registre queda guardado.
 | Vendedor de mostrador | `demo@oviedoarnold.lat` | `Demo2026` | Ver el sistema con permisos limitados |
 | Administrador | `demo-admin@oviedoarnold.lat` | (la que se le asigne) | Ver el sistema completo |
 
-No son credenciales de ningún cliente. Las dos pertenecen a la ferretería de
-ejemplo y no ven los datos de ninguna otra.
+No son credenciales de ningún cliente: son usuarios creados para esto. Las
+dos pertenecen a la misma ferretería y no ven los datos de ninguna otra.
 
 ---
 
@@ -43,7 +43,7 @@ Entre con `demo@oviedoarnold.lat` / `Demo2026`.
 
 *Qué debe observar:*
 
-- El panel muestra las ventas del día, el **saldo por cobrar** (unos L 16.000)
+- El panel muestra las ventas del día, el **saldo por cobrar** (L 6.365,80)
   y los productos con existencias bajas o agotadas.
 - En el menú superior hay **solo cinco secciones**: Dashboard, Facturar,
   Cotizar, Clientes e Historial. **No aparecen Inventario, Proveedores ni
@@ -70,6 +70,9 @@ Busque un producto, pulse **«Agregar»** y observe el resumen de la derecha.
   cuántas quedan disponibles.
 - Puede elegir **Contado** o **Crédito**. Al elegir crédito, el sistema exige
   seleccionar un cliente registrado y una fecha de vencimiento.
+- Al pulsar **«Generar factura»** el botón se bloquea y dice «Registrando…».
+  Un doble clic no emite dos facturas: cada intento lleva una clave que la
+  base rechaza si se repite.
 
 ---
 
@@ -84,7 +87,8 @@ Busque la factura **FAC-01203** (Constructora Sula) y pulse **«Abonar»**.
 - La lista distingue las ventas de **Contado** de las de **Crédito**, y marca
   las que están **Pendiente**, **Vencida** o **Cancelada**.
 - En las facturas a crédito con saldo aparece **«Abonado»** y **«Resta»**.
-  FAC-01203 ya tiene un abono parcial de L 4.000.
+  FAC-01203 suma **L 12.594,80**, lleva **L 8.000** abonados y resta
+  **L 4.594,80**.
 - Al abrir el modal verá el total, lo abonado y el saldo. Pulse **«Pagar el
   saldo completo»** y luego **«Registrar abono»**.
 - La factura pasa a **Cancelada**, el botón «Abonar» desaparece y el
@@ -96,7 +100,7 @@ Busque la factura **FAC-01203** (Constructora Sula) y pulse **«Abonar»**.
 ## Si quiere ver el resto del sistema
 
 Cierre sesión y entre con `demo-admin@oviedoarnold.lat`. Con esa cuenta
-aparecen las tres secciones que faltaban:
+aparecen las tres secciones que la de vendedor no tiene:
 
 - **Inventario** — productos con alerta de existencias bajas y agotadas
 - **Proveedores** — directorio ligado a los productos
