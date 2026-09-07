@@ -1,4 +1,12 @@
--- Quita los datos fiscales de muestra de la ferretería real.
+-- Quita los datos fiscales de muestra. NO es una migración.
+--
+-- Se corre una sola vez, el día que la ferretería tenga su CAI real. Vive
+-- entre los scripts y no entre las migraciones a propósito: deshace la
+-- parte fiscal de la 0006, así que aplicar la cadena entera dejaría la base
+-- en un estado contradictorio.
+--
+-- Mientras el proyecto sea una demostración, no hace falta correrlo: el CAI
+-- de muestra es lo que permite enseñar la numeración autorizada.
 --
 -- La migración 0006 le puso a la empresa demo un CAI y un rango de
 -- ejemplo, para que el recorrido guiado mostrara la numeración autorizada.
