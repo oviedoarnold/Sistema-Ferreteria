@@ -341,3 +341,113 @@ describe("administración de usuarios", () => {
     ).toBe(false)
   })
 })
+
+/*
+  La guarda que evita actualizar el estado de un proveedor ya desmontado
+  se cubría por accidente: solo se ejecutaba cuando una prueba cualquiera
+  terminaba mientras la sesión seguía en vuelo, lo que pasaba en una de
+  cada seis corridas. Eso hacía variar la cobertura de ramas entre
+  corridas sin que nadie hubiera decidido probar ese camino.
+
+  Aquí se prueba a propósito: la sesión se resuelve a mano, después del
+  desmontaje.
+*/
+describe("desmontar mientras la sesión está en vuelo", () => {
+  it("no actualiza el estado del proveedor ya desmontado", async () => {
+    let resolverSesion
+
+    const sesionPendiente = new Promise((resolver) => {
+      resolverSesion = resolver
+    })
+
+    falso = crearSupabaseFalso({ tablas: DATOS_BASE, cuentas: CUENTAS })
+    falso.auth.getSession = vi.fn(() => sesionPendiente)
+
+    globalThis.__supabaseFalso = falso
+
+    const { AuthProvider } = await import("./AuthContext")
+    const { useAuth } = await import("../hooks/useAuth")
+
+    const { result, unmount } = renderHook(() => useAuth(), {
+      wrapper: AuthProvider,
+    })
+
+    expect(result.current.cargando).toBe(true)
+
+    unmount()
+
+    const errores = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    await act(async () => {
+      resolverSesion({ data: { session: { user: { id: "auth-admin" } } } })
+      await sesionPendiente
+    })
+
+    expect(errores).not.toHaveBeenCalled()
+
+    errores.mockRestore()
+  })
+})
+
+/*
+  El mismo caso en el segundo efecto, el que trae la lista de usuarios de
+  la empresa. También se cubría por accidente y por eso la cobertura de
+  ramas variaba entre corridas.
+
+  Solo se deja en vuelo la consulta de la lista: la del perfil termina con
+  maybeSingle y tiene que resolver para que el proveedor llegue a montar.
+*/
+describe("desmontar mientras la lista de usuarios está en vuelo", () => {
+  it("no actualiza la lista de un proveedor ya desmontado", async () => {
+    let resolverLista
+
+    // Sin sesión no se pide la lista: el efecto sale antes.
+    falso = crearSupabaseFalso({
+      tablas: DATOS_BASE,
+      cuentas: CUENTAS,
+      sesionInicial: { user: { id: "auth-admin" } },
+    })
+
+    globalThis.__supabaseFalso = falso
+
+    const consultaOriginal = falso.from
+
+    falso.from = vi.fn((tabla) => {
+      const constructor = consultaOriginal(tabla)
+
+      if (tabla !== "usuarios") return constructor
+
+      /*
+        Se sobrescribe el terminal en el objeto mismo y no en una copia:
+        cada método de la cadena devuelve ese objeto, así que una copia
+        quedaría fuera del camino en cuanto se llamara a select o eq.
+      */
+      constructor.then = (resolver) =>
+        new Promise((r) => {
+          resolverLista = () => r({ data: [], error: null })
+        }).then(resolver)
+
+      return constructor
+    })
+
+    const { AuthProvider } = await import("./AuthContext")
+    const { useAuth } = await import("../hooks/useAuth")
+
+    const vista = renderHook(() => useAuth(), { wrapper: AuthProvider })
+
+    await waitFor(() => expect(vista.result.current.cargando).toBe(false))
+    await waitFor(() => expect(resolverLista).toBeDefined())
+
+    vista.unmount()
+
+    const errores = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    await act(async () => {
+      resolverLista()
+    })
+
+    expect(errores).not.toHaveBeenCalled()
+
+    errores.mockRestore()
+  })
+})
