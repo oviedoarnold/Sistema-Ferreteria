@@ -160,6 +160,41 @@ export function crearSupabaseFalso({
     return configurada[accion] || null
   }
 
+  /*
+    0013 quitó el permiso de borrado sobre los documentos emitidos y puso
+    las llaves foráneas del Kardex en RESTRICT. El doble lo reproduce para
+    que una llamada a .delete() sobre estas tablas falle igual que en la
+    base: si alguien vuelve a escribir un borrado desde la aplicación, la
+    prueba lo detiene aquí en vez de descubrirlo en producción.
+  */
+  const SIN_BORRADO = ["ventas", "detalle_venta", "movimientos_inventario"]
+
+  const borradoProhibido = (nombreTabla, objetivo) => {
+    if (SIN_BORRADO.includes(nombreTabla)) {
+      return {
+        code: "42501",
+        message: `permission denied for table ${nombreTabla}`,
+      }
+    }
+
+    if (nombreTabla !== "productos") return null
+
+    const conKardex = objetivo.some((producto) =>
+      (datos.movimientos_inventario || []).some(
+        (m) => m.producto_id === producto.id
+      )
+    )
+
+    return conKardex
+      ? {
+          code: "23503",
+          message:
+            'update or delete on table "productos" violates foreign key ' +
+            'constraint "movimientos_inventario_producto_id_fkey"',
+        }
+      : null
+  }
+
   const consulta = (nombreTabla) => {
     const estado = {
       accion: "select",
@@ -225,6 +260,27 @@ export function crearSupabaseFalso({
       return []
     }
 
+    /*
+      Las dos razones por las que una operación puede fallar antes de tocar
+      los datos: el error que la prueba inyectó, y las protecciones que la
+      base aplica por su cuenta.
+    */
+    const errorAntesDeEjecutar = () => {
+      const inyectada = fallaDe(nombreTabla, estado.accion)
+
+      if (inyectada) return inyectada
+
+      if (estado.accion !== "delete") return null
+
+      const vista = VISTAS[nombreTabla]
+      const filas = vista ? vista(datos) : datos[nombreTabla] || []
+
+      return borradoProhibido(
+        nombreTabla,
+        aplicarFiltros(filas, estado.filtros)
+      )
+    }
+
     const constructor = {
       select(columnas) {
         estado.columnas = columnas || "*"
@@ -263,14 +319,14 @@ export function crearSupabaseFalso({
         falla, que es justo lo que el usuario ve cuando algo se rompe.
       */
       maybeSingle() {
-        const falla = fallaDe(nombreTabla, estado.accion)
+        const falla = errorAntesDeEjecutar()
         if (falla) return Promise.resolve({ data: null, error: falla })
 
         const filas = ejecutar()
         return Promise.resolve({ data: filas[0] || null, error: null })
       },
       single() {
-        const falla = fallaDe(nombreTabla, estado.accion)
+        const falla = errorAntesDeEjecutar()
         if (falla) return Promise.resolve({ data: null, error: falla })
 
         const filas = ejecutar()
@@ -281,7 +337,7 @@ export function crearSupabaseFalso({
         )
       },
       then(resolver) {
-        const falla = fallaDe(nombreTabla, estado.accion)
+        const falla = errorAntesDeEjecutar()
 
         return Promise.resolve(
           falla ? { data: null, error: falla } : { data: ejecutar(), error: null }
