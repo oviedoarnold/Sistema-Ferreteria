@@ -7,6 +7,7 @@ import {
   traerVentas,
   conFormaDeApp,
   crearVenta,
+  anularVenta,
   crearAbono,
   eliminarAbono,
   ajustarEstadoPorSaldo,
@@ -222,6 +223,29 @@ function SalesProvider({ children }) {
   )
 
   /*
+    Anula una factura emitida. Quién puede hacerlo, si ya estaba anulada y
+    si tiene abonos lo decide la base: aquí no se repiten esas reglas para
+    que no haya dos versiones de la misma verdad.
+
+    El inventario se refresca junto con el historial porque la anulación
+    devuelve la mercadería, y dejar el stock viejo en pantalla justo
+    después de la operación que lo cambió es lo que confunde al usuario.
+  */
+  const cancelSale = useCallback(
+    async (saleId, motivo) => {
+      await anularVenta(saleId, motivo)
+
+      const [listaVentas] = await Promise.all([
+        traerVentas(),
+        refrescarProductos(),
+      ])
+
+      setFilas(listaVentas)
+    },
+    [refrescarProductos]
+  )
+
+  /*
     Registra un abono sobre una venta a crédito. Al quedar el saldo en
     cero la factura pasa a pagada.
   */
@@ -328,6 +352,7 @@ function SalesProvider({ children }) {
       error,
 
       addSale,
+      cancelSale,
       addPayment,
       deletePayment,
 
@@ -342,6 +367,7 @@ function SalesProvider({ children }) {
       cargando,
       error,
       addSale,
+      cancelSale,
       addPayment,
       deletePayment,
       buscarVenta,

@@ -8,12 +8,14 @@ import Swal from "sweetalert2"
 import { claveDeIdempotencia } from "../utils/ids"
 
 import { SalesContext } from "../context/contexts"
+import { useAuth } from "../hooks/useAuth"
 
 import {
   getSaleBalance,
   getSalePaid,
   getSalePayments,
   isCreditSale,
+  esVentaAnulada,
 } from "../utils/salesUtils"
 
 import { ProductContext } from "../context/contexts"
@@ -72,7 +74,17 @@ function SalesHistory() {
     sales = [],
     addPayment,
     deletePayment,
+    cancelSale,
   } = useContext(SalesContext)
+
+  const { user } = useAuth()
+
+  /*
+    Ocultar el botón es cortesía, no seguridad: quien no es administrador
+    tampoco puede anular llamando a la base directamente.
+  */
+  const puedeAnular =
+    user?.role === "admin"
 
   const {
     company = {},
@@ -366,9 +378,105 @@ function SalesHistory() {
     }
   }
 
+  /*
+    Anular es irreversible y devuelve mercadería al inventario, así que el
+    motivo y la confirmación van en un solo paso: el diálogo dice qué
+    factura es y de cuánto, y no deja seguir sin una explicación.
+
+    Las reglas de quién puede y cuándo las decide la base. Aquí solo se
+    muestra lo que responde.
+  */
+  const anularFactura = async (
+    sale
+  ) => {
+    const { value: motivo } =
+      await Swal.fire({
+        icon: "warning",
+
+        title: `¿Anular la factura ${sale.invoiceNumber}?`,
+
+        html: `Se devolverán los productos al inventario y la factura de
+          <b>${formatMoney(
+            sale.total,
+            currency
+          )}</b> dejará de contar como venta.<br><br>
+          El documento y su número se conservan.`,
+
+        input: "textarea",
+
+        inputLabel:
+          "Motivo de la anulación",
+
+        inputPlaceholder:
+          "Por ejemplo: se facturó el producto equivocado",
+
+        inputValidator: (
+          valor
+        ) =>
+          String(valor || "")
+            .trim().length < 5
+            ? "Explica el motivo (al menos 5 caracteres)."
+            : undefined,
+
+        showCancelButton: true,
+
+        confirmButtonText:
+          "Sí, anular",
+
+        cancelButtonText:
+          "Cancelar",
+      })
+
+    if (!motivo) {
+      return
+    }
+
+    try {
+      await cancelSale(
+        sale.id,
+        motivo.trim()
+      )
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+
+        title:
+          "No se pudo anular la factura",
+
+        text: error.message,
+      })
+
+      return
+    }
+
+    Swal.fire({
+      icon: "success",
+
+      title: "Factura anulada",
+
+      text: "Los productos volvieron al inventario.",
+    })
+  }
+
   const getStatusBadge = (
     sale
   ) => {
+    /*
+      Va antes que las demás: una anulada tiene estado propio y sin esta
+      rama caía en el else y se mostraba como "Pendiente", que es
+      justamente lo que no es.
+    */
+    if (
+      esVentaAnulada(sale)
+    ) {
+      return (
+        <span className="badge badge-void">
+          <span className="badge-dot" />
+          Anulada
+        </span>
+      )
+    }
+
     if (
       sale.status ===
       "pagada"
@@ -827,6 +935,23 @@ function SalesHistory() {
                     >
                       Ver factura
                     </button>
+
+                    {puedeAnular &&
+                      !esVentaAnulada(
+                        sale
+                      ) && (
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() =>
+                            anularFactura(
+                              sale
+                            )
+                          }
+                        >
+                          Anular
+                        </button>
+                      )}
 
                   </div>
 

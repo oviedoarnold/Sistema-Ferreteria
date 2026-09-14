@@ -155,6 +155,10 @@ const aFilaDeVenta = (venta) => ({
   fecha_limite_emision_emision: venta.fiscal?.fechaLimiteEmision || null,
 
   nota: venta.note || "",
+
+  anulada_at: venta.voidedAt || null,
+  anulada_por: venta.status === "anulada" ? USUARIO_PRUEBA.id : null,
+  motivo_anulacion: venta.voidReason || null,
 })
 
 const renglonesDe = (venta) =>
@@ -228,11 +232,12 @@ export function montarDatos({
   cotizaciones = [],
   empresa = EMPRESA_PRUEBA,
   conSesion = true,
+  rol = USUARIO_PRUEBA.rol,
 } = {}) {
   const falso = crearSupabaseFalso({
     tablas: {
       empresas: empresa ? [empresa] : [],
-      usuarios: [USUARIO_PRUEBA],
+      usuarios: [{ ...USUARIO_PRUEBA, rol }],
       permisos_usuario: [],
       productos: productos.map(aFilaDeProducto),
       movimientos_inventario: productos
