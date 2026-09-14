@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-import { anularVenta } from "./ventas"
+import { anularVenta, ajustarEstadoPorSaldo, crearAbono } from "./ventas"
 import { crearSupabaseFalso } from "../../test/supabaseFalso"
 
 vi.mock("../supabase", () => ({
@@ -397,5 +397,57 @@ describe("facturas a crédito", () => {
     await anularVenta("v1", "el cliente devolvió la mercadería")
 
     expect(falso.datos.ventas[0].estado).toBe("anulada")
+  })
+})
+
+describe("una factura anulada no vuelve atrás", () => {
+  /*
+    ajustarEstadoPorSaldo escribía el estado a ciegas. Registrar o corregir
+    un abono sobre una factura ya anulada la devolvía a pagada o pendiente,
+    dejando el estado diciendo una cosa y anulada_por la contraria.
+  */
+  it("el ajuste por saldo no la devuelve a pendiente", async () => {
+    const falso = montar()
+
+    await anularVenta("v1", MOTIVO)
+    await ajustarEstadoPorSaldo("v1", 500)
+
+    expect(falso.datos.ventas[0].estado).toBe("anulada")
+  })
+
+  it("el ajuste por saldo no la devuelve a pagada", async () => {
+    const falso = montar()
+
+    await anularVenta("v1", MOTIVO)
+    await ajustarEstadoPorSaldo("v1", 0)
+
+    expect(falso.datos.ventas[0].estado).toBe("anulada")
+  })
+
+  it("sigue ajustando el estado de las que no están anuladas", async () => {
+    const falso = montar({ formaPago: "credito", estado: "pendiente" })
+
+    await ajustarEstadoPorSaldo("v1", 0)
+
+    expect(falso.datos.ventas[0].estado).toBe("pagada")
+  })
+
+  it("conserva el rastro aunque se registre un abono después", async () => {
+    const falso = montar({ formaPago: "credito", estado: "pendiente" })
+
+    await anularVenta("v1", MOTIVO)
+
+    await crearAbono(
+      "v1",
+      { amount: 100, note: "" },
+      { empresaId: EMPRESA, usuarioId: "u-admin" }
+    )
+    await ajustarEstadoPorSaldo("v1", 475)
+
+    const [factura] = falso.datos.ventas
+
+    expect(factura.estado).toBe("anulada")
+    expect(factura.anulada_por).toBe("u-admin")
+    expect(factura.motivo_anulacion).toBe(MOTIVO)
   })
 })

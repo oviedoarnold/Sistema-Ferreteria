@@ -294,12 +294,18 @@ export async function eliminarAbono(abonoId) {
   El estado de la factura lo decide el saldo, no el usuario. Se recalcula
   después de cada abono para que "cancelada" nunca dependa de que la
   pantalla se acuerde de actualizarlo.
+
+  Una anulada queda fuera: el saldo no manda sobre ella. Sin esta condición,
+  corregir un abono de una factura ya anulada la devolvía a pagada o
+  pendiente, dejando el estado diciendo una cosa y anulada_por y anulada_at
+  la contraria.
 */
 export async function ajustarEstadoPorSaldo(ventaId, saldoPendiente) {
   const { error } = await supabase
     .from("ventas")
     .update({ estado: saldoPendiente <= 0 ? "pagada" : "pendiente" })
     .eq("id", ventaId)
+    .neq("estado", "anulada")
 
   if (error) fallo(error, "actualizar el estado de la factura")
 }
