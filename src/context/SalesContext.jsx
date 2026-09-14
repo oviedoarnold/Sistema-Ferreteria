@@ -195,7 +195,7 @@ function SalesProvider({ children }) {
           paymentType: formaPago,
           customerName: nombreCliente,
         },
-        { empresaId, usuarioId, empresa: company, clave }
+        { clave }
       )
 
       const [listaVentas] = await Promise.all([
@@ -211,8 +211,6 @@ function SalesProvider({ children }) {
       validarRenglones,
       armarRenglones,
       calcularTotales,
-      empresaId,
-      usuarioId,
       company,
       refrescarProductos,
     ]
