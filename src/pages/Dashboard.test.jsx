@@ -129,3 +129,82 @@ describe("Dashboard", () => {
     expect(screen.getByText("Martillo")).toBeInTheDocument()
   })
 })
+
+/*
+  El tablero mide el negocio. Una factura anulada se deshizo, así que no es
+  ingreso ni mercadería vendida, pero sigue siendo algo que pasó: por eso
+  aparece en la actividad reciente y en ninguna cifra.
+*/
+describe("Dashboard con ventas anuladas", () => {
+  const anulada = (extra = {}) =>
+    venta({
+      id: "F-anulada",
+      invoiceNumber: "FAC-01099",
+      clientName: "Distribuidora Sur",
+      status: "anulada",
+      total: 5000,
+      items: [
+        { productId: "p2", name: "Cemento", qty: 40, price: 250, subtotal: 10000 },
+      ],
+      ...extra,
+    })
+
+  it("no la suma a las ventas de hoy", async () => {
+    await renderDashboard({ ventas: [venta(), anulada()] })
+
+    const tarjeta = screen.getByText("Ventas hoy").closest(".stat-card")
+
+    expect(tarjeta).toHaveTextContent("L 207.00")
+    expect(tarjeta).not.toHaveTextContent("5,207.00")
+  })
+
+  it("no la suma a las ventas del mes", async () => {
+    await renderDashboard({ ventas: [venta(), anulada()] })
+
+    const tarjeta = screen.getByText("Ventas del mes").closest(".stat-card")
+
+    expect(tarjeta).toHaveTextContent("L 207.00")
+  })
+
+  it("no la deja en las cuentas por cobrar", async () => {
+    await renderDashboard({
+      ventas: [
+        anulada({
+          paymentType: "credito",
+          type: "credito",
+          dueDate: "2027-01-31",
+        }),
+      ],
+    })
+
+    const tarjeta = screen.getByText("Por cobrar").closest(".stat-card")
+
+    expect(tarjeta).toHaveTextContent("L 0.00")
+  })
+
+  /*
+    Sin este filtro, el producto de una factura anulada encabezaba el
+    ranking por una venta que no ocurrió.
+  */
+  it("no la cuenta entre los productos más vendidos", async () => {
+    await renderDashboard({ ventas: [venta(), anulada()] })
+
+    const lista = screen
+      .getByText("Top productos vendidos")
+      .closest(".chart-wrap")
+
+    expect(lista).toHaveTextContent("Martillo")
+    expect(lista).not.toHaveTextContent("Cemento")
+  })
+
+  it("la conserva en la actividad reciente, marcada", async () => {
+    await renderDashboard({ ventas: [venta(), anulada()] })
+
+    const recientes = screen
+      .getByText("Últimas ventas")
+      .closest(".chart-wrap")
+
+    expect(recientes).toHaveTextContent("Distribuidora Sur")
+    expect(recientes).toHaveTextContent("Anulada")
+  })
+})

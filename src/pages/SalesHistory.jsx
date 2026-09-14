@@ -16,6 +16,7 @@ import {
   getSalePayments,
   isCreditSale,
   esVentaAnulada,
+  esVentaVigente,
 } from "../utils/salesUtils"
 
 import { ProductContext } from "../context/contexts"
@@ -203,8 +204,22 @@ function SalesHistory() {
       filter,
     ])
 
+  /*
+    La tabla de abajo sigue mostrando las anuladas: son parte del
+    historial y tienen que poder consultarse. Las tarjetas no, porque
+    miden el negocio y una venta que se deshizo no es ingreso.
+  */
+  const ventasVigentes =
+    useMemo(
+      () =>
+        sales.filter(
+          esVentaVigente
+        ),
+      [sales]
+    )
+
   const totalSales =
-    sales.reduce(
+    ventasVigentes.reduce(
       (sum, sale) =>
         sum +
         Number(
@@ -214,7 +229,7 @@ function SalesHistory() {
     )
 
   const cashSales =
-    sales.filter(
+    ventasVigentes.filter(
       (sale) =>
         getPaymentType(
           sale
@@ -222,7 +237,7 @@ function SalesHistory() {
     ).length
 
   const creditSales =
-    sales.filter(
+    ventasVigentes.filter(
       (sale) =>
         getPaymentType(
           sale
@@ -230,14 +245,14 @@ function SalesHistory() {
     ).length
 
   const pendingSales =
-    sales.filter(
+    ventasVigentes.filter(
       (sale) =>
         sale.status ===
         "pendiente"
     ).length
 
   const totalReceivable =
-    sales.reduce(
+    ventasVigentes.reduce(
       (sum, sale) =>
         sum +
         getSaleBalance(sale),

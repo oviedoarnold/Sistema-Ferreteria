@@ -23,9 +23,20 @@ export function roundMoney(value) {
   Una factura anulada sigue existiendo y se
   sigue consultando: eso es el historial.
   Lo que no hace es contar como venta.
+
+  El filtro vive aquí, en un solo lugar,
+  porque las métricas se calculan en once
+  puntos distintos entre el tablero y el
+  historial, y repetirlo en cada uno es
+  invitar a que el próximo reporte olvide
+  alguno.
 */
 export function esVentaAnulada(sale) {
   return sale?.status === "anulada"
+}
+
+export function esVentaVigente(sale) {
+  return !esVentaAnulada(sale)
 }
 
 export function isCreditSale(sale) {
@@ -56,10 +67,16 @@ export function getSalePaid(sale) {
 
 /*
   Una venta de contado nace saldada,
-  así que nunca arrastra saldo.
+  así que nunca arrastra saldo. Una
+  anulada tampoco: dejó de ser una
+  cuenta por cobrar.
+
+  Va aquí y no en cada pantalla porque
+  este es el punto por donde el saldo
+  entra a toda la cobranza.
 */
 export function getSaleBalance(sale) {
-  if (!isCreditSale(sale)) {
+  if (!isCreditSale(sale) || esVentaAnulada(sale)) {
     return 0
   }
 
