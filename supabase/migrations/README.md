@@ -17,6 +17,7 @@ duda de si ya se aplicó, correrla de nuevo es seguro.
 | 0010 | Permisos de la cuenta demo, según el recorrido guiado |
 | 0011 | Quita la política amplia sobre `permisos_usuario` que la cadena dejaba activa en una instalación nueva, y redeclara las dos correctas |
 | 0012 | `crear_venta_atomica()`: emite la factura completa en una transacción y bloquea los productos para que dos cajas no vendan la última unidad |
+| 0013 | Una factura emitida deja de poder borrarse: quita el permiso de borrado, cambia `FOR ALL` por políticas por operación y pone en `RESTRICT` las llaves hacia ventas y productos |
 
 ## Por qué falta el 0008
 
