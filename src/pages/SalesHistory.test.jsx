@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest"
-import { screen, fireEvent, within } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { screen, fireEvent, within, waitFor } from "@testing-library/react"
+import Swal from "sweetalert2"
 
 import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
@@ -347,6 +348,166 @@ describe("facturas anuladas en el historial", () => {
     const fila = filaDe("FAC-01003")
 
     expect(within(fila).queryByText("Abonar")).not.toBeInTheDocument()
+  })
+})
+
+/*
+  El doble de SweetAlert responde "descartado" por omisión, que es lo que
+  pasa cuando nadie pulsa nada. Para recorrer el flujo completo hay que
+  decirle qué contestó el administrador.
+*/
+const responderConMotivo = (motivo) =>
+  Swal.fire.mockResolvedValueOnce({
+    isConfirmed: true,
+    value: motivo,
+  })
+
+const anular = (numero) =>
+  fireEvent.click(within(filaDe(numero)).getByText("Anular"))
+
+describe("anular desde el historial", () => {
+  beforeEach(() => {
+    Swal.fire.mockClear()
+  })
+
+  it("pide el motivo antes de anular", async () => {
+    const { falso } = await renderHistory([factura()])
+
+    anular("FAC-01001")
+
+    await waitFor(() => expect(Swal.fire).toHaveBeenCalled())
+
+    const dialogo = Swal.fire.mock.calls[0][0]
+
+    expect(dialogo.input).toBe("textarea")
+    expect(dialogo.title).toContain("FAC-01001")
+    expect(falso.rpc).not.toHaveBeenCalledWith(
+      "anular_venta",
+      expect.anything()
+    )
+  })
+
+  /*
+    La misma regla que aplica la base, para que el administrador se entere
+    antes de mandar la petición y no después.
+  */
+  it("no acepta un motivo de menos de cinco caracteres", async () => {
+    await renderHistory([factura()])
+
+    anular("FAC-01001")
+
+    await waitFor(() => expect(Swal.fire).toHaveBeenCalled())
+
+    const { inputValidator } = Swal.fire.mock.calls[0][0]
+
+    expect(inputValidator("err")).toMatch(/5 caracteres/i)
+    expect(inputValidator("   ")).toMatch(/motivo/i)
+    expect(inputValidator("se facturó de más")).toBeUndefined()
+  })
+
+  it("no hace nada si el administrador cancela", async () => {
+    const { falso } = await renderHistory([factura()])
+
+    anular("FAC-01001")
+
+    await waitFor(() => expect(Swal.fire).toHaveBeenCalled())
+
+    expect(falso.rpc).not.toHaveBeenCalledWith(
+      "anular_venta",
+      expect.anything()
+    )
+    expect(falso.datos.ventas[0].estado).toBe("pagada")
+  })
+
+  it("anula la factura con el motivo escrito", async () => {
+    const { falso } = await renderHistory([factura()])
+
+    responderConMotivo("  se facturó el producto equivocado  ")
+    anular("FAC-01001")
+
+    await waitFor(() =>
+      expect(falso.datos.ventas[0].estado).toBe("anulada")
+    )
+
+    // El motivo viaja sin los espacios de sobra.
+    expect(falso.datos.ventas[0].motivo_anulacion).toBe(
+      "se facturó el producto equivocado"
+    )
+  })
+
+  it("devuelve la mercadería al inventario", async () => {
+    const { falso } = await renderHistory([factura()])
+
+    responderConMotivo("se facturó el producto equivocado")
+    anular("FAC-01001")
+
+    await waitFor(() =>
+      expect(
+        falso.datos.movimientos_inventario.filter(
+          (m) => m.tipo === "devolucion"
+        )
+      ).toHaveLength(1)
+    )
+  })
+
+  it("deja la factura marcada como anulada en la pantalla", async () => {
+    await renderHistory([factura()])
+
+    responderConMotivo("se facturó el producto equivocado")
+    anular("FAC-01001")
+
+    await waitFor(() =>
+      expect(
+        within(filaDe("FAC-01001")).getByText("Anulada")
+      ).toBeInTheDocument()
+    )
+  })
+
+  /*
+    Cuando la base rechaza —por abonos, por ejemplo— el usuario tiene que
+    leer el motivo real, que dice cuántos son y qué hacer, no un mensaje
+    genérico.
+  */
+  it("muestra el motivo del rechazo tal como lo manda la base", async () => {
+    const conAbonos = aCredito({
+      payments: [
+        { id: "ab1", amount: 300, timestamp: Date.now(), note: "" },
+      ],
+    })
+
+    const { falso } = await renderHistory([conAbonos])
+
+    responderConMotivo("el cliente devolvió todo")
+    anular("FAC-01002")
+
+    await waitFor(() =>
+      expect(
+        Swal.fire.mock.calls.some(
+          ([opciones]) =>
+            opciones.icon === "error" &&
+            /abono/i.test(opciones.text || "")
+        )
+      ).toBe(true)
+    )
+
+    expect(falso.datos.ventas[0].estado).toBe("pendiente")
+  })
+
+  it("avisa cuando la anulación salió bien", async () => {
+    await renderHistory([factura()])
+
+    responderConMotivo("se facturó el producto equivocado")
+    anular("FAC-01001")
+
+    await waitFor(() =>
+      expect(
+        Swal.fire.mock.calls.some(
+          ([opciones]) =>
+            opciones.icon === "success" &&
+            /anulada/i.test(opciones.title || "")
+        )
+      ).toBe(true)
+    )
   })
 })
 

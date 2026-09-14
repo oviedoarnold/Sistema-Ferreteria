@@ -334,6 +334,37 @@ describe("la base rechaza una anulación que no debe ocurrir", () => {
   })
 })
 
+/*
+  La base manda el motivo concreto en el mensaje y eso es lo que se le
+  muestra al usuario. Si algún día llegara vacío —un fallo de red, un
+  proxy que se come el cuerpo— hay que decir algo con sentido igual.
+*/
+describe("cuando la base no explica el rechazo", () => {
+  const rechazarCon = (falso, error) => {
+    falso.rpc = vi.fn(() => Promise.resolve({ data: null, error }))
+  }
+
+  it("traduce el código a un mensaje entendible", async () => {
+    const falso = montar()
+
+    rechazarCon(falso, { code: "VA002", message: "" })
+
+    await expect(anularVenta("v1", MOTIVO)).rejects.toThrow(
+      /tiene abonos registrados/i
+    )
+  })
+
+  it("avisa aunque no reconozca el código", async () => {
+    const falso = montar()
+
+    rechazarCon(falso, { code: "XX999", message: "" })
+
+    await expect(anularVenta("v1", MOTIVO)).rejects.toThrow(
+      /no se pudo anular/i
+    )
+  })
+})
+
 describe("facturas a crédito", () => {
   it("anula una a crédito que no tiene abonos", async () => {
     const falso = montar({ formaPago: "credito", estado: "pendiente" })
