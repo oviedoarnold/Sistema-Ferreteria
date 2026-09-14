@@ -8,6 +8,18 @@ import { formatDocumentNumber } from "../utils/fiscal"
 import { formatMoney } from "../utils/format"
 
 /*
+  Una factura anulada se sigue pudiendo consultar e imprimir: el documento
+  existió y su número no se reutiliza. Lo que cambia es que lo diga.
+*/
+const ESTADO_IMPRESO = {
+  pagada: "Pagada",
+
+  pendiente: "Pendiente",
+
+  anulada: "ANULADA",
+}
+
+/*
   Sin datos de la ferretería el encabezado sale vacío, y así debe ser: el
   sistema se vende a varias, y un documento con el nombre y la dirección de
   otra es peor que un documento incompleto.
@@ -162,10 +174,9 @@ function InvoiceTemplate({
                     : "var(--red)",
               }}
             >
-              {status ===
-              "pagada"
-                ? "Pagada"
-                : "Pendiente"}
+              {ESTADO_IMPRESO[
+                status
+              ] || "Pendiente"}
             </b>
           </div>
 
@@ -364,6 +375,19 @@ function InvoiceTemplate({
           </>
         )}
       </div>
+
+      {status ===
+        "anulada" && (
+        <div className="inv-void">
+          ANULADA
+
+          {sale.voidReason && (
+            <div className="inv-void-reason">
+              {sale.voidReason}
+            </div>
+          )}
+        </div>
+      )}
 
       {status ===
         "pendiente" && (

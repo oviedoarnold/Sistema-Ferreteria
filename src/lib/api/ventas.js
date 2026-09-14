@@ -82,6 +82,9 @@ export function aVentaDeApp(fila, empresa) {
     status: fila.estado,
     note: fila.nota || "",
 
+    voidedAt: fila.anulada_at || null,
+    voidReason: fila.motivo_anulacion || "",
+
     fiscal: {
       cai: fila.cai_emision || "",
       rangoDesde: fila.rango_desde_emision ?? "",

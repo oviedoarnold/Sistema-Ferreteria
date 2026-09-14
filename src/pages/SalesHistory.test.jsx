@@ -49,7 +49,19 @@ const aCredito = (extra = {}) =>
     ...extra,
   })
 
-function renderHistory(ventas = []) {
+const anulada = (extra = {}) =>
+  factura({
+    id: "F-3",
+    invoiceNumber: "FAC-01003",
+    clientName: "Distribuidora Sur",
+    status: "anulada",
+    total: 500,
+    voidReason: "se facturó el producto equivocado",
+    voidedAt: new Date().toISOString(),
+    ...extra,
+  })
+
+function renderHistory(ventas = [], opciones = {}) {
   return renderizarPantalla(
     <AuthProvider>
       <ProductProvider>
@@ -58,7 +70,7 @@ function renderHistory(ventas = []) {
         </SalesProvider>
       </ProductProvider>
     </AuthProvider>,
-    { ventas, esperar: ["ventas"] }
+    { ventas, esperar: ["ventas"], ...opciones }
   )
 }
 
@@ -240,5 +252,55 @@ describe("SalesHistory: filtros", () => {
     })
 
     expect(screen.getByText(/no se encontraron facturas/i)).toBeInTheDocument()
+  })
+})
+
+describe("facturas anuladas en el historial", () => {
+  /*
+    Una anulada que desapareciera del historial sería indistinguible de una
+    borrada, que es justo lo que el sistema dejó de permitir.
+  */
+  it("sigue mostrando la factura anulada", async () => {
+    await renderHistory([factura(), anulada()])
+
+    expect(screen.getByText("Distribuidora Sur")).toBeInTheDocument()
+    expect(screen.getByText("FAC-01003", { exact: false })).toBeInTheDocument()
+  })
+
+  it("la marca como anulada y no como pendiente", async () => {
+    await renderHistory([anulada()])
+
+    const fila = filaDe("FAC-01003")
+
+    expect(within(fila).getByText("Anulada")).toBeInTheDocument()
+    expect(within(fila).queryByText("Pendiente")).not.toBeInTheDocument()
+  })
+
+})
+
+describe("el botón de anular", () => {
+  it("se lo ofrece al administrador", async () => {
+    await renderHistory([factura()])
+
+    expect(within(filaDe("FAC-01001")).getByText("Anular")).toBeInTheDocument()
+  })
+
+  /*
+    Ocultarlo es cortesía: la base rechaza igual a un vendedor que llame
+    directamente. Lo que se comprueba aquí es que no se le proponga algo
+    que no va a poder hacer.
+  */
+  it("no se lo ofrece a un vendedor", async () => {
+    await renderHistory([factura()], { rol: "vendedor" })
+
+    expect(within(filaDe("FAC-01001")).queryByText("Anular")).not
+      .toBeInTheDocument()
+  })
+
+  it("no lo ofrece sobre una que ya está anulada", async () => {
+    await renderHistory([anulada()])
+
+    expect(within(filaDe("FAC-01003")).queryByText("Anular")).not
+      .toBeInTheDocument()
   })
 })

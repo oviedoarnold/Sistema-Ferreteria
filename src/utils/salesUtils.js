@@ -19,6 +19,15 @@ export function roundMoney(value) {
   )
 }
 
+/*
+  Una factura anulada sigue existiendo y se
+  sigue consultando: eso es el historial.
+  Lo que no hace es contar como venta.
+*/
+export function esVentaAnulada(sale) {
+  return sale?.status === "anulada"
+}
+
 export function isCreditSale(sale) {
   const paymentType = (
     sale?.paymentType ||
