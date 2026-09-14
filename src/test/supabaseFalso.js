@@ -9,9 +9,16 @@ import { vi } from "vitest"
   válida que nadie invitó.
 */
 
+const COMPARACION = {
+  eq: (valorDeLaFila, valor) => valorDeLaFila === valor,
+  neq: (valorDeLaFila, valor) => valorDeLaFila !== valor,
+}
+
 function aplicarFiltros(filas, filtros) {
   return filas.filter((fila) =>
-    filtros.every(([columna, valor]) => fila[columna] === valor)
+    filtros.every(([columna, valor, comparacion = "eq"]) =>
+      COMPARACION[comparacion](fila[columna], valor)
+    )
   )
 }
 
@@ -302,7 +309,11 @@ export function crearSupabaseFalso({
         return constructor
       },
       eq(columna, valor) {
-        estado.filtros.push([columna, valor])
+        estado.filtros.push([columna, valor, "eq"])
+        return constructor
+      },
+      neq(columna, valor) {
+        estado.filtros.push([columna, valor, "neq"])
         return constructor
       },
       order(columna) {
@@ -582,6 +593,109 @@ export function crearSupabaseFalso({
     return { data: ventaId, error: null }
   }
 
+  /*
+    Reproduce anular_venta.
+
+    Mismo criterio que con crear_venta_atomica: el doble imita el contrato
+    completo —permisos, validaciones, códigos de error y efectos sobre el
+    libro— porque desde que anular es una sola llamada, esta función ES el
+    comportamiento que las pruebas verifican.
+
+    Lo que no puede reproducir es la concurrencia: corre en un solo hilo, así
+    que el candado sobre la venta no tiene nada que serializar. Lo que sí
+    comprueba es que un segundo intento se rechace y no deje un segundo juego
+    de movimientos compensatorios.
+  */
+  const anularVenta = (a) => {
+    const usuario = (datos.usuarios || []).find(
+      (u) => u.auth_id === sesion?.user?.id && u.activo
+    )
+
+    if (!usuario) {
+      return errorDeVenta("28000", "La sesión no corresponde a ningún usuario activo.")
+    }
+
+    if (usuario.rol !== "admin") {
+      return errorDeVenta("42501", "Solo un administrador puede anular una factura.")
+    }
+
+    const motivo = String(a.p_motivo || "").trim()
+
+    if (motivo.length < 5) {
+      return errorDeVenta(
+        "P0001",
+        "Explica el motivo de la anulación (al menos 5 caracteres)."
+      )
+    }
+
+    const venta = (datos.ventas || []).find(
+      (v) => v.id === a.p_venta_id && v.empresa_id === usuario.empresa_id
+    )
+
+    if (!venta) {
+      return errorDeVenta(
+        "P0002",
+        "La factura no existe o no pertenece a esta ferretería."
+      )
+    }
+
+    if (venta.estado === "anulada") {
+      return errorDeVenta(
+        "VA001",
+        `La factura ${venta.numero_factura} ya estaba anulada.`
+      )
+    }
+
+    const abonos = (datos.abonos || []).filter((ab) => ab.venta_id === venta.id)
+
+    if (abonos.length > 0) {
+      const pagado = abonos.reduce((suma, ab) => suma + Number(ab.monto), 0)
+
+      return errorDeVenta(
+        "VA002",
+        `Esta factura tiene ${abonos.length} abono(s) registrado(s) por L ` +
+          `${pagado.toFixed(2)}. Elimina los abonos desde el historial antes de anularla.`
+      )
+    }
+
+    /*
+      Los asientos originales no se tocan: se agrega uno positivo por cada
+      renglón, con el mismo venta_id, para que el libro muestre la venta y
+      su anulación juntas.
+    */
+    datos.movimientos_inventario = [
+      ...(datos.movimientos_inventario || []),
+      ...(datos.detalle_venta || [])
+        .filter((d) => d.venta_id === venta.id && d.producto_id)
+        .map((d) => ({
+          id: siguienteId(),
+          empresa_id: usuario.empresa_id,
+          producto_id: d.producto_id,
+          usuario_id: usuario.id,
+          venta_id: venta.id,
+          tipo: "devolucion",
+          cantidad: Math.abs(Number(d.cantidad)),
+          motivo: "Anulación " + venta.numero_factura,
+          fecha: new Date().toISOString(),
+        })),
+    ]
+
+    // El correlativo y el numero_factura no se tocan: el número emitido
+    // sigue perteneciendo a este documento.
+    datos.ventas = (datos.ventas || []).map((v) =>
+      v.id === venta.id
+        ? {
+            ...v,
+            estado: "anulada",
+            anulada_at: new Date().toISOString(),
+            anulada_por: usuario.id,
+            motivo_anulacion: motivo,
+          }
+        : v
+    )
+
+    return { data: null, error: null }
+  }
 
   /*
     Almacenamiento en memoria. Guarda las rutas subidas para poder
@@ -632,6 +746,10 @@ export function crearSupabaseFalso({
 
       if (nombre === "crear_venta_atomica") {
         return Promise.resolve(crearVentaAtomica(argumentos))
+      }
+
+      if (nombre === "anular_venta") {
+        return Promise.resolve(anularVenta(argumentos))
       }
 
       return Promise.resolve({

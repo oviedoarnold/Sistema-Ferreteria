@@ -195,6 +195,47 @@ export async function crearVenta(venta, { clave = null } = {}) {
   return data
 }
 
+/*
+  Anula una factura emitida.
+
+  Una factura no se borra: el correlativo pertenece a una numeración
+  autorizada que debe ser continua, así que el documento se conserva y pasa
+  a decir que está anulado. La base devuelve la mercadería con movimientos
+  compensatorios y deja constancia de quién, cuándo y por qué.
+
+  Igual que al emitir, aquí no se toca el inventario ni el estado por
+  separado: todo ocurre dentro de la RPC, en una sola transacción.
+*/
+const MENSAJES_AL_ANULAR = {
+  28000: "Tu sesión expiró. Vuelve a entrar.",
+  42501: "Solo un administrador puede anular una factura.",
+  P0001: "Explica el motivo de la anulación.",
+  P0002: "La factura ya no está disponible.",
+  VA001: "Esta factura ya estaba anulada.",
+  VA002: "Esta factura tiene abonos registrados.",
+}
+
+export async function anularVenta(ventaId, motivo) {
+  const { error } = await supabase.rpc("anular_venta", {
+    p_venta_id: ventaId,
+    p_motivo: motivo,
+  })
+
+  if (!error) return
+
+  console.error("No se pudo anular la factura:", error)
+
+  /*
+    La función explica el caso concreto —cuántos abonos, de qué monto, qué
+    factura—, así que ese texto le sirve más al usuario que el genérico.
+  */
+  const texto = String(error.message || "").trim()
+
+  throw new Error(
+    texto || MENSAJES_AL_ANULAR[error.code] || "No se pudo anular la factura."
+  )
+}
+
 // ── ABONOS ─────────────────────────────────────────────────
 
 async function abonoConClave(clave, empresaId) {
