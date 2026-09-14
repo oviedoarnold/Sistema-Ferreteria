@@ -20,6 +20,23 @@ duda de si ya se aplicó, correrla de nuevo es seguro.
 | 0013 | Una factura emitida deja de poder borrarse: quita el permiso de borrado, cambia `FOR ALL` por políticas por operación y pone en `RESTRICT` las llaves hacia ventas y productos |
 | 0014 | `anular_venta()`: deshace una factura con movimientos compensatorios, deja constancia de quién, cuándo y por qué, y conserva el documento y su correlativo |
 
+## Lo que las pruebas automáticas no cubren
+
+Dos comportamientos dependen de que dos transacciones se pisen, y el doble de
+Supabase corre en un solo hilo:
+
+- **Dos cajas vendiendo la última unidad** (`0012`). Comprobado contra
+  PostgreSQL con dos peticiones HTTP simultáneas: una vendió, la otra fue
+  rechazada por falta de existencias.
+- **Dos administradores anulando la misma factura** (`0014`). **No se ha
+  ejecutado.** Las herramientas disponibles serializan las conexiones y la
+  única cuenta con contraseña conocida es de vendedor, que no puede anular.
+
+Lo que sí está comprobado de la anulación es que el segundo intento se
+rechaza y no deja un segundo juego de movimientos compensatorios. Lo que
+falta verificar es el caso simultáneo de verdad, y para eso hacen falta dos
+sesiones de administrador a la vez.
+
 ## Por qué falta el 0008
 
 Existió y se movió a
