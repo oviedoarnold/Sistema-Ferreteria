@@ -320,6 +320,214 @@ export function crearSupabaseFalso({
   }
 
   /*
+    Reproduce crear_venta_atomica.
+
+    El doble tiene que imitar el contrato completo —validaciones, códigos de
+    error y efectos— porque desde que la venta es una sola llamada, esta
+    función ES el comportamiento que las pruebas verifican. Un doble que
+    solo devolviera un id haría pasar pruebas sin comprobar nada.
+
+    Lo único que no puede reproducir es la concurrencia: el doble corre en
+    un solo hilo. Esa parte se prueba contra PostgreSQL.
+  */
+  const errorDeVenta = (codigo, mensaje) => ({
+    data: null,
+    error: { code: codigo, message: mensaje },
+  })
+
+  const crearVentaAtomica = (a) => {
+    const usuario = (datos.usuarios || []).find(
+      (u) => u.auth_id === sesion?.user?.id && u.activo
+    )
+
+    if (!usuario) {
+      return errorDeVenta("28000", "La sesión no corresponde a ningún usuario activo.")
+    }
+
+    const empresaId = usuario.empresa_id
+
+    // La idempotencia manda sobre todo lo demás.
+    if (a.p_clave_idempotencia) {
+      const ya = (datos.ventas || []).find(
+        (v) =>
+          v.empresa_id === empresaId &&
+          v.clave_idempotencia === a.p_clave_idempotencia
+      )
+
+      if (ya) return { data: ya.id, error: null }
+    }
+
+    const items = Array.isArray(a.p_items) ? a.p_items : []
+
+    if (items.length === 0) {
+      return errorDeVenta("P0001", "La venta debe contener al menos un producto.")
+    }
+
+    if (!["contado", "credito"].includes(a.p_forma_pago)) {
+      return errorDeVenta("P0001", "Forma de pago no válida: " + a.p_forma_pago)
+    }
+
+    if (a.p_forma_pago === "credito" && !a.p_cliente_id) {
+      return errorDeVenta(
+        "P0001",
+        "Para una venta a crédito debes seleccionar un cliente registrado."
+      )
+    }
+
+    // Cantidades agrupadas por producto, igual que en la base.
+    const porProducto = new Map()
+
+    for (const item of items) {
+      const cantidad = Number(item.cantidad)
+
+      if (!Number.isFinite(cantidad) || cantidad <= 0) {
+        return errorDeVenta(
+          "P0001",
+          "La cantidad de los productos debe ser mayor que cero."
+        )
+      }
+
+      porProducto.set(
+        item.producto_id,
+        (porProducto.get(item.producto_id) || 0) + cantidad
+      )
+    }
+
+    for (const [productoId, cantidad] of porProducto) {
+      const producto = (datos.productos || []).find(
+        (p) => p.id === productoId && p.empresa_id === empresaId
+      )
+
+      if (!producto) {
+        return errorDeVenta("P0002", "Uno de los productos ya no existe en el inventario.")
+      }
+
+      if (producto.activo === false) {
+        return errorDeVenta("P0002", "El producto " + producto.nombre + " ya no está disponible.")
+      }
+
+      const stock = (datos.movimientos_inventario || [])
+        .filter((m) => m.producto_id === productoId)
+        .reduce((suma, m) => suma + Number(m.cantidad), 0)
+
+      if (stock < cantidad) {
+        return errorDeVenta(
+          "P0003",
+          "Stock insuficiente de " + producto.nombre + ". Solo hay " + stock + " unidades disponibles."
+        )
+      }
+    }
+
+    if (
+      a.p_cliente_id &&
+      !(datos.clientes || []).some(
+        (c) => c.id === a.p_cliente_id && c.empresa_id === empresaId
+      )
+    ) {
+      return errorDeVenta("P0002", "El cliente indicado no pertenece a esta ferretería.")
+    }
+
+    // Los importes los calcula la base, no quien llama.
+    const subtotal = items.reduce(
+      (suma, i) => suma + Number(i.cantidad) * Number(i.precio),
+      0
+    )
+    const tasa = Number(a.p_tasa_isv) || 0
+    const isv = Math.round(subtotal * (tasa / 100) * 100) / 100
+
+    const { data: correlativo, error: errorCorrelativo } =
+      siguienteCorrelativo("factura")
+
+    if (errorCorrelativo) return { data: null, error: errorCorrelativo }
+
+    const empresa = (datos.empresas || [])[0] || {}
+
+    const conFiscal =
+      String(empresa.cai || "").trim() &&
+      Number(empresa.rango_hasta) > 0 &&
+      empresa.fecha_limite_emision
+
+    const pad = (v, n) => String(v).padStart(n, "0")
+
+    const numero = conFiscal
+      ? [
+          pad(empresa.establecimiento || "000", 3),
+          pad(empresa.punto_emision || "001", 3),
+          pad(empresa.tipo_documento || "01", 2),
+          pad(correlativo, 8),
+        ].join("-")
+      : "FAC-" + pad(correlativo, 5)
+
+    const ventaId = siguienteId()
+
+    datos.ventas = [
+      ...(datos.ventas || []),
+      {
+        id: ventaId,
+        empresa_id: empresaId,
+        cliente_id: a.p_cliente_id || null,
+        usuario_id: usuario.id,
+        numero_factura: numero,
+        correlativo,
+        fecha: new Date().toISOString(),
+        nombre_cliente: a.p_nombre_cliente || "Consumidor Final",
+        rtn_comprador: a.p_rtn_comprador || "",
+        subtotal,
+        isv,
+        tasa_isv: tasa,
+        total: subtotal + isv,
+        forma_pago: a.p_forma_pago,
+        fecha_vencimiento:
+          a.p_forma_pago === "credito" ? a.p_fecha_vencimiento || null : null,
+        estado: a.p_forma_pago === "credito" ? "pendiente" : "pagada",
+        cai_emision: empresa.cai || "",
+        rango_desde_emision: empresa.rango_desde ?? null,
+        rango_hasta_emision: empresa.rango_hasta ?? null,
+        fecha_limite_emision_emision: empresa.fecha_limite_emision ?? null,
+        nota: a.p_nota || "",
+        clave_idempotencia: a.p_clave_idempotencia || null,
+      },
+    ]
+
+    datos.detalle_venta = [
+      ...(datos.detalle_venta || []),
+      ...items.map((item) => {
+        const producto = (datos.productos || []).find((p) => p.id === item.producto_id)
+
+        return {
+          id: siguienteId(),
+          empresa_id: empresaId,
+          venta_id: ventaId,
+          producto_id: item.producto_id,
+          nombre: producto?.nombre || "",
+          codigo: producto?.codigo || "",
+          cantidad: Number(item.cantidad),
+          precio: Number(item.precio),
+          subtotal: Number(item.cantidad) * Number(item.precio),
+        }
+      }),
+    ]
+
+    datos.movimientos_inventario = [
+      ...(datos.movimientos_inventario || []),
+      ...items.map((item) => ({
+        id: siguienteId(),
+        empresa_id: empresaId,
+        producto_id: item.producto_id,
+        usuario_id: usuario.id,
+        venta_id: ventaId,
+        tipo: "salida",
+        cantidad: -Math.abs(Number(item.cantidad)),
+        motivo: "Venta",
+        fecha: new Date().toISOString(),
+      })),
+    ]
+
+    return { data: ventaId, error: null }
+  }
+
+
+  /*
     Almacenamiento en memoria. Guarda las rutas subidas para poder
     comprobar que la imagen queda en la carpeta de su empresa, que es de
     donde sale el aislamiento entre ferreterías.
@@ -364,6 +572,10 @@ export function crearSupabaseFalso({
     rpc: vi.fn((nombre, argumentos = {}) => {
       if (nombre === "siguiente_correlativo") {
         return Promise.resolve(siguienteCorrelativo(argumentos.p_tipo))
+      }
+
+      if (nombre === "crear_venta_atomica") {
+        return Promise.resolve(crearVentaAtomica(argumentos))
       }
 
       return Promise.resolve({

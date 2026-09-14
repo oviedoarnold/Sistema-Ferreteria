@@ -1,7 +1,5 @@
 import { supabase } from "../supabase"
 
-import { formatDocumentNumber, isFiscalConfigured } from "../../utils/fiscal"
-
 /*
   Acceso a facturas y abonos.
 
@@ -135,143 +133,66 @@ export async function pedirCorrelativo(tipo) {
   return Number(data)
 }
 
-const numeroDeFactura = (correlativo, fiscal) =>
-  isFiscalConfigured(fiscal)
-    ? formatDocumentNumber(correlativo, fiscal)
-    : `FAC-${String(correlativo).padStart(5, "0")}`
-
 /*
-  Guarda la factura, sus renglones y la salida de inventario. Si algo
-  falla después de crear la cabecera se borra: una factura sin renglones
-  descuadraría el reporte de ventas.
+  Emite la factura completa en una sola llamada.
+
+  Antes eran cinco viajes de red sin transacción: correlativo, cabecera,
+  detalle, movimientos, y un borrado compensatorio si algo fallaba. Entre
+  el detalle y los movimientos cabía el peor de los fallos: factura
+  emitida con el inventario sin descargar, sin aviso para nadie.
+
+  Ahora lo resuelve crear_venta_atomica en la base. Lo que queda aquí es
+  traducir el carrito a lo que la función espera y traducir sus errores a
+  algo que el cajero entienda.
+
+  La empresa y el usuario no se envían: la función los deriva de la sesión.
+  Los totales tampoco: los recalcula ella. Lo que no viaja no se puede
+  manipular.
 */
-/*
-  Devuelve el documento que ya se emitio con esa clave, si lo hay.
-
-  Es lo que convierte a la operacion en idempotente: el segundo intento no
-  crea nada, encuentra el primero.
-*/
-async function ventaConClave(clave, empresaId) {
-  if (!clave) return null
-
-  const { data } = await supabase
-    .from("ventas")
-    .select("id")
-    .eq("empresa_id", empresaId)
-    .eq("clave_idempotencia", clave)
-    .maybeSingle()
-
-  return data?.id || null
+const MENSAJES_DE_LA_BASE = {
+  P0001: "Revisa los datos de la venta.",
+  P0002: "Uno de los productos o el cliente ya no está disponible.",
+  P0003: "No hay existencias suficientes.",
+  28000: "Tu sesión expiró. Vuelve a entrar.",
 }
 
-export async function crearVenta(
-  venta,
-  { empresaId, usuarioId, empresa, clave = null }
-) {
-  /*
-    Antes de pedir correlativo: si esta venta ya se emitio, pedir otro
-    numero quemaria un correlativo de la numeracion autorizada para nada.
-  */
-  const yaEmitida = await ventaConClave(clave, empresaId)
-
-  if (yaEmitida) return yaEmitida
-
-  const fiscal = empresa?.fiscal
-  const correlativo = await pedirCorrelativo("factura")
-  const esCredito = venta.paymentType === "credito"
-
-  const { data: cabecera, error } = await supabase
-    .from("ventas")
-    .insert({
-      empresa_id: empresaId,
-      cliente_id: venta.clientId || null,
-      usuario_id: usuarioId || null,
-
-      numero_factura: numeroDeFactura(correlativo, fiscal),
-      correlativo,
-
-      nombre_cliente: venta.customerName || "Consumidor Final",
-      rtn_comprador: venta.rtn || "",
-
-      subtotal: venta.subtotal,
-      isv: venta.tax,
-      tasa_isv: venta.taxRate,
-      total: venta.total,
-
-      forma_pago: venta.paymentType,
-      fecha_vencimiento: esCredito ? venta.dueDate || null : null,
-      estado: esCredito ? "pendiente" : "pagada",
-
-      cai_emision: fiscal?.cai || "",
-      rango_desde_emision: fiscal?.rangoDesde || null,
-      rango_hasta_emision: fiscal?.rangoHasta || null,
-      fecha_limite_emision_emision: fiscal?.fechaLimiteEmision || null,
-
-      nota: venta.note || "",
-      clave_idempotencia: clave,
-    })
-    .select("id")
-    .single()
+function fallaAlVender(error) {
+  console.error("No se pudo registrar la venta:", error)
 
   /*
-    23505 es la violacion de unicidad. Con clave, significa que otro
-    intento de esta misma venta gano la carrera: se devuelve el suyo.
+    La función manda el motivo real en el mensaje —qué producto y cuántas
+    unidades quedan—, así que se prefiere ese texto sobre el genérico.
   */
-  if (error?.code === "23505" && clave) {
-    const emitidaPorOtroIntento = await ventaConClave(clave, empresaId)
+  const texto = String(error?.message || "").trim()
 
-    if (emitidaPorOtroIntento) return emitidaPorOtroIntento
-  }
+  if (texto) throw new Error(texto)
 
-  if (error) fallo(error, "registrar la venta")
-
-  try {
-    await guardarRenglones(cabecera.id, venta.items, empresaId)
-    await descargarInventario(cabecera.id, venta.items, empresaId, usuarioId)
-  } catch (problema) {
-    await supabase.from("ventas").delete().eq("id", cabecera.id)
-
-    throw problema
-  }
-
-  return cabecera.id
+  throw new Error(
+    MENSAJES_DE_LA_BASE[error?.code] || "No se pudo registrar la venta."
+  )
 }
 
-async function guardarRenglones(ventaId, items, empresaId) {
-  const { error } = await supabase.from("detalle_venta").insert(
-    items.map((item) => ({
-      empresa_id: empresaId,
-      venta_id: ventaId,
+export async function crearVenta(venta, { clave = null } = {}) {
+  const { data, error } = await supabase.rpc("crear_venta_atomica", {
+    p_items: venta.items.map((item) => ({
       producto_id: item.productId,
-      nombre: item.name,
-      codigo: item.code || "",
       cantidad: item.qty,
       precio: item.price,
-      subtotal: item.subtotal,
-    }))
-  )
+    })),
+    p_forma_pago: venta.paymentType,
+    p_tasa_isv: venta.taxRate,
+    p_clave_idempotencia: clave,
+    p_cliente_id: venta.clientId || null,
+    p_nombre_cliente: venta.customerName || "Consumidor Final",
+    p_rtn_comprador: venta.rtn || "",
+    p_fecha_vencimiento:
+      venta.paymentType === "credito" ? venta.dueDate || null : null,
+    p_nota: venta.note || "",
+  })
 
-  if (error) fallo(error, "guardar el detalle de la venta")
-}
+  if (error) fallaAlVender(error)
 
-/*
-  La salida se anota como movimiento negativo: el stock es la suma del
-  libro, nunca una columna que se sobrescribe.
-*/
-async function descargarInventario(ventaId, items, empresaId, usuarioId) {
-  const { error } = await supabase.from("movimientos_inventario").insert(
-    items.map((item) => ({
-      empresa_id: empresaId,
-      producto_id: item.productId,
-      usuario_id: usuarioId || null,
-      venta_id: ventaId,
-      tipo: "salida",
-      cantidad: -Math.abs(item.qty),
-      motivo: "Venta",
-    }))
-  )
-
-  if (error) fallo(error, "descargar el inventario de la venta")
+  return data
 }
 
 // ── ABONOS ─────────────────────────────────────────────────

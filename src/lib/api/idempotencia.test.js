@@ -21,17 +21,55 @@ const EMPRESA_FILA = {
   proximo_correlativo_cotizacion: 2000,
 }
 
+const AUTH_ID = "auth-1"
+
+/*
+  Desde que la venta es una sola llamada a la base, la identidad ya no
+  viaja como parámetro: la deriva la función de la sesión. Por eso la
+  prueba monta un usuario con su sesión, y siembra el producto con
+  existencias, que es lo que la base comprueba antes de vender.
+*/
 const montar = () => {
   const falso = crearSupabaseFalso({
     tablas: {
       empresas: [EMPRESA_FILA],
+      usuarios: [
+        {
+          id: USUARIO,
+          auth_id: AUTH_ID,
+          empresa_id: EMPRESA,
+          email: "vendedor@ferreteria.test",
+          nombre: "Vendedor",
+          rol: "vendedor",
+          activo: true,
+        },
+      ],
+      productos: [
+        {
+          id: "p1",
+          empresa_id: EMPRESA,
+          codigo: "M-001",
+          nombre: "Martillo",
+          activo: true,
+        },
+      ],
       ventas: [],
       detalle_venta: [],
       abonos: [],
       cotizaciones: [],
       detalle_cotizacion: [],
-      movimientos_inventario: [],
+      movimientos_inventario: [
+        {
+          id: "mov-inicial",
+          empresa_id: EMPRESA,
+          producto_id: "p1",
+          tipo: "entrada",
+          cantidad: 50,
+          motivo: "Existencia inicial",
+        },
+      ],
     },
+    sesionInicial: { user: { id: AUTH_ID } },
   })
 
   globalThis.__supabaseFalso = falso
