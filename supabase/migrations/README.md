@@ -16,6 +16,7 @@ duda de si ya se aplicó, correrla de nuevo es seguro.
 | 0009 | Claves de idempotencia en ventas, cotizaciones y abonos |
 | 0010 | Permisos de la cuenta demo, según el recorrido guiado |
 | 0011 | Quita la política amplia sobre `permisos_usuario` que la cadena dejaba activa en una instalación nueva, y redeclara las dos correctas |
+| 0012 | `crear_venta_atomica()`: emite la factura completa en una transacción y bloquea los productos para que dos cajas no vendan la última unidad |
 
 ## Por qué falta el 0008
 
