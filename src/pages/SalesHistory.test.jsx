@@ -318,6 +318,23 @@ describe("facturas anuladas en el historial", () => {
     expect(porCobrar).not.toHaveTextContent("L 1,500.00")
   })
 
+  /*
+    El motivo viaja desde la columna motivo_anulacion hasta la factura
+    impresa. Sin esta prueba, el mapeo podía romperse y el documento salir
+    marcado como anulado pero sin decir por qué.
+  */
+  it("imprime el motivo guardado en la factura", async () => {
+    await renderHistory([anulada()])
+
+    fireEvent.click(
+      within(filaDe("FAC-01003")).getByText("Ver factura")
+    )
+
+    expect(
+      screen.getByText("se facturó el producto equivocado")
+    ).toBeInTheDocument()
+  })
+
   it("no ofrece abonar sobre una anulada", async () => {
     await renderHistory([
       anulada({
