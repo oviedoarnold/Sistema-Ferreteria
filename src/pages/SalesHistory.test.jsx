@@ -276,6 +276,61 @@ describe("facturas anuladas en el historial", () => {
     expect(within(fila).queryByText("Pendiente")).not.toBeInTheDocument()
   })
 
+  it("no la suma al total facturado", async () => {
+    await renderHistory([factura(), anulada()])
+
+    const total = screen
+      .getByText("Total facturado")
+      .parentElement
+
+    expect(total).toHaveTextContent("L 207.00")
+    expect(total).not.toHaveTextContent("L 707.00")
+  })
+
+  it("no la cuenta entre las ventas de contado", async () => {
+    await renderHistory([factura(), anulada()])
+
+    expect(
+      screen.getByText("Ventas contado").closest(".stat-card")
+    ).toHaveTextContent("1")
+  })
+
+  /*
+    Anular una factura a crédito borra la deuda: el cliente ya no debe ese
+    dinero porque la venta dejó de existir como venta.
+  */
+  it("la saca de las cuentas por cobrar", async () => {
+    await renderHistory([
+      aCredito({ total: 1000 }),
+      anulada({
+        paymentType: "credito",
+        type: "credito",
+        total: 500,
+        dueDate: "2027-01-31",
+      }),
+    ])
+
+    const porCobrar = screen
+      .getByText("Saldo por cobrar")
+      .parentElement
+
+    expect(porCobrar).toHaveTextContent("L 1,000.00")
+    expect(porCobrar).not.toHaveTextContent("L 1,500.00")
+  })
+
+  it("no ofrece abonar sobre una anulada", async () => {
+    await renderHistory([
+      anulada({
+        paymentType: "credito",
+        type: "credito",
+        dueDate: "2027-01-31",
+      }),
+    ])
+
+    const fila = filaDe("FAC-01003")
+
+    expect(within(fila).queryByText("Abonar")).not.toBeInTheDocument()
+  })
 })
 
 describe("el botón de anular", () => {
