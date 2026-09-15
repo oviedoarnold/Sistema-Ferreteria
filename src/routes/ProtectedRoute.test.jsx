@@ -54,6 +54,14 @@ async function renderEnRuta(rutaInicial) {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/kardex"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.PRODUCTS}>
+                <Pantalla nombre="Kardex de Inventario" />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </MemoryRouter>
     </AuthProvider>
@@ -150,6 +158,35 @@ describe("ProtectedRoute con sesión", () => {
 
     expect(await screen.findByText("Facturar")).toBeInTheDocument()
     expect(screen.queryByText("Configuración")).not.toBeInTheDocument()
+  })
+
+  /*
+    El Kardex no tiene permiso propio: va bajo el de inventario. Quien puede
+    ver el inventario puede ver su historia, y quien no, no.
+  */
+  it("deja entrar al Kardex con el permiso de inventario", async () => {
+    montarSupabaseFalso({
+      usuarios: [usuarioDePrueba()],
+      permisos: permisosDe("u-1", [PERMISSIONS.PRODUCTS]),
+      sesionInicial: sesionDe("auth-1"),
+    })
+
+    await renderEnRuta("/kardex")
+
+    expect(await screen.findByText("Kardex de Inventario")).toBeInTheDocument()
+  })
+
+  it("no deja entrar al Kardex sin el permiso de inventario", async () => {
+    montarSupabaseFalso({
+      usuarios: [usuarioDePrueba()],
+      permisos: permisosDe("u-1", [PERMISSIONS.POS]),
+      sesionInicial: sesionDe("auth-1"),
+    })
+
+    await renderEnRuta("/kardex")
+
+    expect(await screen.findByText("Facturar")).toBeInTheDocument()
+    expect(screen.queryByText("Kardex de Inventario")).not.toBeInTheDocument()
   })
 
   it("el administrador entra a todo", async () => {

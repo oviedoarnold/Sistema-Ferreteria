@@ -10,3 +10,21 @@ import "@testing-library/jest-dom/vitest"
 beforeEach(() => {
   localStorage.clear()
 })
+
+/*
+  jsdom no implementa matchMedia y alguna pantalla lo consulta para respetar
+  la preferencia de movimiento reducido. Se responde que no hay preferencia,
+  que es lo que asume el navegador cuando no la hay.
+*/
+if (!window.matchMedia) {
+  window.matchMedia = (query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })
+}

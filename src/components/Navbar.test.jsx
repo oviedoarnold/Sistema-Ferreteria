@@ -107,6 +107,24 @@ describe("Navbar", () => {
     expect(enlaces()).not.toContain("/products")
   })
 
+  /*
+    El Kardex vive bajo el permiso de inventario y no bajo uno propio: quien
+    puede ver el inventario puede ver su historia.
+  */
+  it("ofrece el Kardex a quien tiene permiso de inventario", async () => {
+    await renderNavbar({ secciones: [PERMISSIONS.PRODUCTS] })
+
+    expect(enlaces()).toContain("/kardex")
+    expect(screen.getByText("Kardex")).toBeInTheDocument()
+  })
+
+  it("no ofrece el Kardex a quien no puede ver el inventario", async () => {
+    await renderNavbar({ secciones: [PERMISSIONS.POS] })
+
+    expect(enlaces()).not.toContain("/kardex")
+    expect(screen.queryByText("Kardex")).not.toBeInTheDocument()
+  })
+
   it("no muestra ninguna sección a un usuario sin permisos", async () => {
     await renderNavbar({ secciones: [] })
 

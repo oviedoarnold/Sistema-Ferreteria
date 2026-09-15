@@ -10,6 +10,7 @@ import Demo from "../pages/Demo"
 import Login from "../pages/Login"
 import Dashboard from "../pages/Dashboard"
 import Products from "../pages/Products"
+import Kardex from "../pages/Kardex"
 import POS from "../pages/POS"
 import Quotes from "../pages/Quotes"
 import SalesHistory from "../pages/SalesHistory"
@@ -61,6 +62,18 @@ function AppRouter() {
             <ProtectedRoute permission={PERMISSIONS.PRODUCTS}>
               <MainLayout>
                 <Products />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* KARDEX */}
+        <Route
+          path="/kardex"
+          element={
+            <ProtectedRoute permission={PERMISSIONS.PRODUCTS}>
+              <MainLayout>
+                <Kardex />
               </MainLayout>
             </ProtectedRoute>
           }
