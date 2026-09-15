@@ -127,6 +127,15 @@ const aFilaDeProveedor = (proveedor) => ({
   notas: proveedor.notes || "",
 })
 
+const aFilaDeMovimiento = (movimiento) => ({
+  empresa_id: EMPRESA,
+  usuario_id: USUARIO_PRUEBA.id,
+  venta_id: null,
+  motivo: "",
+  fecha: new Date().toISOString(),
+  ...movimiento,
+})
+
 const aFilaDeVenta = (venta) => ({
   id: venta.id,
   empresa_id: EMPRESA,
@@ -230,9 +239,11 @@ export function montarDatos({
   proveedores = [],
   ventas = [],
   cotizaciones = [],
+  movimientos = null,
   empresa = EMPRESA_PRUEBA,
   conSesion = true,
   rol = USUARIO_PRUEBA.rol,
+  fallarEn = {},
 } = {}) {
   const falso = crearSupabaseFalso({
     tablas: {
@@ -240,9 +251,17 @@ export function montarDatos({
       usuarios: [{ ...USUARIO_PRUEBA, rol }],
       permisos_usuario: [],
       productos: productos.map(aFilaDeProducto),
-      movimientos_inventario: productos
-        .map((producto, indice) => aMovimientoInicial(producto, indice))
-        .filter((m) => m.cantidad !== 0),
+      /*
+        Por omisión el inventario arranca con la existencia inicial de cada
+        producto, que es lo que necesitan casi todas las pantallas. El
+        Kardex necesita describir el libro entero —entradas, ajustes,
+        devoluciones— y por eso puede reemplazarlo.
+      */
+      movimientos_inventario: movimientos
+        ? movimientos.map(aFilaDeMovimiento)
+        : productos
+            .map((producto, indice) => aMovimientoInicial(producto, indice))
+            .filter((m) => m.cantidad !== 0),
       clientes: clientes.map(aFilaDeCliente),
       proveedores: proveedores.map(aFilaDeProveedor),
       ventas: ventas.map(aFilaDeVenta),
@@ -252,6 +271,7 @@ export function montarDatos({
       detalle_cotizacion: aplanar(cotizaciones.map(renglonesDeCotizacion)),
     },
     sesionInicial: conSesion ? { user: { id: AUTH_ID } } : null,
+    fallarEn,
   })
 
   globalThis.__supabaseFalso = falso

@@ -157,6 +157,17 @@ td.num,th.num{text-align:right;font-family:var(--font-mono);}
 .badge-overdue{background:var(--red-light);color:var(--red);} 
 .badge-paid{background:var(--green-light);color:var(--green);} 
 .badge-void{background:#EDEAE4;color:var(--steel);text-decoration:line-through;} 
+.badge-mov-entrada{background:var(--teal-light);color:var(--teal);} 
+.badge-mov-salida{background:var(--orange-light);color:var(--orange-dark);} 
+.badge-mov-ajuste{background:var(--amber-light);color:var(--amber);} 
+.badge-mov-devolucion{background:var(--blue-light);color:var(--blue);} 
+.kardex-fecha,.kardex-documento{font-family:var(--font-mono);font-size:12.5px;white-space:nowrap;} 
+.kardex-motivo{color:var(--steel);font-size:13px;} 
+.kardex-entrada{color:var(--teal);font-weight:700;} 
+.kardex-salida{color:var(--orange-dark);font-weight:700;} 
+.kardex-saldo{font-weight:800;font-variant-numeric:tabular-nums;} 
+.paginacion{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px;} 
+.paginacion-estado{font-size:13px;color:var(--steel);font-variant-numeric:tabular-nums;} 
 .badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;} 
 .role-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.4px;} 
 .role-tag.admin{background:var(--orange-light);color:var(--orange-dark);} 
