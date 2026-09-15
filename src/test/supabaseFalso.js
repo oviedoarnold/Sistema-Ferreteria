@@ -12,12 +12,31 @@ import { vi } from "vitest"
 const COMPARACION = {
   eq: (valorDeLaFila, valor) => valorDeLaFila === valor,
   neq: (valorDeLaFila, valor) => valorDeLaFila !== valor,
+  gte: (valorDeLaFila, valor) => valorDeLaFila >= valor,
+  lt: (valorDeLaFila, valor) => valorDeLaFila < valor,
+
+  /*
+    .or() de PostgREST llega como "columna.ilike.%texto%,otra.ilike.%texto%".
+    Basta con reproducir ilike, que es lo unico que usa la aplicacion.
+  */
+  or: (_valorDeLaFila, expresion, fila) =>
+    String(expresion)
+      .split(",")
+      .some((parte) => {
+        const [columna, operador, patron] = parte.split(".")
+
+        if (operador !== "ilike") return false
+
+        return String(fila[columna] ?? "")
+          .toLowerCase()
+          .includes(String(patron).replaceAll("%", "").toLowerCase())
+      }),
 }
 
 function aplicarFiltros(filas, filtros) {
   return filas.filter((fila) =>
     filtros.every(([columna, valor, comparacion = "eq"]) =>
-      COMPARACION[comparacion](fila[columna], valor)
+      COMPARACION[comparacion](fila[columna], valor, fila)
     )
   )
 }
@@ -47,6 +66,40 @@ function llaveHacia(tablaPadre) {
   }
 
   return llave
+}
+
+/*
+  Ordena como PostgreSQL y no como texto.
+
+  Antes se comparaba todo con localeCompare, que ordena las fechas ISO por
+  casualidad y los numeros mal: 10 quedaba antes que 9. Y no habia forma de
+  pedir descendente, asi que ningun listado del reves se podia probar.
+
+  Las claves se aplican en el orden en que se pidieron, igual que varios
+  .order() encadenados.
+*/
+function ordenar(filas, claves) {
+  if (!claves.length) return filas
+
+  return [...filas].sort((a, b) => {
+    for (const { columna, ascendente } of claves) {
+      const izquierda = a[columna]
+      const derecha = b[columna]
+
+      if (izquierda === derecha) continue
+
+      const menor =
+        typeof izquierda === "number" && typeof derecha === "number"
+          ? izquierda < derecha
+          : String(izquierda) < String(derecha)
+
+      const signo = menor ? -1 : 1
+
+      return ascendente ? signo : -signo
+    }
+
+    return 0
+  })
 }
 
 function proyectar(fila, columnas, tablas, tablaPadre) {
@@ -96,6 +149,54 @@ const VISTAS = {
         .filter((m) => m.producto_id === producto.id)
         .reduce((suma, m) => suma + Number(m.cantidad), 0),
     })),
+
+  /*
+    Reproduce la vista kardex de 0015.
+
+    El saldo se acumula por producto en orden (fecha, id), igual que la
+    funcion de ventana, y se calcula sobre TODOS los movimientos antes de
+    que nadie filtre. Esa es la propiedad que permite paginar el kardex sin
+    que el saldo salga mal, y un doble que la calculara sobre las filas ya
+    filtradas dejaria pasar justo el error que importa.
+  */
+  kardex: (datos) => {
+    const porProducto = new Map()
+
+    const ordenados = [...(datos.movimientos_inventario || [])].sort(
+      (a, b) =>
+        String(a.fecha).localeCompare(String(b.fecha)) ||
+        Number(a.id) - Number(b.id)
+    )
+
+    return ordenados.map((m) => {
+      const saldo = (porProducto.get(m.producto_id) || 0) + Number(m.cantidad)
+
+      porProducto.set(m.producto_id, saldo)
+
+      const producto = (datos.productos || []).find(
+        (p) => p.id === m.producto_id
+      )
+      const venta = (datos.ventas || []).find((v) => v.id === m.venta_id)
+      const usuario = (datos.usuarios || []).find((u) => u.id === m.usuario_id)
+
+      return {
+        id: m.id,
+        empresa_id: m.empresa_id,
+        fecha: m.fecha,
+        producto_id: m.producto_id,
+        producto: producto?.nombre ?? null,
+        codigo: producto?.codigo ?? null,
+        tipo: m.tipo,
+        cantidad: Number(m.cantidad),
+        motivo: m.motivo || "",
+        venta_id: m.venta_id ?? null,
+        numero_factura: venta?.numero_factura ?? null,
+        usuario_id: m.usuario_id ?? null,
+        usuario: usuario?.nombre ?? null,
+        saldo,
+      }
+    })
+  },
 
   stock_actual: (datos) =>
     VISTAS.productos_con_stock(datos).map((p) => ({
@@ -208,23 +309,34 @@ export function crearSupabaseFalso({
       columnas: "*",
       filtros: [],
       registro: null,
-      ordenarPor: null,
+      orden: [],
       tope: null,
+      rango: null,
+      contar: false,
     }
+
+    let totalSinRecortar = 0
 
     const ejecutar = () => {
       const vista = VISTAS[nombreTabla]
       const filas = vista ? vista(datos) : datos[nombreTabla] || []
 
       if (estado.accion === "select") {
-        const encontradas = aplicarFiltros(filas, estado.filtros).map((f) =>
-          proyectar(f, estado.columnas, datos, nombreTabla)
-        )
+        const encontradas = ordenar(
+          aplicarFiltros(filas, estado.filtros),
+          estado.orden
+        ).map((f) => proyectar(f, estado.columnas, datos, nombreTabla))
 
-        if (estado.ordenarPor) {
-          encontradas.sort((a, b) =>
-            String(a[estado.ordenarPor]).localeCompare(String(b[estado.ordenarPor]))
-          )
+        /*
+          El total se cuenta antes de recortar: eso es lo que hace util a
+          count "exact" para saber cuantas paginas hay.
+        */
+        totalSinRecortar = encontradas.length
+
+        if (estado.rango) {
+          const [desde, hasta] = estado.rango
+
+          return encontradas.slice(desde, hasta + 1)
         }
 
         return estado.tope === null
@@ -289,8 +401,9 @@ export function crearSupabaseFalso({
     }
 
     const constructor = {
-      select(columnas) {
+      select(columnas, opciones = {}) {
         estado.columnas = columnas || "*"
+        estado.contar = opciones.count === "exact"
         if (estado.accion === "select") estado.accion = "select"
         return constructor
       },
@@ -316,8 +429,24 @@ export function crearSupabaseFalso({
         estado.filtros.push([columna, valor, "neq"])
         return constructor
       },
-      order(columna) {
-        estado.ordenarPor = columna
+      gte(columna, valor) {
+        estado.filtros.push([columna, valor, "gte"])
+        return constructor
+      },
+      lt(columna, valor) {
+        estado.filtros.push([columna, valor, "lt"])
+        return constructor
+      },
+      or(expresion) {
+        estado.filtros.push([null, expresion, "or"])
+        return constructor
+      },
+      order(columna, { ascending = true } = {}) {
+        estado.orden.push({ columna, ascendente: ascending })
+        return constructor
+      },
+      range(desde, hasta) {
+        estado.rango = [desde, hasta]
         return constructor
       },
       limit(cantidad) {
@@ -350,9 +479,19 @@ export function crearSupabaseFalso({
       then(resolver) {
         const falla = errorAntesDeEjecutar()
 
-        return Promise.resolve(
-          falla ? { data: null, error: falla } : { data: ejecutar(), error: null }
-        ).then(resolver)
+        if (falla) {
+          return Promise.resolve({ data: null, error: falla, count: null }).then(
+            resolver
+          )
+        }
+
+        const filas = ejecutar()
+
+        return Promise.resolve({
+          data: filas,
+          error: null,
+          count: estado.contar ? totalSinRecortar : null,
+        }).then(resolver)
       },
     }
 
