@@ -10,6 +10,7 @@ import {
   FaHome,
   FaCashRegister,
   FaBox,
+  FaClipboardList,
   FaUsers,
   FaTruck,
   FaHistory,
@@ -52,6 +53,12 @@ function Navbar() {
     to: "/products",
     label: "Inventario",
     Icon: FaBox,
+    permission: PERMISSIONS.PRODUCTS,
+  },
+  {
+    to: "/kardex",
+    label: "Kardex",
+    Icon: FaClipboardList,
     permission: PERMISSIONS.PRODUCTS,
   },
   {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
-import { screen, fireEvent, act } from "@testing-library/react"
+import { screen, fireEvent, act, within } from "@testing-library/react"
+import { MemoryRouter, useLocation } from "react-router-dom"
 
 import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
@@ -19,13 +20,26 @@ const PRODUCTOS = [
   { id: "p3", code: "P-001", name: "Brocha 3 pulgadas", category: "Pinturas", price: 45, costPrice: 26, stock: 0, minStock: 5, supplierId: "" },
 ]
 
+/*
+  MemoryRouter no toca window.location, asi que para comprobar una
+  navegacion hay que leerla del router. Esta sonda la deja en el DOM.
+*/
+function Ubicacion() {
+  const { pathname, search } = useLocation()
+
+  return <div data-testid="ubicacion">{pathname + search}</div>
+}
+
 function renderProducts(productos = PRODUCTOS) {
   return renderizarPantalla(
-    <AuthProvider>
-      <ProductProvider>
-        <Products />
-      </ProductProvider>
-    </AuthProvider>,
+    <MemoryRouter>
+      <AuthProvider>
+        <ProductProvider>
+          <Products />
+        </ProductProvider>
+      </AuthProvider>
+      <Ubicacion />
+    </MemoryRouter>,
     { productos, esperar: ["productos_con_stock"] }
   )
 }
@@ -176,5 +190,33 @@ describe("Products: imagen del producto", () => {
 
     expect(falso.archivos.size).toBe(0)
     expect(falso.datos.productos.map((p) => p.nombre)).toContain("Serrucho")
+  })
+})
+
+describe("Products: entrar al Kardex de un producto", () => {
+  const filaDe = (nombre) =>
+    screen.getByText(nombre).closest("tr")
+
+  it("ofrece ver el Kardex en cada producto", async () => {
+    await renderProducts()
+
+    expect(
+      within(filaDe(PRODUCTOS[0].name)).getByText("Kardex")
+    ).toBeInTheDocument()
+  })
+
+  /*
+    Lleva al Kardex ya filtrado por ese producto. Es la misma pantalla que
+    la del menú, con el filtro puesto: no hay una segunda pantalla que
+    mantener.
+  */
+  it("lleva al Kardex filtrado por ese producto", async () => {
+    await renderProducts()
+
+    fireEvent.click(within(filaDe(PRODUCTOS[1].name)).getByText("Kardex"))
+
+    expect(screen.getByTestId("ubicacion")).toHaveTextContent(
+      `/kardex?producto=${PRODUCTOS[1].id}`
+    )
   })
 })
