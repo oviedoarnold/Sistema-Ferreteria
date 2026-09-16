@@ -199,8 +199,12 @@ def guardar_reporte(reporte: dict) -> None:
     proceso es reproducible.
     """
     REPORTE.parent.mkdir(parents=True, exist_ok=True)
+    # newline fijo: write_text traduce "\n" a "\r\n" en Windows, y el mismo
+    # script produciría bytes distintos según el sistema donde corra.
     REPORTE.write_text(
-        json.dumps(reporte, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(reporte, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
 
 
