@@ -85,8 +85,9 @@ productos_sinteticos.csv┘   (50)            │          │       │
 | Generación | `src/generate_dataset.py` | catálogo | `data/raw/ventas_simuladas_2026.csv` | ✅ |
 | ETL | `src/etl.py` | tickets crudos | `data/processed/demanda_diaria.csv` + `outputs/reporte_calidad.json` | ✅ |
 | EDA | `src/eda.py` | demanda diaria | `outputs/eda/*.png` + `outputs/eda/resumen_eda.md` | ✅ |
-| Modelo | — | demanda diaria | métricas y predicciones | Fase 5C |
-| Recomendación | — | predicciones + stock | cantidades a comprar | Fase 5C |
+| Variables | `src/features.py` | demanda diaria | variables, objetivos y baseline | ✅ |
+| Modelo | `src/train.py` | variables | `models/*.joblib` + `outputs/model/` | ✅ |
+| Recomendación | `src/predict.py` | modelos + stock | `outputs/predictions/` | ✅ |
 | Dashboard | Sistema Ferretería | recomendaciones | pantalla | Fase 6 |
 
 ## Ejecución
@@ -99,13 +100,15 @@ pip install -r requirements.txt
 python src/generate_dataset.py
 python src/etl.py
 python src/eda.py
+python src/train.py      # evaluación completa y modelos finales, ~1 min
+python src/predict.py    # predicción de septiembre y recomendaciones
 ```
 
 Cada script lee lo que produjo el anterior. Se pueden volver a ejecutar en
 cualquier momento: sobrescriben sus salidas y, con la semilla 42, producen
 **exactamente los mismos archivos**.
 
-## Resultados de esta fase
+## Resultados: datos
 
 ### Calidad del ETL
 
@@ -147,10 +150,170 @@ El detalle, con todas las cifras calculadas y el ranking completo, está en
 - La **temporada** pesa más que la tendencia: la temporada seca vende 10.7% más
   que la de lluvias.
 
-### Reproducibilidad
+## Modelo
 
-- Los tres scripts se ejecutaron dos veces desde cero y produjeron archivos
-  **idénticos byte a byte** (mismo hash SHA-256), gráficas incluidas.
+> **Los datos históricos son sintéticos y el modelo aprende parcialmente la
+> estructura del generador. Por ello, las métricas pueden ser más optimistas que
+> las obtenidas con ventas reales.**
+
+El detalle completo está en
+[`outputs/model/evaluacion_modelo.md`](outputs/model/evaluacion_modelo.md).
+
+### Qué se predice
+
+Cada predicción se hace **al cierre del día t**, con las ventas de t y anteriores
+ya registradas.
+
+| Objetivo | Definición |
+|---|---|
+| `demanda_7d` | Unidades vendidas del día **t+1 al t+7** |
+| `demanda_30d` | Unidades vendidas del día **t+1 al t+30** |
+
+Se predice la suma directamente, no día por día: encadenar predicciones diarias
+arrastraría el error de cada día al siguiente. No se predice ingreso: la compra
+se decide en unidades.
+
+### Variables
+
+| Grupo | Variables |
+|---|---|
+| Identidad | `producto_id`, `categoria` (one-hot) |
+| Calendario | `dia_semana`, `mes`, `dia_mes` |
+| Calendario futuro | `dias_abiertos_7` / `dias_abiertos_30`: días que abre la ferretería entre t+1 y t+h |
+| Historia | `lag_1`, `lag_7`, `lag_14`, `lag_28`, `media_7`, `media_14`, `media_28` |
+
+**Excluidas:** `origen` (etiqueta administrativa, sin relación con la demanda),
+`precio` y `costo` (constantes por producto), `ingreso` (contiene la venta que se
+quiere predecir), y la rotación, que ni siquiera está en el dataset.
+
+### Fuga de información
+
+- Las variables solo usan días ≤ t. `dias_abiertos` mira el futuro, pero solo el
+  calendario, que se conoce de antemano.
+- Una fila entra al entrenamiento solo si su objetivo ya se conocía al corte:
+  `t + h ≤ corte`. No basta con que t sea anterior.
+- **Se verifica con datos en cada ejecución:** se altera el futuro y se exige que
+  ninguna variable cambie, se altera el presente y se exige que el objetivo no
+  cambie, y se comprueba que el objetivo sea exactamente la suma de t+1 a t+h.
+- **La verificación se prueba a sí misma:** se le inyectan tres fugas conocidas y
+  se exige que las detecte. Si no, el entrenamiento se detiene.
+
+### Modelo y baseline
+
+| | Definición |
+|---|---|
+| **Baseline** | `promedio diario de los 28 días que terminan en t × h` |
+| **Modelo** | `RandomForestRegressor(n_estimators=200, min_samples_leaf=5, max_features=0.5, random_state=42)` en un `Pipeline` con `OneHotEncoder` |
+
+La configuración se fijó antes de ver resultados y **no hubo búsqueda de
+hiperparámetros**.
+
+### Evaluación
+
+- **Agosto:** entrenamiento con lo conocido al 31 de julio, prueba desde cada día
+  de agosto con futuro completo. Son 1,200 predicciones a 7 días, pero solo 50 a
+  30 días: una sola fecha.
+- **Backtesting de origen móvil** (evaluación principal): un corte cada 7 días
+  desde el 1 de mayo; en cada corte se entrena un modelo nuevo solo con lo
+  conocido hasta ese día. 17 cortes a 7 días (850 predicciones) y 14 a 30 días
+  (700).
+
+### Resultados
+
+**Backtesting:**
+
+| Horizonte | | MAE | RMSE | WAPE |
+|---|---|---|---|---|
+| 7 días | Baseline | 3.78 | 5.73 | 33.0% |
+| 7 días | Random Forest | 3.94 | 5.92 | 34.4% |
+| 7 días | **Mejora del modelo** | **−4.2%** | **−3.4%** | **−4.2%** |
+| 30 días | Baseline | 10.18 | 14.77 | 21.2% |
+| 30 días | Random Forest | 10.20 | 15.10 | 21.2% |
+| 30 días | **Mejora del modelo** | **−0.2%** | **−2.2%** | **−0.2%** |
+
+**El Random Forest no supera al baseline.** A 7 días se equivoca algo más; a 30
+días empatan en la práctica.
+
+- **El modelo redescubre el baseline:** el 86% de su importancia está en las tres
+  medias móviles.
+- **Predice de más:** sesgo medio de +2.02 unidades a 30 días, frente a +1.27 del
+  baseline.
+- **Donde sí aporta es en baja rotación:** +9.1% de MAE a 30 días y +2.1% a 7.
+- **Una sola fecha habría engañado:** evaluando solo el 1 de agosto, el modelo
+  parecía mejorar el MAE a 30 días en un 20.1%. Con 14 cortes, la mejora es −0.2%.
+
+Estos resultados se reportan tal como salieron. No se modificaron los datos, los
+parámetros de simulación ni el modelo después de verlos.
+
+## Predicción de septiembre y recomendaciones
+
+El detalle está en
+[`outputs/predictions/resumen_predicciones.md`](outputs/predictions/resumen_predicciones.md).
+El archivo que usará el Dashboard es
+[`outputs/predictions/recomendaciones_inventario.csv`](outputs/predictions/recomendaciones_inventario.csv).
+
+Con la información al **31 de agosto de 2026** y los modelos finales, entrenados
+con todo el historial:
+
+| Métrica | Valor |
+|---|---|
+| Demanda prevista próximos 7 días | 570.1 unidades |
+| Demanda prevista próximos 30 días | 2,470.9 unidades |
+| Riesgo alto · medio · bajo | 28 · 6 · 16 |
+| Productos que requieren compra | 34 de 50 |
+| Unidades recomendadas | 1,286 |
+| Inversión estimada | L 119,380.60 |
+
+### Stock
+
+| Productos | Stock | Origen |
+|---|---|---|
+| 9 del sistema | **Real** | Vista `stock_actual` de Supabase, instantánea del 16 de septiembre en `data/raw/stock_sistema.csv` |
+| 41 sintéticos | **Simulado** | `redondeo(venta diaria media de enero a agosto × días de cobertura)`, con días sorteados entre 5 y 50 y semilla fija por producto |
+
+El stock simulado **no está en Supabase**, y la columna `tipo_stock` lo distingue
+en cada fila.
+
+### Reglas
+
+| Concepto | Fórmula |
+|---|---|
+| Stock de seguridad | `techo(promedio diario de los últimos 28 días × 7)` |
+| Recomendación | `máximo(0, techo(demanda prevista 30d + stock de seguridad − stock actual))` |
+| Inversión estimada | `recomendación × costo` |
+| Riesgo **alto** | `stock < demanda 30d` — no alcanza para el mes |
+| Riesgo **medio** | `demanda 30d ≤ stock < demanda 30d + seguridad` — cubre el mes, no el colchón |
+| Riesgo **bajo** | `stock ≥ demanda 30d + seguridad` — cubre el mes y el colchón |
+
+Riesgo bajo equivale exactamente a recomendación cero, y se verifica en cada
+ejecución.
+
+## Limitaciones
+
+- **Datos sintéticos.** El historial lo produjo un generador con reglas
+  conocidas, y el modelo aprende en parte esas reglas. Con ventas reales el error
+  sería mayor.
+- **El modelo no supera al baseline.** Las recomendaciones serían muy parecidas
+  con la media de 28 días; las predicciones del baseline se guardan al lado.
+- **Ocho meses de historia.** El modelo ve una temporada seca y una de lluvias,
+  pero no puede aprender estacionalidad anual.
+- **Ventanas solapadas.** A 30 días, cortes separados por 7 días se solapan en 23:
+  las 700 predicciones del backtesting no son independientes.
+- **Baja rotación.** El error proporcional supera el 50% en varios productos. Con
+  ventas de a una unidad, ningún modelo lo resuelve con este volumen de datos.
+- **La proporción de riesgo alto la fijan las reglas de stock, no el modelo.**
+  Riesgo alto equivale a menos de 30 días de cobertura; en los sintéticos, el
+  rango de stock simulado decide cuántos caen ahí, y el stock real de los 9 del
+  sistema es de demostración.
+- **Stock real con demanda simulada.** En los 9 productos del sistema se cruzan
+  dos fuentes de distinta naturaleza: la recomendación es un ejercicio académico,
+  no una orden de compra.
+
+## Reproducibilidad
+
+- Los cinco scripts se ejecutaron dos veces desde cero y produjeron archivos
+  **idénticos byte a byte** (mismo hash SHA-256): dataset, gráficas, métricas,
+  predicciones, recomendaciones y los dos modelos `.joblib`.
 - Las salidas de texto se escriben con saltos de línea LF en cualquier sistema.
 - **La demanda de cada producto usa su propia semilla**, derivada de su código.
   Se comprobó que invertir el orden del catálogo produce la misma demanda, y que
@@ -166,12 +329,29 @@ data-science/
 │   ├── raw/
 │   │   ├── productos_sistema.csv       9 productos reales
 │   │   ├── productos_sinteticos.csv    41 productos sintéticos
+│   │   ├── stock_sistema.csv           stock real de los 9 del sistema
 │   │   └── ventas_simuladas_2026.csv   tickets simulados
 │   └── processed/
 │       ├── demanda_diaria.csv          dataset para el modelo
 │       └── diccionario_datos.md
+├── models/
+│   ├── random_forest_7d.joblib         modelo final a 7 días
+│   └── random_forest_30d.joblib        modelo final a 30 días
 ├── outputs/
 │   ├── reporte_calidad.json
+│   ├── model/
+│   │   ├── 01_real_vs_predicho_7d.png
+│   │   ├── 02_real_vs_predicho_30d.png
+│   │   ├── 03_modelo_vs_baseline.png
+│   │   ├── 04_error_por_producto.png
+│   │   ├── evaluacion_modelo.md
+│   │   ├── evaluacion_por_producto.csv
+│   │   ├── metricas.json
+│   │   └── predicciones_backtest.csv
+│   ├── predictions/
+│   │   ├── predicciones_septiembre.csv
+│   │   ├── recomendaciones_inventario.csv
+│   │   └── resumen_predicciones.md
 │   └── eda/
 │       ├── 01_demanda_tiempo.png
 │       ├── 02_productos_mas_vendidos.png
@@ -183,18 +363,14 @@ data-science/
     ├── catalogo.py
     ├── generate_dataset.py
     ├── etl.py
-    └── eda.py
+    ├── eda.py
+    ├── features.py
+    ├── train.py
+    └── predict.py
 ```
 
 ## Estado
 
-**Esta fase llega hasta el EDA.** Todavía no hay modelo, ni predicciones, ni
-recomendaciones: pertenecen a la Fase 5C.
-
-Lo que viene:
-
-- **Modelo:** `RandomForestRegressor`, contra un baseline de promedio móvil de
-  28 días.
-- **Objetivo:** demanda de los próximos 7 y 30 días por producto.
-- **Validación:** entrenamiento con enero a julio, evaluación con agosto. Después
-  se reentrena con enero a agosto para predecir septiembre.
+**Esta fase llega hasta las recomendaciones.** Nada de esto está todavía en el
+Sistema Ferretería ni en Supabase: la integración con el Dashboard es la Fase 6,
+y usará `outputs/predictions/recomendaciones_inventario.csv`.
