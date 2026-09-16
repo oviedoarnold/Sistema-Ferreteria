@@ -109,6 +109,34 @@ main{max-width:1240px;margin:0 auto;padding:24px 24px 80px;}
 .dash-mini-row .name{flex:1;font-weight:600;} 
 .dash-mini-row .val{font-family:var(--font-mono);font-size:13px;color:var(--orange-dark);} 
 .dash-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;} 
+.proyeccion{margin:26px 0 20px;padding-top:22px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px;} 
+.proyeccion-cabecera h3{font-family:var(--font-display);font-size:19px;} 
+.proyeccion-cabecera .sub{margin:3px 0 0;color:var(--steel);font-size:13.5px;} 
+.proyeccion-aclaracion{margin:0;font-size:12.5px;color:var(--steel);} 
+.proyeccion-modelo{margin:0;font-size:12px;color:var(--steel);line-height:1.5;} 
+.proyeccion-error{padding:20px;border:1px dashed var(--line-strong);border-radius:var(--radius);} 
+.dash-grid-cuatro{grid-template-columns:repeat(4,1fr);margin-bottom:0;} 
+.proyeccion-leyenda{display:flex;gap:16px;margin:-6px 0 12px;font-size:12px;color:var(--steel);} 
+.proyeccion-leyenda span{display:inline-flex;align-items:center;gap:6px;} 
+.muestra{width:12px;height:12px;border-radius:3px;display:inline-block;} 
+.muestra-historico{background:var(--orange);} 
+.muestra-proyeccion{background:var(--blue-light);border:1px solid var(--blue);} 
+.bar-chart-proyeccion{height:150px;} 
+.bar-chart-proyeccion .bar-col{height:100%;} 
+.bar-pista{flex:1;min-height:0;width:100%;display:flex;align-items:flex-end;} 
+.bar-marca{display:block;font-size:9px;color:var(--blue);} 
+.bar-chart-proyeccion .bar-label{height:30px;} 
+.recomendaciones-cabecera{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;} 
+.recomendaciones-cabecera .chart-title{margin-bottom:0;} 
+.filtros-riesgo{display:flex;gap:6px;flex-wrap:wrap;} 
+.recomendaciones-conteo{margin:10px 0;font-size:12.5px;color:var(--steel);} 
+.recomendaciones .table-wrap{contain:inline-size;} 
+.recomendaciones .data-table{min-width:720px;} 
+.recomendaciones td.recomendacion{white-space:nowrap;font-weight:600;} 
+.origen-producto{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;font-size:10.5px;font-weight:500;font-family:var(--font-mono);vertical-align:middle;} 
+.origen-simulado{background:#EDEAE4;color:var(--steel);} 
+.origen-sistema{background:var(--blue-light);color:var(--blue);} 
+.ver-todos{margin-top:12px;} 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:7px;justify-content:center;padding:11px 18px;border-radius:10px;border:1.5px solid transparent;font-weight:600;font-size:15px;transition:transform .08s,background .12s,border-color .12s;} 
 .btn svg{width:17px;height:17px;flex:none;} 
@@ -324,8 +352,8 @@ td.num,th.num{text-align:right;font-family:var(--font-mono);}
 /* ── MISC ── */
 .divider{border:none;border-top:1px solid var(--line);margin:18px 0;} 
 .section-label{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--steel);margin:0 0 10px;} 
-@media(max-width:880px){.bill-grid{grid-template-columns:1fr;}.cart-card{position:static;}.form-grid{grid-template-columns:1fr;}.dash-grid-wide{grid-template-columns:repeat(3,1fr);}.dash-row,.dash-bottom{grid-template-columns:1fr;}} 
-@media(max-width:600px){.topbar{padding:14px 14px 10px;}main{padding:16px 12px 60px;}nav.tabs button{font-size:12px;padding:8px;}.user-meta{display:none;}.dash-grid-wide{grid-template-columns:repeat(2,1fr);}} 
+@media(max-width:880px){.bill-grid{grid-template-columns:1fr;}.cart-card{position:static;}.form-grid{grid-template-columns:1fr;}.dash-grid-wide{grid-template-columns:repeat(3,1fr);}.dash-row,.dash-bottom{grid-template-columns:1fr;}.dash-grid-cuatro{grid-template-columns:repeat(2,1fr);}} 
+@media(max-width:600px){.topbar{padding:14px 14px 10px;}main{padding:16px 12px 60px;}nav.tabs button{font-size:12px;padding:8px;}.user-meta{display:none;}.dash-grid-wide{grid-template-columns:repeat(2,1fr);}.bar-chart-proyeccion{gap:4px;}.bar-chart-proyeccion .bar-col{min-width:0;}} 
 /* ── AJUSTE FACTURA TAMAÑO CARTA ── */
 #modal-invoice .modal,#modal-quote .modal{max-width:920px;} 
 #modal-invoice .modal-body,#modal-quote .modal-body{
