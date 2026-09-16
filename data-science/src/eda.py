@@ -172,21 +172,43 @@ def barras_horizontales(serie: pd.Series, titulo: str, sub: str, eje: str, nombr
     return guardar(figura, nombre)
 
 
+TOP = 10
+
+
+def unidades_por_producto(datos: pd.DataFrame) -> pd.Series:
+    return datos.groupby("etiqueta")["cantidad_vendida"].sum().sort_values(ascending=False)
+
+
 def productos_mas_vendidos(datos: pd.DataFrame) -> Path:
+    """
+    Solo los diez primeros. Cincuenta barras no se leen: el ranking completo
+    está en el resumen, y aquí importa quién encabeza.
+    """
+    unidades = unidades_por_producto(datos)
+    top = unidades.head(TOP)
+
     return barras_horizontales(
-        datos.groupby("etiqueta")["cantidad_vendida"].sum(),
-        "Productos por unidades vendidas",
-        "Total acumulado de enero a agosto de 2026",
+        top,
+        f"Top {TOP} productos por unidades vendidas",
+        f"Enero a agosto de 2026 · estos {TOP} suman el {100 * top.sum() / unidades.sum():.1f}% "
+        f"de las unidades de los {len(unidades)} productos",
         "Unidades vendidas",
         "02_productos_mas_vendidos.png",
     )
 
 
 def demanda_por_categoria(datos: pd.DataFrame) -> Path:
+    productos = datos.groupby("categoria")["producto_id"].nunique()
+    unidades = datos.groupby("categoria")["cantidad_vendida"].sum()
+
+    # El número de productos va en la etiqueta: una categoría con seis
+    # productos no se compara igual que una con tres.
+    unidades.index = [f"{c} ({productos[c]})" for c in unidades.index]
+
     return barras_horizontales(
-        datos.groupby("categoria")["cantidad_vendida"].sum(),
+        unidades,
         "Demanda por categoría",
-        "Unidades vendidas de enero a agosto de 2026",
+        "Unidades vendidas de enero a agosto de 2026 · entre paréntesis, productos en la categoría",
         "Unidades vendidas",
         "03_demanda_categoria.png",
     )
@@ -221,16 +243,33 @@ def distribucion_de_la_demanda(datos: pd.DataFrame) -> Path:
     """
     Una barra por cada cantidad entera: la demanda son unidades, y un
     histograma con intervalos continuos inventaría valores como 2.5 martillos.
+
+    La cola larga —los pedidos grandes de contratistas— se agrupa en la última
+    barra. Con una barra por entero hasta el máximo, esos pocos registros
+    estirarían el eje y aplastarían el resto de la distribución.
     """
-    conteo = datos["cantidad_vendida"].value_counts().sort_index()
-    ceros = 100 * (datos["cantidad_vendida"] == 0).mean()
+    cantidades = datos["cantidad_vendida"]
+    ceros = 100 * (cantidades == 0).mean()
+
+    # Tope en el percentil 99.5 redondeado a múltiplo de 5: deja casi todo
+    # visible con una barra propia y agrupa solo lo excepcional.
+    tope = int(np.ceil(np.percentile(cantidades, 99.5) / 5) * 5)
+    conteo = cantidades.clip(upper=tope).value_counts().sort_index()
+    agrupados = int((cantidades >= tope).sum())
 
     figura, ax = plt.subplots(figsize=(10, 4.6))
 
     ax.bar(conteo.index, conteo.values, color=SERIE, width=0.72)
 
+    marcas = list(range(0, tope, 5)) + [tope]
+    ax.set_xticks(marcas, [str(m) for m in marcas[:-1]] + [f"≥{tope}"])
+
     ax.set_title("Distribución de la cantidad vendida por producto por día", loc="left")
-    subtitulo(ax, f"{len(datos):,} registros producto-día · {ceros:.1f}% son días sin venta")
+    subtitulo(
+        ax,
+        f"{len(datos):,} registros producto-día · {ceros:.1f}% son días sin venta · "
+        f"la última barra agrupa {agrupados} registros de {tope} o más (máximo {cantidades.max()})",
+    )
     ax.set_xlabel("Unidades vendidas en el día")
     ax.set_ylabel("Registros producto-día")
     ax.grid(axis="x", visible=False)
@@ -287,9 +326,55 @@ MESES = {1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
          5: "mayo", 6: "junio", 7: "julio", 8: "agosto"}
 
 
+def tabla_de_productos(datos: pd.DataFrame) -> pd.DataFrame:
+    tabla = (
+        datos.groupby(["codigo", "producto", "categoria", "origen"], as_index=False)
+        .agg(unidades=("cantidad_vendida", "sum"), ingreso=("ingreso", "sum"))
+        .sort_values(["unidades", "codigo"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
+    tabla["pct"] = 100 * tabla["unidades"] / tabla["unidades"].sum()
+    tabla["pct_acumulado"] = tabla["pct"].cumsum()
+
+    return tabla
+
+
+def tabla_de_categorias(datos: pd.DataFrame) -> pd.DataFrame:
+    tabla = (
+        datos.groupby("categoria")
+        .agg(
+            productos=("producto_id", "nunique"),
+            unidades=("cantidad_vendida", "sum"),
+            ingreso=("ingreso", "sum"),
+        )
+        .sort_values("unidades", ascending=False)
+    )
+    tabla["pct_unidades"] = 100 * tabla["unidades"] / tabla["unidades"].sum()
+    tabla["pct_ingreso"] = 100 * tabla["ingreso"] / tabla["ingreso"].sum()
+    tabla["unidades_por_producto"] = tabla["unidades"] / tabla["productos"]
+
+    return tabla
+
+
+# En el dataset el origen es un identificador sin tilde; aquí se muestra legible.
+ORIGEN_LEGIBLE = {"sistema": "sistema", "sintetico": "sintético"}
+
+
+def filas_de_ranking(tabla: pd.DataFrame) -> list[str]:
+    return [
+        f"| {i} | {f.codigo} | {f.producto} | {f.categoria} | {ORIGEN_LEGIBLE[f.origen]} | "
+        f"{f.unidades:,} | {f.pct:.1f}% | {f.pct_acumulado:.1f}% |"
+        for i, f in enumerate(tabla.itertuples(index=False), start=1)
+    ]
+
+
+def nombrar(productos: pd.DataFrame) -> str:
+    return enumerar([f"**{f.codigo} · {f.producto}** ({f.categoria})" for f in productos.itertuples()])
+
+
 def escribir_resumen(datos: pd.DataFrame) -> Path:
-    por_producto = datos.groupby("etiqueta")["cantidad_vendida"].sum().sort_values()
-    por_categoria = datos.groupby("categoria")["cantidad_vendida"].sum().sort_values()
+    productos = tabla_de_productos(datos)
+    categorias = tabla_de_categorias(datos)
     por_dia = demanda_promedio_por_dia(datos)
     diaria = datos.groupby("fecha")["cantidad_vendida"].sum()
     t = tendencia(datos)
@@ -298,22 +383,61 @@ def escribir_resumen(datos: pd.DataFrame) -> Path:
     ingreso = float(datos["ingreso"].sum())
     ceros = 100 * (datos["cantidad_vendida"] == 0).mean()
     dias_abiertos = int((diaria > 0).sum())
+    origen = datos.groupby("origen")["producto_id"].nunique()
 
-    mas_vendido, menos_vendido = por_producto.index[-1], por_producto.index[0]
+    # Con empate se nombran todos: ordenar por código elegiría uno en silencio.
+    mas_vendido = productos.iloc[0]
+    menos_vendidos = productos[productos["unidades"] == productos["unidades"].min()]
+    minimo = int(menos_vendidos["unidades"].iloc[0])
     dia_fuerte = DIAS[int(por_dia.idxmax())]
     habiles = por_dia.iloc[:5].mean()
 
-    productos_por_categoria = datos.groupby("categoria")["producto_id"].nunique()
-    compartidas = productos_por_categoria[productos_por_categoria > 1]
-    lectura_categorias = (
-        "Cada categoría tiene un solo producto, así que este resultado refleja al "
-        "producto que la compone y no un patrón de categoría."
-        if compartidas.empty
-        else f"De las {len(productos_por_categoria)} categorías, solo "
-        + enumerar([f"{c} ({n})" for c, n in compartidas.items()])
-        + " tienen más de un producto. El resto refleja un único producto, así que "
-        "este resultado dice más del producto que de la categoría."
+    top = productos.head(TOP)
+    sistema_en_top = int((top["origen"] == "sistema").sum())
+    productos_80 = int((productos["pct_acumulado"] < 80).sum()) + 1
+
+    lectura_concentracion = (
+        f"Un solo producto concentra una parte grande del volumen ({mas_vendido.pct:.1f}%): "
+        "es el que más pesa sobre el error del modelo."
+        if mas_vendido.pct >= 20
+        else f"Ningún producto domina: el más vendido representa el {mas_vendido.pct:.1f}% "
+        f"de las unidades. Hacen falta {productos_80} de los {len(productos)} productos "
+        "para llegar al 80%, así que el error del modelo no quedará dominado por uno solo."
     )
+
+    # ¿Queda alguna categoría con un solo producto? Antes eran cinco de siete.
+    unicas = categorias[categorias["productos"] == 1].index.tolist()
+    lectura_categorias = (
+        f"Las {len(categorias)} categorías tienen entre {categorias['productos'].min()} y "
+        f"{categorias['productos'].max()} productos, ninguna con uno solo. Por eso la "
+        "categoría ahora puede aportar información propia al modelo, en vez de repetir "
+        "lo que ya dice el producto."
+        if not unicas
+        else f"{enumerar(unicas)} tiene(n) un solo producto: ahí la categoría no aporta "
+        "nada que el producto no diga ya."
+    )
+
+    # Las unidades no son comparables entre categorías: un codo de PVC y un
+    # taladro cuentan igual. Se contrasta contra el ingreso.
+    lider_unidades = categorias.index[0]
+    lider_ingreso = categorias["ingreso"].idxmax()
+    lectura_unidades = (
+        f"{lider_unidades} lidera tanto en unidades como en ingreso "
+        f"({categorias.loc[lider_ingreso, 'pct_ingreso']:.1f}% del ingreso)."
+        if lider_unidades == lider_ingreso
+        else f"Pero las unidades no son comparables entre categorías: un codo de PVC y un "
+        f"taladro cuentan igual. En ingreso lidera **{lider_ingreso}** "
+        f"({categorias.loc[lider_ingreso, 'pct_ingreso']:.1f}% del ingreso), no "
+        f"{lider_unidades} ({categorias.loc[lider_unidades, 'pct_ingreso']:.1f}%)."
+    )
+
+    # Ceros por estructura (la ferretería no abre) contra ceros por demanda.
+    cerrados = datos["fecha"].isin(diaria[diaria == 0].index)
+    ceros_por_cierre = int(cerrados.sum())
+    ceros_totales = int((datos["cantidad_vendida"] == 0).sum())
+    ceros_por_demanda = ceros_totales - ceros_por_cierre
+    abiertos = datos[~cerrados]
+    ceros_abierto = 100 * (abiertos["cantidad_vendida"] == 0).mean()
 
     # Temporada seca (febrero a abril) contra lluvias (junio a agosto), medido.
     seca = t["por_mes"].loc[[2, 3, 4]].mean()
@@ -343,14 +467,22 @@ def escribir_resumen(datos: pd.DataFrame) -> Path:
         "# Resumen del análisis exploratorio",
         "",
         "> Calculado por `src/eda.py` a partir de `data/processed/demanda_diaria.csv`.",
-        "> **Los datos son simulados** (semilla 42) sobre los 9 productos reales del",
-        "> Sistema Ferretería. Ninguna cifra de este archivo se escribió a mano.",
+        "> Ninguna cifra de este archivo se escribió a mano.",
+        ">",
+        f"> **Transparencia sobre los datos:** de los {len(productos)} productos, "
+        f"{origen.get('sistema', 0)} son reales del",
+        f"> catálogo del Sistema Ferretería y {origen.get('sintetico', 0)} son sintéticos académicos. "
+        "**Todas las ventas son",
+        "> simuladas** (semilla 42). Nada de esto describe ventas reales.",
         "",
         "## Volumen",
         "",
         "| Métrica | Valor |",
         "|---|---|",
         f"| Período | {datos['fecha'].min():%Y-%m-%d} a {datos['fecha'].max():%Y-%m-%d} |",
+        f"| Productos | {len(productos)} ({origen.get('sistema', 0)} del sistema, "
+        f"{origen.get('sintetico', 0)} sintéticos) |",
+        f"| Categorías | {len(categorias)} |",
         f"| Registros producto-día | {len(datos):,} |",
         f"| Total de unidades vendidas | {total:,} |",
         f"| Ingreso total | L {ingreso:,.2f} |",
@@ -359,29 +491,56 @@ def escribir_resumen(datos: pd.DataFrame) -> Path:
         f"| Días con ventas | {dias_abiertos} de {len(diaria)} |",
         f"| Registros producto-día sin venta | {ceros:.1f}% |",
         "",
+        f"## Top {TOP} productos",
+        "",
+        "| # | Código | Producto | Categoría | Origen | Unidades | % | % acumulado |",
+        "|---|---|---|---|---|---|---|---|",
+        *filas_de_ranking(top),
+        "",
+        f"Los {TOP} primeros suman el **{top['pct'].sum():.1f}%** de las unidades. "
+        f"{sistema_en_top} de ellos son productos del sistema.",
+        "",
+        "## Categorías",
+        "",
+        "| Categoría | Productos | Unidades | % unidades | Ingreso | % ingreso | Unidades por producto |",
+        "|---|---|---|---|---|---|---|",
+        # itertuples y no iterrows: iterrows convierte la fila entera a decimal
+        # cuando mezcla enteros y decimales, y la tabla mostraría "6.0 productos".
+        *[
+            f"| {f.Index} | {f.productos} | {f.unidades:,} | {f.pct_unidades:.1f}% | "
+            f"L {f.ingreso:,.2f} | {f.pct_ingreso:.1f}% | {f.unidades_por_producto:,.0f} |"
+            for f in categorias.itertuples()
+        ],
+        "",
         "## Hallazgos",
         "",
         "### 1. Producto más vendido",
         "",
-        f"**{mas_vendido}**, con {por_producto.iloc[-1]:,} unidades "
-        f"({100 * por_producto.iloc[-1] / total:.1f}% del total).",
+        f"**{mas_vendido.codigo} · {mas_vendido.producto}** ({mas_vendido.categoria}), con "
+        f"{mas_vendido.unidades:,} unidades.",
         "",
-        "Un solo producto concentra una parte grande del volumen. Es el que más "
-        "impacto tiene sobre el error del modelo y el que menos margen deja para "
-        "equivocarse en la reposición.",
+        lectura_concentracion,
         "",
         "### 2. Producto menos vendido",
         "",
-        f"**{menos_vendido}**, con {por_producto.iloc[0]:,} unidades.",
+        (
+            f"{nombrar(menos_vendidos)}, con {minimo:,} unidades."
+            if len(menos_vendidos) == 1
+            else f"Empate entre {nombrar(menos_vendidos)}, con {minimo:,} unidades cada uno."
+        ),
         "",
-        f"Vende {por_producto.iloc[-1] / por_producto.iloc[0]:.0f} veces menos que el "
-        "más vendido. Productos así pasan muchos días sin venta, y un modelo que "
-        "prediga demanda media constante les recomendaría comprar de más.",
+        f"Vende{'n' if len(menos_vendidos) > 1 else ''} {mas_vendido.unidades / minimo:.0f} "
+        "veces menos que el más "
+        "vendido. Productos así pasan la mayoría de los días sin venta: son los más difíciles "
+        "de predecir, y un modelo que prediga demanda media constante les recomendaría "
+        "comprar de más.",
         "",
         "### 3. Categoría con mayor demanda",
         "",
-        f"**{por_categoria.index[-1]}**, con {por_categoria.iloc[-1]:,} unidades "
-        f"({100 * por_categoria.iloc[-1] / total:.1f}% del total).",
+        f"**{lider_unidades}**, con {categorias.loc[lider_unidades, 'unidades']:,} unidades "
+        f"({categorias.loc[lider_unidades, 'pct_unidades']:.1f}% del total).",
+        "",
+        lectura_unidades,
         "",
         lectura_categorias,
         "",
@@ -397,12 +556,18 @@ def escribir_resumen(datos: pd.DataFrame) -> Path:
         "",
         "### 5. Registros sin venta",
         "",
-        f"El **{ceros:.1f}%** de los registros producto-día tienen cero ventas.",
+        f"El **{ceros:.1f}%** de los registros producto-día tienen cero ventas: "
+        f"{ceros_totales:,} registros.",
         "",
-        "Una parte viene de los días cerrados (domingos y feriados) y el resto de "
-        "productos de baja rotación. Es la razón de haber completado la matriz con "
-        "ceros en el ETL, y la razón para no usar MAPE como métrica: con demanda "
-        "real en cero, el error porcentual se vuelve infinito.",
+        f"- **{ceros_por_cierre:,}** son días en que la ferretería no abrió (domingos y "
+        "feriados). Son ceros estructurales: el modelo los aprende del calendario.",
+        f"- **{ceros_por_demanda:,}** son días abiertos en que el producto no se vendió. "
+        f"Incluso con la tienda abierta, el {ceros_abierto:.1f}% de los registros "
+        "producto-día no tienen venta: eso es demanda intermitente, y es lo difícil.",
+        "",
+        "Es la razón de haber completado la matriz con ceros en el ETL, y la razón para no "
+        "usar MAPE como métrica: con demanda real en cero, el error porcentual se vuelve "
+        "infinito.",
         "",
         "### 6. Tendencia general",
         "",
@@ -420,6 +585,12 @@ def escribir_resumen(datos: pd.DataFrame) -> Path:
         f"valle {MESES[t['mes_valle']]}.",
         "",
         lectura_temporada,
+        "",
+        "## Anexo: ranking completo",
+        "",
+        "| # | Código | Producto | Categoría | Origen | Unidades | % | % acumulado |",
+        "|---|---|---|---|---|---|---|---|",
+        *filas_de_ranking(productos),
         "",
     ]
 
