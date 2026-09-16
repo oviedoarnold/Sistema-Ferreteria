@@ -1,0 +1,11 @@
+# Los datos y los resumenes se guardan con saltos de linea LF en cualquier
+# sistema. Sin esto, git en Windows los convierte a CRLF al hacer checkout, el
+# archivo cambia byte a byte, y comprobar que dos ejecuciones producen el mismo
+# CSV daria falso aunque el contenido sea identico.
+*.csv  text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.py   text eol=lf
+*.txt  text eol=lf
+
+*.png  binary

@@ -1,0 +1,7 @@
+# Artefactos de Python. Viven aqui y no en el .gitignore de la raiz para que
+# todo lo de Ciencia de Datos quede contenido en esta carpeta.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/

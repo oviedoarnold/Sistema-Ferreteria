@@ -1,0 +1,5 @@
+# Versiones fijadas: con otra version de numpy la misma semilla puede
+# producir otra secuencia, y el dataset dejaria de ser reproducible.
+numpy==2.2.6
+pandas==2.3.1
+matplotlib==3.10.5
