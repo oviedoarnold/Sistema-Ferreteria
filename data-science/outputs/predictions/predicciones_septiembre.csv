@@ -1,0 +1,51 @@
+producto_id,codigo,producto,categoria,origen,fecha_corte,demanda_predicha_7d,demanda_predicha_30d,baseline_7d,baseline_30d
+ccc1fa5f-09b9-486c-8a74-3dfa0298911a,CEM-001,Cemento gris 42.5 kg,Construcción,sistema,2026-08-31,44.96,205.74,49.50,212.14
+0952bcea-dcc1-484d-b422-b1a41871f4be,CER-001,Candado de bronce 40 mm,Cerrajería,sistema,2026-08-31,5.98,21.88,3.00,12.86
+126b5449-9df4-496e-a1b9-f527a5ea0c0a,CER-023,Candado de bronce 40 mm,Cerrajería,sistema,2026-08-31,6.22,26.38,6.50,27.86
+30cf2d34-7ddc-45a8-9eac-4a9fc4cfa3f5,ELE-001,Cable THHN #12 (rollo 100 m),Eléctrico,sistema,2026-08-31,2.58,7.37,2.50,10.71
+DS-P010,FER-010,Mortero seco 40 kg,Construcción,sintetico,2026-08-31,12.63,57.79,11.75,50.36
+DS-P011,FER-011,Pegamento para cerámica 20 kg,Construcción,sintetico,2026-08-31,12.49,58.24,14.75,63.21
+DS-P012,FER-012,Impermeabilizante acrílico 1 galón,Construcción,sintetico,2026-08-31,5.52,18.50,5.00,21.43
+DS-P013,FER-013,Malla electrosoldada 6x6 (lámina),Construcción,sintetico,2026-08-31,5.78,20.57,7.50,32.14
+DS-P014,FER-014,Alambre de amarre (libra),Construcción,sintetico,2026-08-31,23.55,99.41,23.25,99.64
+DS-P015,FER-015,Tomacorriente doble polarizado,Eléctrico,sintetico,2026-08-31,14.60,58.66,11.75,50.36
+DS-P016,FER-016,Interruptor sencillo,Eléctrico,sintetico,2026-08-31,11.60,55.37,12.00,51.43
+DS-P017,FER-017,Breaker 20 A enchufable,Eléctrico,sintetico,2026-08-31,8.36,24.26,4.50,19.29
+DS-P018,FER-018,"Cinta aislante 3/4"" x 20 m",Eléctrico,sintetico,2026-08-31,28.40,119.03,32.25,138.21
+DS-P019,FER-019,Bombillo LED 12 W,Eléctrico,sintetico,2026-08-31,20.35,76.83,20.00,85.71
+DS-P020,FER-020,"Codo PVC 1/2"" x 90°",Plomería,sintetico,2026-08-31,52.00,239.35,49.75,213.21
+DS-P021,FER-021,"Tee PVC 1/2""",Plomería,sintetico,2026-08-31,27.70,118.54,28.75,123.21
+DS-P022,FER-022,Pegamento PVC 1/4 galón,Plomería,sintetico,2026-08-31,20.20,88.49,23.00,98.57
+DS-P023,FER-023,"Llave de paso 1/2""",Plomería,sintetico,2026-08-31,6.19,34.69,10.00,42.86
+DS-P024,FER-024,Grifo metálico para lavamanos,Plomería,sintetico,2026-08-31,2.28,9.71,3.00,12.86
+DS-P025,FER-025,"Alicate universal 8""",Herramientas,sintetico,2026-08-31,6.31,31.93,4.00,17.14
+DS-P026,FER-026,Destornillador de estrella #2,Herramientas,sintetico,2026-08-31,7.26,30.59,6.50,27.86
+DS-P027,FER-027,"Llave ajustable 10""",Herramientas,sintetico,2026-08-31,3.33,14.26,3.00,12.86
+DS-P028,FER-028,"Taladro percutor 1/2"" 750 W",Herramientas Eléctricas,sintetico,2026-08-31,0.96,2.95,0.25,1.07
+DS-P029,FER-029,"Pulidora angular 4-1/2""",Herramientas Eléctricas,sintetico,2026-08-31,0.81,2.03,1.25,5.36
+DS-P030,FER-030,"Sierra circular 7-1/4""",Herramientas Eléctricas,sintetico,2026-08-31,0.31,1.62,0.25,1.07
+DS-P031,FER-031,Rotomartillo SDS 800 W,Herramientas Eléctricas,sintetico,2026-08-31,0.77,1.61,1.00,4.29
+DS-P032,FER-032,Pintura de aceite color 1 galón,Pinturas,sintetico,2026-08-31,3.68,18.71,4.25,18.21
+DS-P033,FER-033,Diluyente (thinner) 1 galón,Pinturas,sintetico,2026-08-31,7.77,27.45,7.75,33.21
+DS-P034,FER-034,"Brocha 3""",Pinturas,sintetico,2026-08-31,8.79,39.26,11.25,48.21
+DS-P035,FER-035,"Rodillo 9"" con bandeja",Pinturas,sintetico,2026-08-31,8.54,35.49,8.75,37.50
+DS-P036,FER-036,"Clavo de acero 2-1/2"" (libra)",Tornillería,sintetico,2026-08-31,32.36,145.71,27.00,115.71
+DS-P037,FER-037,"Perno hexagonal 3/8"" x 3"" con tuerca",Tornillería,sintetico,2026-08-31,15.67,73.78,12.00,51.43
+DS-P038,FER-038,"Taquete plástico 1/4"" (bolsa 100 u)",Tornillería,sintetico,2026-08-31,11.50,41.97,13.50,57.86
+DS-P039,FER-039,"Bisagra de acero 3"" (par)",Cerrajería,sintetico,2026-08-31,9.58,40.07,10.75,46.07
+DS-P040,FER-040,Cerradura de pomo para puerta,Cerrajería,sintetico,2026-08-31,2.62,12.77,1.50,6.43
+DS-P041,FER-041,Pala cuadrada con mango,Jardinería,sintetico,2026-08-31,4.67,17.12,5.00,21.43
+DS-P042,FER-042,"Machete 22""",Jardinería,sintetico,2026-08-31,9.51,46.11,9.25,39.64
+DS-P043,FER-043,Rastrillo metálico 16 dientes,Jardinería,sintetico,2026-08-31,0.59,10.98,0.75,3.21
+DS-P044,FER-044,"Manguera de jardín 1/2"" x 15 m",Jardinería,sintetico,2026-08-31,3.76,14.46,4.00,17.14
+DS-P045,FER-045,Guantes de cuero (par),Seguridad,sintetico,2026-08-31,8.33,34.86,9.25,39.64
+DS-P046,FER-046,Lentes de seguridad claros,Seguridad,sintetico,2026-08-31,7.17,18.73,4.25,18.21
+DS-P047,FER-047,Casco de seguridad,Seguridad,sintetico,2026-08-31,3.84,13.91,3.00,12.86
+DS-P048,FER-048,Silicón transparente 280 ml,Adhesivos y Selladores,sintetico,2026-08-31,5.93,28.52,6.25,26.79
+DS-P049,FER-049,Adhesivo de contacto 1/4 galón,Adhesivos y Selladores,sintetico,2026-08-31,4.67,15.34,4.00,17.14
+DS-P050,FER-050,Pegamento epóxico 2 componentes,Adhesivos y Selladores,sintetico,2026-08-31,3.74,13.32,1.50,6.43
+9acb88c2-673a-4ca9-b665-b129976958bd,HER-001,Martillo de uña 16 oz,Herramientas,sistema,2026-08-31,5.24,24.55,5.00,21.43
+92e71d63-18a8-434d-843c-bf74be57070f,HER-002,Cinta métrica 5 m,Herramientas,sistema,2026-08-31,13.80,70.00,15.50,66.43
+765694c8-9734-462c-a35f-797118e2e09e,PIN-001,Pintura acrílica blanca 1 galón,Pinturas,sistema,2026-08-31,9.11,47.31,11.00,47.14
+e6d66d11-b7e0-4153-81fa-62a11cef4515,PLO-001,"Tubo PVC 1/2"" x 6 m",Plomería,sistema,2026-08-31,35.44,149.49,39.50,169.29
+0b4327ce-a267-40d8-bc6b-74ab7d775d30,TOR-001,"Tornillo para madera 1"" (caja 100 u)",Tornillería,sistema,2026-08-31,22.64,105.16,23.25,99.64

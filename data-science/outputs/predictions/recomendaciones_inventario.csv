@@ -1,0 +1,51 @@
+producto_id,codigo,producto,categoria,origen,stock_actual,tipo_stock,demanda_predicha_7d,demanda_predicha_30d,stock_seguridad,riesgo,recomendacion_compra,costo,inversion_estimada
+ccc1fa5f-09b9-486c-8a74-3dfa0298911a,CEM-001,Cemento gris 42.5 kg,Construcción,sistema,60,real,44.96,205.74,50,alto,196,198.00,38808.00
+0952bcea-dcc1-484d-b422-b1a41871f4be,CER-001,Candado de bronce 40 mm,Cerrajería,sistema,3,real,5.98,21.88,4,alto,23,92.00,2116.00
+126b5449-9df4-496e-a1b9-f527a5ea0c0a,CER-023,Candado de bronce 40 mm,Cerrajería,sistema,60,real,6.22,26.38,7,bajo,0,90.00,0.00
+30cf2d34-7ddc-45a8-9eac-4a9fc4cfa3f5,ELE-001,Cable THHN #12 (rollo 100 m),Eléctrico,sistema,0,real,2.58,7.37,3,alto,11,890.00,9790.00
+DS-P010,FER-010,Mortero seco 40 kg,Construcción,sintetico,123,simulado,12.63,57.79,12,bajo,0,128.00,0.00
+DS-P011,FER-011,Pegamento para cerámica 20 kg,Construcción,sintetico,52,simulado,12.49,58.24,15,alto,22,158.00,3476.00
+DS-P012,FER-012,Impermeabilizante acrílico 1 galón,Construcción,sintetico,21,simulado,5.52,18.50,6,medio,4,385.00,1540.00
+DS-P013,FER-013,Malla electrosoldada 6x6 (lámina),Construcción,sintetico,38,simulado,5.78,20.57,8,bajo,0,548.00,0.00
+DS-P014,FER-014,Alambre de amarre (libra),Construcción,sintetico,30,simulado,23.55,99.41,24,alto,94,24.00,2256.00
+DS-P015,FER-015,Tomacorriente doble polarizado,Eléctrico,sintetico,84,simulado,14.60,58.66,12,bajo,0,41.00,0.00
+DS-P016,FER-016,Interruptor sencillo,Eléctrico,sintetico,72,simulado,11.60,55.37,13,bajo,0,33.00,0.00
+DS-P017,FER-017,Breaker 20 A enchufable,Eléctrico,sintetico,30,simulado,8.36,24.26,5,bajo,0,132.00,0.00
+DS-P018,FER-018,"Cinta aislante 3/4"" x 20 m",Eléctrico,sintetico,99,simulado,28.40,119.03,33,alto,54,17.00,918.00
+DS-P019,FER-019,Bombillo LED 12 W,Eléctrico,sintetico,90,simulado,20.35,76.83,20,medio,7,44.00,308.00
+DS-P020,FER-020,"Codo PVC 1/2"" x 90°",Plomería,sintetico,194,simulado,52.00,239.35,50,alto,96,5.40,518.40
+DS-P021,FER-021,"Tee PVC 1/2""",Plomería,sintetico,116,simulado,27.70,118.54,29,alto,32,6.60,211.20
+DS-P022,FER-022,Pegamento PVC 1/4 galón,Plomería,sintetico,125,simulado,20.20,88.49,23,bajo,0,98.00,0.00
+DS-P023,FER-023,"Llave de paso 1/2""",Plomería,sintetico,25,simulado,6.19,34.69,11,alto,21,92.00,1932.00
+DS-P024,FER-024,Grifo metálico para lavamanos,Plomería,sintetico,9,simulado,2.28,9.71,4,alto,5,268.00,1340.00
+DS-P025,FER-025,"Alicate universal 8""",Herramientas,sintetico,20,simulado,6.31,31.93,4,alto,16,104.00,1664.00
+DS-P026,FER-026,Destornillador de estrella #2,Herramientas,sintetico,15,simulado,7.26,30.59,7,alto,23,34.00,782.00
+DS-P027,FER-027,"Llave ajustable 10""",Herramientas,sintetico,10,simulado,3.33,14.26,4,alto,9,142.00,1278.00
+DS-P028,FER-028,"Taladro percutor 1/2"" 750 W",Herramientas Eléctricas,sintetico,7,simulado,0.96,2.95,1,bajo,0,1245.00,0.00
+DS-P029,FER-029,"Pulidora angular 4-1/2""",Herramientas Eléctricas,sintetico,6,simulado,0.81,2.03,2,bajo,0,1040.00,0.00
+DS-P030,FER-030,"Sierra circular 7-1/4""",Herramientas Eléctricas,sintetico,2,simulado,0.31,1.62,1,medio,1,2190.00,2190.00
+DS-P031,FER-031,Rotomartillo SDS 800 W,Herramientas Eléctricas,sintetico,4,simulado,0.77,1.61,2,bajo,0,3120.00,0.00
+DS-P032,FER-032,Pintura de aceite color 1 galón,Pinturas,sintetico,4,simulado,3.68,18.71,5,alto,20,332.00,6640.00
+DS-P033,FER-033,Diluyente (thinner) 1 galón,Pinturas,sintetico,19,simulado,7.77,27.45,8,alto,17,138.00,2346.00
+DS-P034,FER-034,"Brocha 3""",Pinturas,sintetico,66,simulado,8.79,39.26,12,bajo,0,35.00,0.00
+DS-P035,FER-035,"Rodillo 9"" con bandeja",Pinturas,sintetico,39,simulado,8.54,35.49,9,medio,6,96.00,576.00
+DS-P036,FER-036,"Clavo de acero 2-1/2"" (libra)",Tornillería,sintetico,46,simulado,32.36,145.71,27,alto,127,21.00,2667.00
+DS-P037,FER-037,"Perno hexagonal 3/8"" x 3"" con tuerca",Tornillería,sintetico,94,simulado,15.67,73.78,13,bajo,0,8.10,0.00
+DS-P038,FER-038,"Taquete plástico 1/4"" (bolsa 100 u)",Tornillería,sintetico,32,simulado,11.50,41.97,14,alto,24,31.00,744.00
+DS-P039,FER-039,"Bisagra de acero 3"" (par)",Cerrajería,sintetico,22,simulado,9.58,40.07,11,alto,30,29.00,870.00
+DS-P040,FER-040,Cerradura de pomo para puerta,Cerrajería,sintetico,8,simulado,2.62,12.77,2,alto,7,262.00,1834.00
+DS-P041,FER-041,Pala cuadrada con mango,Jardinería,sintetico,7,simulado,4.67,17.12,6,alto,17,171.00,2907.00
+DS-P042,FER-042,"Machete 22""",Jardinería,sintetico,29,simulado,9.51,46.11,10,alto,28,86.00,2408.00
+DS-P043,FER-043,Rastrillo metálico 16 dientes,Jardinería,sintetico,3,simulado,0.59,10.98,1,alto,9,118.00,1062.00
+DS-P044,FER-044,"Manguera de jardín 1/2"" x 15 m",Jardinería,sintetico,18,simulado,3.76,14.46,4,medio,1,205.00,205.00
+DS-P045,FER-045,Guantes de cuero (par),Seguridad,sintetico,62,simulado,8.33,34.86,10,bajo,0,58.00,0.00
+DS-P046,FER-046,Lentes de seguridad claros,Seguridad,sintetico,27,simulado,7.17,18.73,5,bajo,0,37.00,0.00
+DS-P047,FER-047,Casco de seguridad,Seguridad,sintetico,21,simulado,3.84,13.91,4,bajo,0,124.00,0.00
+DS-P048,FER-048,Silicón transparente 280 ml,Adhesivos y Selladores,sintetico,47,simulado,5.93,28.52,7,bajo,0,62.00,0.00
+DS-P049,FER-049,Adhesivo de contacto 1/4 galón,Adhesivos y Selladores,sintetico,18,simulado,4.67,15.34,4,medio,2,158.00,316.00
+DS-P050,FER-050,Pegamento epóxico 2 componentes,Adhesivos y Selladores,sintetico,4,simulado,3.74,13.32,2,alto,12,71.00,852.00
+9acb88c2-673a-4ca9-b665-b129976958bd,HER-001,Martillo de uña 16 oz,Herramientas,sistema,24,real,5.24,24.55,6,alto,7,120.00,840.00
+92e71d63-18a8-434d-843c-bf74be57070f,HER-002,Cinta métrica 5 m,Herramientas,sistema,33,real,13.80,70.00,16,alto,53,45.00,2385.00
+765694c8-9734-462c-a35f-797118e2e09e,PIN-001,Pintura acrílica blanca 1 galón,Pinturas,sistema,18,real,9.11,47.31,11,alto,41,280.00,11480.00
+e6d66d11-b7e0-4153-81fa-62a11cef4515,PLO-001,"Tubo PVC 1/2"" x 6 m",Plomería,sistema,45,real,35.44,149.49,40,alto,145,61.00,8845.00
+0b4327ce-a267-40d8-bc6b-74ab7d775d30,TOR-001,"Tornillo para madera 1"" (caja 100 u)",Tornillería,sistema,4,real,22.64,105.16,24,alto,126,26.00,3276.00
