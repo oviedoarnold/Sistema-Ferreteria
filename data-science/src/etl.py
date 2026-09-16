@@ -29,17 +29,21 @@ from pathlib import Path
 
 import pandas as pd
 
+from catalogo import leer_catalogo
+
 RAIZ = Path(__file__).resolve().parents[1]
 CRUDO = RAIZ / "data" / "raw" / "ventas_simuladas_2026.csv"
-CATALOGO = RAIZ / "data" / "raw" / "productos_sistema.csv"
 SALIDA = RAIZ / "data" / "processed" / "demanda_diaria.csv"
 REPORTE = RAIZ / "outputs" / "reporte_calidad.json"
 
 INICIO = "2026-01-01"
 FIN = "2026-08-31"
 
+# `origen` viaja hasta el dataset final para que en cualquier fila se vea si
+# el producto es real del sistema o sintético. No es una variable del modelo:
+# no tiene relación con la demanda y el modelo no debe usarla.
 COLUMNAS_FINALES = [
-    "fecha", "producto_id", "codigo", "producto", "categoria",
+    "fecha", "producto_id", "codigo", "producto", "categoria", "origen",
     "precio", "costo", "cantidad_vendida", "ingreso",
 ]
 
@@ -60,9 +64,8 @@ def extraer() -> tuple[pd.DataFrame, pd.DataFrame]:
     convertiría sola o dejaría la columna entera como object sin avisar.
     """
     tickets = pd.read_csv(CRUDO, encoding="utf-8", dtype=str)
-    catalogo = pd.read_csv(CATALOGO, encoding="utf-8")
 
-    return tickets, catalogo
+    return tickets, leer_catalogo()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -148,7 +151,7 @@ def completar_matriz(diario: pd.DataFrame, catalogo: pd.DataFrame) -> pd.DataFra
     no calza queda en cero: es un día en que ese producto no se vendió.
     """
     fechas = pd.DataFrame({"fecha": pd.date_range(INICIO, FIN, freq="D")})
-    productos = catalogo[["producto_id", "codigo", "producto", "categoria", "precio", "costo"]]
+    productos = catalogo[["producto_id", "codigo", "producto", "categoria", "origen", "precio", "costo"]]
 
     matriz = fechas.merge(productos, how="cross").merge(
         diario, on=["fecha", "producto_id"], how="left"
@@ -172,6 +175,9 @@ def reporte_de_calidad(crudo: pd.DataFrame, final: pd.DataFrame, limpieza: dict)
         "fecha_maxima": final["fecha"].max().date().isoformat(),
         "dias": final["fecha"].nunique(),
         "productos": final["producto_id"].nunique(),
+        "productos_del_sistema": final.loc[final["origen"] == "sistema", "producto_id"].nunique(),
+        "productos_sinteticos": final.loc[final["origen"] == "sintetico", "producto_id"].nunique(),
+        "categorias": final["categoria"].nunique(),
         "nulos_en_procesado": int(final.isna().sum().sum()),
         "duplicados_fecha_producto": int(final.duplicated(["fecha", "producto_id"]).sum()),
         "cantidades_negativas": int((final["cantidad_vendida"] < 0).sum()),

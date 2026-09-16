@@ -1,0 +1,42 @@
+producto_id,codigo,producto,categoria,precio,costo,stock_minimo
+DS-P010,FER-010,Mortero seco 40 kg,Construcción,165.00,128.00,30
+DS-P011,FER-011,Pegamento para cerámica 20 kg,Construcción,210.00,158.00,12
+DS-P012,FER-012,Impermeabilizante acrílico 1 galón,Construcción,520.00,385.00,3
+DS-P013,FER-013,Malla electrosoldada 6x6 (lámina),Construcción,690.00,548.00,8
+DS-P014,FER-014,Alambre de amarre (libra),Construcción,38.00,24.00,40
+DS-P015,FER-015,Tomacorriente doble polarizado,Eléctrico,68.00,41.00,15
+DS-P016,FER-016,Interruptor sencillo,Eléctrico,55.00,33.00,15
+DS-P017,FER-017,Breaker 20 A enchufable,Eléctrico,188.00,132.00,6
+DS-P018,FER-018,"Cinta aislante 3/4"" x 20 m",Eléctrico,32.00,17.00,30
+DS-P019,FER-019,Bombillo LED 12 W,Eléctrico,75.00,44.00,25
+DS-P020,FER-020,"Codo PVC 1/2"" x 90°",Plomería,9.00,5.40,60
+DS-P021,FER-021,"Tee PVC 1/2""",Plomería,11.00,6.60,40
+DS-P022,FER-022,Pegamento PVC 1/4 galón,Plomería,148.00,98.00,20
+DS-P023,FER-023,"Llave de paso 1/2""",Plomería,138.00,92.00,8
+DS-P024,FER-024,Grifo metálico para lavamanos,Plomería,395.00,268.00,2
+DS-P025,FER-025,"Alicate universal 8""",Herramientas,168.00,104.00,6
+DS-P026,FER-026,Destornillador de estrella #2,Herramientas,58.00,34.00,10
+DS-P027,FER-027,"Llave ajustable 10""",Herramientas,215.00,142.00,3
+DS-P028,FER-028,"Taladro percutor 1/2"" 750 W",Herramientas Eléctricas,1650.00,1245.00,2
+DS-P029,FER-029,"Pulidora angular 4-1/2""",Herramientas Eléctricas,1390.00,1040.00,2
+DS-P030,FER-030,"Sierra circular 7-1/4""",Herramientas Eléctricas,2750.00,2190.00,1
+DS-P031,FER-031,Rotomartillo SDS 800 W,Herramientas Eléctricas,3950.00,3120.00,1
+DS-P032,FER-032,Pintura de aceite color 1 galón,Pinturas,465.00,332.00,6
+DS-P033,FER-033,Diluyente (thinner) 1 galón,Pinturas,195.00,138.00,8
+DS-P034,FER-034,"Brocha 3""",Pinturas,62.00,35.00,15
+DS-P035,FER-035,"Rodillo 9"" con bandeja",Pinturas,142.00,96.00,8
+DS-P036,FER-036,"Clavo de acero 2-1/2"" (libra)",Tornillería,34.00,21.00,40
+DS-P037,FER-037,"Perno hexagonal 3/8"" x 3"" con tuerca",Tornillería,14.00,8.10,30
+DS-P038,FER-038,"Taquete plástico 1/4"" (bolsa 100 u)",Tornillería,56.00,31.00,10
+DS-P039,FER-039,"Bisagra de acero 3"" (par)",Cerrajería,48.00,29.00,12
+DS-P040,FER-040,Cerradura de pomo para puerta,Cerrajería,390.00,262.00,3
+DS-P041,FER-041,Pala cuadrada con mango,Jardinería,238.00,171.00,4
+DS-P042,FER-042,"Machete 22""",Jardinería,132.00,86.00,8
+DS-P043,FER-043,Rastrillo metálico 16 dientes,Jardinería,175.00,118.00,2
+DS-P044,FER-044,"Manguera de jardín 1/2"" x 15 m",Jardinería,310.00,205.00,3
+DS-P045,FER-045,Guantes de cuero (par),Seguridad,95.00,58.00,12
+DS-P046,FER-046,Lentes de seguridad claros,Seguridad,65.00,37.00,8
+DS-P047,FER-047,Casco de seguridad,Seguridad,179.00,124.00,3
+DS-P048,FER-048,Silicón transparente 280 ml,Adhesivos y Selladores,98.00,62.00,12
+DS-P049,FER-049,Adhesivo de contacto 1/4 galón,Adhesivos y Selladores,225.00,158.00,5
+DS-P050,FER-050,Pegamento epóxico 2 componentes,Adhesivos y Selladores,115.00,71.00,3
