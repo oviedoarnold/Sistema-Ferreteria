@@ -1,0 +1,426 @@
+{
+  "advertencia": "Datos históricos sintéticos: las métricas pueden ser más optimistas que con ventas reales.",
+  "versiones": {
+    "scikit-learn": "1.7.1",
+    "numpy": "2.2.6",
+    "pandas": "2.3.1"
+  },
+  "configuracion_random_forest": {
+    "n_estimators": 200,
+    "min_samples_leaf": 5,
+    "max_features": 0.5,
+    "random_state": 42
+  },
+  "convencion": {
+    "momento_de_prediccion": "cierre del día t",
+    "demanda_7d": "suma de ventas de t+1 a t+7",
+    "demanda_30d": "suma de ventas de t+1 a t+30",
+    "baseline": "promedio diario de los 28 días que terminan en t × horizonte"
+  },
+  "variables": {
+    "7d": [
+      "producto_id",
+      "categoria",
+      "dia_semana",
+      "mes",
+      "dia_mes",
+      "lag_1",
+      "lag_7",
+      "lag_14",
+      "lag_28",
+      "media_7",
+      "media_14",
+      "media_28",
+      "dias_abiertos_7"
+    ],
+    "30d": [
+      "producto_id",
+      "categoria",
+      "dia_semana",
+      "mes",
+      "dia_mes",
+      "lag_1",
+      "lag_7",
+      "lag_14",
+      "lag_28",
+      "media_7",
+      "media_14",
+      "media_28",
+      "dias_abiertos_30"
+    ]
+  },
+  "excluidas": [
+    "origen",
+    "precio",
+    "costo",
+    "ingreso",
+    "codigo",
+    "producto",
+    "fin_de_semana"
+  ],
+  "verificacion_fuga": {
+    "filas_revisadas": 200,
+    "variables_no_cambian_al_alterar_el_futuro": true,
+    "objetivo_no_cambia_al_alterar_el_presente_y_el_pasado": true,
+    "objetivo_es_exactamente_la_suma_de_t_mas_1_a_t_mas_h": true,
+    "detecta_fugas_inyectadas": {
+      "detecta_media_movil_centrada": true,
+      "detecta_lag_que_mira_manana": true,
+      "detecta_objetivo_que_incluye_el_dia_t": true
+    }
+  },
+  "evaluacion_agosto": {
+    "7d": {
+      "observaciones": 1200,
+      "demanda_real_total": 13540,
+      "baseline": {
+        "mae": 3.695,
+        "rmse": 5.5493,
+        "wape": 0.3275,
+        "sesgo": 0.1363
+      },
+      "random_forest": {
+        "mae": 3.7961,
+        "rmse": 5.8118,
+        "wape": 0.3364,
+        "sesgo": 0.3553
+      },
+      "mejora_porcentual": {
+        "mae": -2.74,
+        "rmse": -4.73,
+        "wape": -2.72
+      },
+      "control": {
+        "corte": "2026-07-31",
+        "filas_entrenamiento": 8900,
+        "ultima_fila_entrenamiento": "2026-07-24",
+        "ultimo_dia_de_objetivo_en_entrenamiento": "2026-07-31",
+        "filas_evaluadas": 1200,
+        "sin_solapamiento": true
+      }
+    },
+    "30d": {
+      "observaciones": 50,
+      "demanda_real_total": 2374,
+      "baseline": {
+        "mae": 12.6757,
+        "rmse": 19.4536,
+        "wape": 0.267,
+        "sesgo": 0.9271
+      },
+      "random_forest": {
+        "mae": 10.1282,
+        "rmse": 13.5451,
+        "wape": 0.2133,
+        "sesgo": -0.0519
+      },
+      "mejora_porcentual": {
+        "mae": 20.1,
+        "rmse": 30.37,
+        "wape": 20.11
+      },
+      "control": {
+        "corte": "2026-07-31",
+        "filas_entrenamiento": 7750,
+        "ultima_fila_entrenamiento": "2026-07-01",
+        "ultimo_dia_de_objetivo_en_entrenamiento": "2026-07-31",
+        "filas_evaluadas": 50,
+        "sin_solapamiento": true
+      }
+    }
+  },
+  "backtest": {
+    "7d": {
+      "observaciones": 850,
+      "demanda_real_total": 9724,
+      "baseline": {
+        "mae": 3.7779,
+        "rmse": 5.7263,
+        "wape": 0.3302,
+        "sesgo": 0.0803
+      },
+      "random_forest": {
+        "mae": 3.9373,
+        "rmse": 5.9235,
+        "wape": 0.3442,
+        "sesgo": 0.3845
+      },
+      "mejora_porcentual": {
+        "mae": -4.22,
+        "rmse": -3.44,
+        "wape": -4.24
+      },
+      "cortes": [
+        "2026-05-01",
+        "2026-05-08",
+        "2026-05-15",
+        "2026-05-22",
+        "2026-05-29",
+        "2026-06-05",
+        "2026-06-12",
+        "2026-06-19",
+        "2026-06-26",
+        "2026-07-03",
+        "2026-07-10",
+        "2026-07-17",
+        "2026-07-24",
+        "2026-07-31",
+        "2026-08-07",
+        "2026-08-14",
+        "2026-08-21"
+      ],
+      "dias_entre_cortes": 7,
+      "por_rotacion": {
+        "alta": {
+          "observaciones": 187,
+          "demanda_real_total": 5543,
+          "baseline": {
+            "mae": 7.8088,
+            "rmse": 10.0073,
+            "wape": 0.2634,
+            "sesgo": -0.0762
+          },
+          "random_forest": {
+            "mae": 8.261,
+            "rmse": 10.4042,
+            "wape": 0.2787,
+            "sesgo": 0.0537
+          },
+          "mejora_porcentual": {
+            "mae": -5.79,
+            "rmse": -3.97,
+            "wape": -5.81
+          }
+        },
+        "media": {
+          "observaciones": 442,
+          "demanda_real_total": 3677,
+          "baseline": {
+            "mae": 3.2262,
+            "rmse": 4.35,
+            "wape": 0.3878,
+            "sesgo": 0.2059
+          },
+          "random_forest": {
+            "mae": 3.3568,
+            "rmse": 4.4635,
+            "wape": 0.4035,
+            "sesgo": 0.598
+          },
+          "mejora_porcentual": {
+            "mae": -4.05,
+            "rmse": -2.61,
+            "wape": -4.05
+          }
+        },
+        "baja": {
+          "observaciones": 221,
+          "demanda_real_total": 504,
+          "baseline": {
+            "mae": 1.4706,
+            "rmse": 1.8803,
+            "wape": 0.6448,
+            "sesgo": -0.0385
+          },
+          "random_forest": {
+            "mae": 1.4398,
+            "rmse": 1.8746,
+            "wape": 0.6313,
+            "sesgo": 0.2373
+          },
+          "mejora_porcentual": {
+            "mae": 2.09,
+            "rmse": 0.3,
+            "wape": 2.09
+          }
+        }
+      }
+    },
+    "30d": {
+      "observaciones": 700,
+      "demanda_real_total": 33687,
+      "baseline": {
+        "mae": 10.1821,
+        "rmse": 14.7678,
+        "wape": 0.2116,
+        "sesgo": 1.2732
+      },
+      "random_forest": {
+        "mae": 10.2006,
+        "rmse": 15.0985,
+        "wape": 0.212,
+        "sesgo": 2.0181
+      },
+      "mejora_porcentual": {
+        "mae": -0.18,
+        "rmse": -2.24,
+        "wape": -0.19
+      },
+      "cortes": [
+        "2026-05-01",
+        "2026-05-08",
+        "2026-05-15",
+        "2026-05-22",
+        "2026-05-29",
+        "2026-06-05",
+        "2026-06-12",
+        "2026-06-19",
+        "2026-06-26",
+        "2026-07-03",
+        "2026-07-10",
+        "2026-07-17",
+        "2026-07-24",
+        "2026-07-31"
+      ],
+      "dias_entre_cortes": 7,
+      "por_rotacion": {
+        "alta": {
+          "observaciones": 154,
+          "demanda_real_total": 19197,
+          "baseline": {
+            "mae": 19.7908,
+            "rmse": 24.8063,
+            "wape": 0.1588,
+            "sesgo": 1.1535
+          },
+          "random_forest": {
+            "mae": 19.9526,
+            "rmse": 25.5776,
+            "wape": 0.1601,
+            "sesgo": -1.5439
+          },
+          "mejora_porcentual": {
+            "mae": -0.82,
+            "rmse": -3.11,
+            "wape": -0.82
+          }
+        },
+        "media": {
+          "observaciones": 364,
+          "demanda_real_total": 12770,
+          "baseline": {
+            "mae": 9.1901,
+            "rmse": 11.9784,
+            "wape": 0.262,
+            "sesgo": 1.8201
+          },
+          "random_forest": {
+            "mae": 9.34,
+            "rmse": 12.1604,
+            "wape": 0.2662,
+            "sesgo": 3.8602
+          },
+          "mejora_porcentual": {
+            "mae": -1.63,
+            "rmse": -1.52,
+            "wape": -1.6
+          }
+        },
+        "baja": {
+          "observaciones": 182,
+          "demanda_real_total": 1720,
+          "baseline": {
+            "mae": 4.0357,
+            "rmse": 5.5818,
+            "wape": 0.427,
+            "sesgo": 0.2806
+          },
+          "random_forest": {
+            "mae": 3.6702,
+            "rmse": 5.2407,
+            "wape": 0.3884,
+            "sesgo": 1.3478
+          },
+          "mejora_porcentual": {
+            "mae": 9.06,
+            "rmse": 6.11,
+            "wape": 9.04
+          }
+        }
+      }
+    }
+  },
+  "cortes_sin_solapamiento": true,
+  "importancia_de_variables": {
+    "7d": {
+      "media_28": 0.5082,
+      "media_14": 0.2017,
+      "media_7": 0.1297,
+      "producto_id": 0.0434,
+      "mes": 0.0259,
+      "categoria": 0.0187,
+      "lag_7": 0.018,
+      "dia_mes": 0.0169,
+      "lag_28": 0.0114,
+      "lag_1": 0.0092,
+      "lag_14": 0.0076,
+      "dias_abiertos_7": 0.0064,
+      "dia_semana": 0.0029
+    },
+    "30d": {
+      "media_28": 0.5209,
+      "media_14": 0.2102,
+      "media_7": 0.1322,
+      "producto_id": 0.0529,
+      "categoria": 0.0211,
+      "mes": 0.0187,
+      "lag_7": 0.013,
+      "lag_1": 0.0113,
+      "lag_14": 0.0065,
+      "lag_28": 0.0057,
+      "dias_abiertos_30": 0.0036,
+      "dia_mes": 0.0034,
+      "dia_semana": 0.0005
+    }
+  },
+  "modelos_finales": {
+    "7d": {
+      "archivo": "models/random_forest_7d.joblib",
+      "horizonte_dias": 7,
+      "filas_entrenamiento": 10450,
+      "primera_fila": "2026-01-28",
+      "ultima_fila": "2026-08-24",
+      "ultimo_dia_de_objetivo": "2026-08-31",
+      "variables": [
+        "producto_id",
+        "categoria",
+        "dia_semana",
+        "mes",
+        "dia_mes",
+        "lag_1",
+        "lag_7",
+        "lag_14",
+        "lag_28",
+        "media_7",
+        "media_14",
+        "media_28",
+        "dias_abiertos_7"
+      ],
+      "objetivo": "demanda_7d"
+    },
+    "30d": {
+      "archivo": "models/random_forest_30d.joblib",
+      "horizonte_dias": 30,
+      "filas_entrenamiento": 9300,
+      "primera_fila": "2026-01-28",
+      "ultima_fila": "2026-08-01",
+      "ultimo_dia_de_objetivo": "2026-08-31",
+      "variables": [
+        "producto_id",
+        "categoria",
+        "dia_semana",
+        "mes",
+        "dia_mes",
+        "lag_1",
+        "lag_7",
+        "lag_14",
+        "lag_28",
+        "media_7",
+        "media_14",
+        "media_28",
+        "dias_abiertos_30"
+      ],
+      "objetivo": "demanda_30d"
+    }
+  }
+}

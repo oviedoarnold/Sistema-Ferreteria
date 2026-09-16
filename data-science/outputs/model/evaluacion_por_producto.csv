@@ -1,0 +1,101 @@
+producto_id,codigo,producto,categoria,predicciones,demanda_real,prediccion_rf,prediccion_baseline,mae_rf,mae_baseline,error_absoluto_rf,rotacion,wape_rf,gana,horizonte_dias
+DS-P020,FER-020,"Codo PVC 1/2"" x 90°",Plomería,17,896.0000,830.4402,870.0000,12.4168,12.2353,211.0854,alta,0.2356,baseline,7
+ccc1fa5f-09b9-486c-8a74-3dfa0298911a,CEM-001,Cemento gris 42.5 kg,Construcción,17,780.0000,789.1441,785.0000,10.6521,10.0294,181.0850,alta,0.2322,baseline,7
+DS-P036,FER-036,"Clavo de acero 2-1/2"" (libra)",Tornillería,17,553.0000,584.2830,558.0000,10.1578,9.0882,172.6826,alta,0.3123,baseline,7
+0b4327ce-a267-40d8-bc6b-74ab7d775d30,TOR-001,"Tornillo para madera 1"" (caja 100 u)",Tornillería,17,535.0000,596.0627,578.5000,9.8401,8.9706,167.2825,alta,0.3127,baseline,7
+DS-P021,FER-021,"Tee PVC 1/2""",Plomería,17,456.0000,454.2952,442.2500,9.2124,8.1618,156.6104,alta,0.3434,baseline,7
+e6d66d11-b7e0-4153-81fa-62a11cef4515,PLO-001,"Tubo PVC 1/2"" x 6 m",Plomería,17,563.0000,517.8017,524.7500,7.9303,7.7794,134.8147,alta,0.2395,baseline,7
+DS-P037,FER-037,"Perno hexagonal 3/8"" x 3"" con tuerca",Tornillería,17,279.0000,281.1615,287.5000,6.7810,7.3235,115.2764,media,0.4132,random_forest,7
+DS-P010,FER-010,Mortero seco 40 kg,Construcción,17,277.0000,317.2763,309.2500,6.6885,5.7794,113.7042,alta,0.4105,baseline,7
+DS-P022,FER-022,Pegamento PVC 1/4 galón,Plomería,17,324.0000,337.4318,320.0000,6.4405,6.8235,109.4890,alta,0.3379,random_forest,7
+DS-P019,FER-019,Bombillo LED 12 W,Eléctrico,17,324.0000,305.2031,322.0000,6.0116,6.1471,102.1975,alta,0.3154,random_forest,7
+DS-P018,FER-018,"Cinta aislante 3/4"" x 20 m",Eléctrico,17,418.0000,387.0338,402.5000,5.7686,4.9706,98.0664,alta,0.2346,baseline,7
+DS-P014,FER-014,Alambre de amarre (libra),Construcción,17,417.0000,434.0790,416.5000,5.7520,5.9118,97.7840,alta,0.2345,random_forest,7
+DS-P038,FER-038,"Taquete plástico 1/4"" (bolsa 100 u)",Tornillería,17,178.0000,178.0833,169.7500,5.4189,4.8382,92.1216,media,0.5175,baseline,7
+765694c8-9734-462c-a35f-797118e2e09e,PIN-001,Pintura acrílica blanca 1 galón,Pinturas,17,206.0000,237.1488,217.5000,5.1277,5.0000,87.1706,media,0.4232,baseline,7
+92e71d63-18a8-434d-843c-bf74be57070f,HER-002,Cinta métrica 5 m,Herramientas,17,269.0000,285.2848,267.0000,4.4673,4.2647,75.9435,media,0.2823,baseline,7
+DS-P011,FER-011,Pegamento para cerámica 20 kg,Construcción,17,170.0000,185.8162,165.7500,4.4347,3.9853,75.3892,media,0.4435,baseline,7
+DS-P034,FER-034,"Brocha 3""",Pinturas,17,201.0000,227.5225,223.0000,4.4165,4.2059,75.0805,media,0.3735,baseline,7
+DS-P015,FER-015,Tomacorriente doble polarizado,Eléctrico,17,227.0000,234.5881,238.5000,4.1726,4.2647,70.9347,media,0.3125,random_forest,7
+DS-P042,FER-042,"Machete 22""",Jardinería,17,175.0000,151.7209,165.7500,3.9644,3.6324,67.3948,media,0.3851,baseline,7
+DS-P023,FER-023,"Llave de paso 1/2""",Plomería,17,139.0000,141.5434,141.2500,3.8407,3.8088,65.2916,media,0.4697,baseline,7
+DS-P039,FER-039,"Bisagra de acero 3"" (par)",Cerrajería,17,161.0000,161.4585,164.7500,3.8338,3.9559,65.1747,media,0.4048,random_forest,7
+DS-P016,FER-016,Interruptor sencillo,Eléctrico,17,233.0000,243.7087,237.7500,3.7002,3.5147,62.9040,media,0.2700,baseline,7
+DS-P035,FER-035,"Rodillo 9"" con bandeja",Pinturas,17,137.0000,158.9196,144.0000,3.1905,2.8235,54.2380,media,0.3959,baseline,7
+DS-P048,FER-048,Silicón transparente 280 ml,Adhesivos y Selladores,17,107.0000,118.9790,110.2500,3.1355,2.7794,53.3039,media,0.4982,baseline,7
+DS-P045,FER-045,Guantes de cuero (par),Seguridad,17,132.0000,152.7041,129.2500,3.1194,2.6324,53.0293,media,0.4017,baseline,7
+DS-P033,FER-033,Diluyente (thinner) 1 galón,Pinturas,17,121.0000,130.3616,120.2500,2.9724,2.8971,50.5316,media,0.4176,baseline,7
+0952bcea-dcc1-484d-b422-b1a41871f4be,CER-001,Candado de bronce 40 mm,Cerrajería,17,73.0000,84.1930,75.0000,2.8045,2.6176,47.6772,media,0.6531,baseline,7
+DS-P025,FER-025,"Alicate universal 8""",Herramientas,17,91.0000,97.9711,98.2500,2.7625,2.7500,46.9622,media,0.5161,baseline,7
+9acb88c2-673a-4ca9-b665-b129976958bd,HER-001,Martillo de uña 16 oz,Herramientas,17,108.0000,122.5173,118.7500,2.4564,2.3971,41.7589,media,0.3867,baseline,7
+DS-P013,FER-013,Malla electrosoldada 6x6 (lámina),Construcción,17,86.0000,87.1426,84.2500,2.3347,2.4559,39.6906,media,0.4615,random_forest,7
+DS-P049,FER-049,Adhesivo de contacto 1/4 galón,Adhesivos y Selladores,17,54.0000,72.5426,56.2500,2.3068,1.8382,39.2148,media,0.7262,baseline,7
+DS-P012,FER-012,Impermeabilizante acrílico 1 galón,Construcción,17,71.0000,64.5730,60.2500,2.2051,2.4853,37.4869,baja,0.5280,random_forest,7
+DS-P041,FER-041,Pala cuadrada con mango,Jardinería,17,71.0000,84.9523,73.5000,2.1315,2.2353,36.2349,media,0.5104,random_forest,7
+126b5449-9df4-496e-a1b9-f527a5ea0c0a,CER-023,Candado de bronce 40 mm,Cerrajería,17,106.0000,115.6274,106.2500,2.0848,2.1618,35.4411,media,0.3344,random_forest,7
+DS-P017,FER-017,Breaker 20 A enchufable,Eléctrico,17,93.0000,103.2148,102.0000,2.0375,2.2647,34.6374,media,0.3724,random_forest,7
+DS-P026,FER-026,Destornillador de estrella #2,Herramientas,17,116.0000,115.1621,121.7500,1.9927,1.9559,33.8761,media,0.2920,baseline,7
+DS-P027,FER-027,"Llave ajustable 10""",Herramientas,17,74.0000,73.4286,73.0000,1.9871,2.3824,33.7800,baja,0.4565,random_forest,7
+DS-P046,FER-046,Lentes de seguridad claros,Seguridad,17,84.0000,100.2945,90.0000,1.9846,1.8824,33.7376,media,0.4016,baseline,7
+DS-P040,FER-040,Cerradura de pomo para puerta,Cerrajería,17,45.0000,55.9254,47.0000,1.9140,1.8235,32.5375,baja,0.7231,baseline,7
+DS-P032,FER-032,Pintura de aceite color 1 galón,Pinturas,17,60.0000,68.7058,59.7500,1.8048,1.3971,30.6813,media,0.5114,baseline,7
+30cf2d34-7ddc-45a8-9eac-4a9fc4cfa3f5,ELE-001,Cable THHN #12 (rollo 100 m),Eléctrico,17,32.0000,44.4666,31.2500,1.7629,1.5735,29.9695,baja,0.9365,baseline,7
+DS-P050,FER-050,Pegamento epóxico 2 componentes,Adhesivos y Selladores,17,49.0000,66.3417,55.0000,1.7564,1.7353,29.8584,baja,0.6094,baseline,7
+DS-P047,FER-047,Casco de seguridad,Seguridad,17,55.0000,61.2221,59.2500,1.6707,1.6912,28.4017,baja,0.5164,random_forest,7
+DS-P024,FER-024,Grifo metálico para lavamanos,Plomería,17,40.0000,42.5811,40.0000,1.5450,1.6176,26.2654,baja,0.6566,random_forest,7
+DS-P044,FER-044,"Manguera de jardín 1/2"" x 15 m",Jardinería,17,54.0000,46.6069,47.5000,1.5350,1.4412,26.0952,baja,0.4832,baseline,7
+DS-P043,FER-043,Rastrillo metálico 16 dientes,Jardinería,17,39.0000,51.1329,41.5000,1.5057,1.1471,25.5963,baja,0.6563,baseline,7
+DS-P028,FER-028,"Taladro percutor 1/2"" 750 W",Herramientas Eléctricas,17,14.0000,18.6568,15.2500,0.9354,0.9853,15.9011,baja,1.1358,random_forest,7
+DS-P029,FER-029,"Pulidora angular 4-1/2""",Herramientas Eléctricas,17,13.0000,12.3083,10.7500,0.7333,0.8676,12.4666,baja,0.9590,random_forest,7
+DS-P031,FER-031,Rotomartillo SDS 800 W,Herramientas Eléctricas,17,9.0000,9.2924,6.0000,0.6084,0.6765,10.3436,baja,1.1493,random_forest,7
+DS-P030,FER-030,"Sierra circular 7-1/4""",Herramientas Eléctricas,17,9.0000,9.9019,8.7500,0.5581,0.6912,9.4875,baja,1.0542,random_forest,7
+0b4327ce-a267-40d8-bc6b-74ab7d775d30,TOR-001,"Tornillo para madera 1"" (caja 100 u)",Tornillería,14,1921.0000,1945.1264,2077.5000,35.2126,31.8010,492.9762,alta,0.2566,baseline,30
+DS-P020,FER-020,"Codo PVC 1/2"" x 90°",Plomería,14,3147.0000,2750.9475,3011.7857,30.2144,23.3214,423.0012,alta,0.1344,baseline,30
+DS-P036,FER-036,"Clavo de acero 2-1/2"" (libra)",Tornillería,14,1851.0000,1881.0148,1975.7143,29.1426,27.0510,407.9967,alta,0.2204,baseline,30
+DS-P034,FER-034,"Brocha 3""",Pinturas,14,663.0000,906.5588,835.7143,22.4288,14.9490,314.0031,media,0.4736,baseline,30
+ccc1fa5f-09b9-486c-8a74-3dfa0298911a,CEM-001,Cemento gris 42.5 kg,Construcción,14,2691.0000,2742.1632,2756.7857,21.2116,22.1276,296.9624,alta,0.1104,random_forest,30
+92e71d63-18a8-434d-843c-bf74be57070f,HER-002,Cinta métrica 5 m,Herramientas,14,909.0000,1185.1327,964.2857,21.0472,14.0612,294.6610,media,0.3242,baseline,30
+DS-P010,FER-010,Mortero seco 40 kg,Construcción,14,942.0000,1168.6126,1135.7143,20.8460,17.3776,291.8445,alta,0.3098,baseline,30
+DS-P021,FER-021,"Tee PVC 1/2""",Plomería,14,1627.0000,1473.2456,1543.9286,18.9763,25.5459,265.6682,alta,0.1633,random_forest,30
+DS-P014,FER-014,Alambre de amarre (libra),Construcción,14,1437.0000,1674.9535,1505.3571,17.1895,13.5561,240.6527,alta,0.1675,baseline,30
+DS-P037,FER-037,"Perno hexagonal 3/8"" x 3"" con tuerca",Tornillería,14,1040.0000,983.9958,1011.4286,15.9534,20.1429,223.3474,media,0.2148,random_forest,30
+DS-P011,FER-011,Pegamento para cerámica 20 kg,Construcción,14,564.0000,668.1769,567.8571,14.1372,8.5612,197.9208,media,0.3509,baseline,30
+DS-P019,FER-019,Bombillo LED 12 W,Eléctrico,14,1103.0000,1078.5530,1091.7857,14.0471,19.3520,196.6601,alta,0.1783,random_forest,30
+DS-P042,FER-042,"Machete 22""",Jardinería,14,630.0000,498.7832,575.3571,13.8892,12.5357,194.4489,media,0.3086,baseline,30
+e6d66d11-b7e0-4153-81fa-62a11cef4515,PLO-001,"Tubo PVC 1/2"" x 6 m",Plomería,14,1902.0000,1744.9820,1812.8571,13.8363,12.3061,193.7077,alta,0.1018,baseline,30
+DS-P038,FER-038,"Taquete plástico 1/4"" (bolsa 100 u)",Tornillería,14,619.0000,677.0631,602.1429,13.2232,13.1327,185.1245,media,0.2991,baseline,30
+765694c8-9734-462c-a35f-797118e2e09e,PIN-001,Pintura acrílica blanca 1 galón,Pinturas,14,699.0000,858.4497,811.0714,12.7360,13.4337,178.3036,media,0.2551,random_forest,30
+DS-P045,FER-045,Guantes de cuero (par),Seguridad,14,405.0000,564.4204,477.8571,12.5174,7.5510,175.2429,media,0.4327,baseline,30
+DS-P018,FER-018,"Cinta aislante 3/4"" x 20 m",Eléctrico,14,1437.0000,1338.2135,1372.5000,10.5455,11.9847,147.6367,alta,0.1027,random_forest,30
+DS-P027,FER-027,"Llave ajustable 10""",Herramientas,14,256.0000,303.8695,268.9286,10.3045,9.8316,144.2635,baja,0.5635,baseline,30
+DS-P033,FER-033,Diluyente (thinner) 1 galón,Pinturas,14,398.0000,482.3055,416.7857,9.7768,10.7398,136.8752,media,0.3439,random_forest,30
+DS-P016,FER-016,Interruptor sencillo,Eléctrico,14,807.0000,840.3219,850.7143,9.6471,11.5408,135.0594,media,0.1674,random_forest,30
+DS-P013,FER-013,Malla electrosoldada 6x6 (lámina),Construcción,14,271.0000,323.1853,290.3571,9.3613,8.7398,131.0577,media,0.4836,baseline,30
+DS-P035,FER-035,"Rodillo 9"" con bandeja",Pinturas,14,476.0000,589.1920,513.2143,9.0604,9.9031,126.8459,media,0.2665,random_forest,30
+DS-P048,FER-048,Silicón transparente 280 ml,Adhesivos y Selladores,14,362.0000,463.7059,407.1429,8.4504,6.7857,118.3062,media,0.3268,baseline,30
+DS-P022,FER-022,Pegamento PVC 1/4 galón,Plomería,14,1139.0000,1161.4255,1090.7143,8.2571,13.2755,115.5998,alta,0.1015,random_forest,30
+DS-P025,FER-025,"Alicate universal 8""",Herramientas,14,341.0000,312.3707,355.7143,8.1303,9.7449,113.8239,media,0.3338,random_forest,30
+DS-P049,FER-049,Adhesivo de contacto 1/4 galón,Adhesivos y Selladores,14,179.0000,277.9459,205.7143,7.8261,7.0510,109.5657,media,0.6121,baseline,30
+DS-P015,FER-015,Tomacorriente doble polarizado,Eléctrico,14,813.0000,803.9123,846.4286,7.4064,13.1633,103.6894,media,0.1275,random_forest,30
+DS-P050,FER-050,Pegamento epóxico 2 componentes,Adhesivos y Selladores,14,157.0000,258.9957,197.1429,7.3739,6.3061,103.2346,baja,0.6575,baseline,30
+DS-P032,FER-032,Pintura de aceite color 1 galón,Pinturas,14,210.0000,247.3957,204.6429,6.3302,3.9439,88.6232,media,0.4220,baseline,30
+DS-P023,FER-023,"Llave de paso 1/2""",Plomería,14,493.0000,442.3188,497.1429,6.2776,7.0204,87.8859,media,0.1783,random_forest,30
+DS-P039,FER-039,"Bisagra de acero 3"" (par)",Cerrajería,14,573.0000,540.2486,553.9286,5.8885,8.2908,82.4385,media,0.1439,random_forest,30
+DS-P026,FER-026,Destornillador de estrella #2,Herramientas,14,400.0000,425.7731,429.6429,5.8018,7.1888,81.2250,media,0.2031,random_forest,30
+DS-P043,FER-043,Rastrillo metálico 16 dientes,Jardinería,14,148.0000,179.4531,161.7857,5.4316,5.7500,76.0423,baja,0.5138,random_forest,30
+0952bcea-dcc1-484d-b422-b1a41871f4be,CER-001,Candado de bronce 40 mm,Cerrajería,14,251.0000,277.2142,274.2857,5.0942,7.3367,71.3186,media,0.2841,random_forest,30
+9acb88c2-673a-4ca9-b665-b129976958bd,HER-001,Martillo de uña 16 oz,Herramientas,14,392.0000,419.3509,418.9286,4.4928,5.1786,62.8987,media,0.1605,random_forest,30
+DS-P041,FER-041,Pala cuadrada con mango,Jardinería,14,257.0000,276.3834,261.4286,4.4221,6.8571,61.9094,media,0.2409,random_forest,30
+30cf2d34-7ddc-45a8-9eac-4a9fc4cfa3f5,ELE-001,Cable THHN #12 (rollo 100 m),Eléctrico,14,108.0000,153.1286,106.0714,4.0106,5.2602,56.1480,baja,0.5199,random_forest,30
+DS-P040,FER-040,Cerradura de pomo para puerta,Cerrajería,14,165.0000,186.5600,162.8571,3.8214,4.7245,53.5001,baja,0.3242,random_forest,30
+126b5449-9df4-496e-a1b9-f527a5ea0c0a,CER-023,Candado de bronce 40 mm,Cerrajería,14,372.0000,392.7409,378.2143,3.5255,4.0459,49.3575,media,0.1327,random_forest,30
+DS-P044,FER-044,"Manguera de jardín 1/2"" x 15 m",Jardinería,14,176.0000,147.7192,161.7857,3.4543,4.0969,48.3602,baja,0.2748,random_forest,30
+DS-P046,FER-046,Lentes de seguridad claros,Seguridad,14,302.0000,344.8922,323.5714,3.1987,3.2857,44.7815,media,0.1483,random_forest,30
+DS-P012,FER-012,Impermeabilizante acrílico 1 galón,Construcción,14,240.0000,213.7485,212.1429,3.0996,4.2143,43.3940,baja,0.1808,random_forest,30
+DS-P047,FER-047,Casco de seguridad,Seguridad,14,186.0000,215.4945,214.2857,2.7985,3.1327,39.1788,baja,0.2106,random_forest,30
+DS-P024,FER-024,Grifo metálico para lavamanos,Plomería,14,136.0000,156.4305,139.2857,2.3953,2.5204,33.5344,baja,0.2466,random_forest,30
+DS-P017,FER-017,Breaker 20 A enchufable,Eléctrico,14,344.0000,373.2816,358.9286,2.2187,3.7602,31.0621,media,0.0903,random_forest,30
+DS-P028,FER-028,"Taladro percutor 1/2"" 750 W",Herramientas Eléctricas,14,51.0000,59.9614,54.6429,1.4064,2.1071,19.6900,baja,0.3861,random_forest,30
+DS-P030,FER-030,"Sierra circular 7-1/4""",Herramientas Eléctricas,14,31.0000,30.1248,34.2857,1.2815,1.3265,17.9412,baja,0.5787,random_forest,30
+DS-P029,FER-029,"Pulidora angular 4-1/2""",Herramientas Eléctricas,14,41.0000,32.6033,37.5000,1.1790,1.4439,16.5062,baja,0.4026,random_forest,30
+DS-P031,FER-031,Rotomartillo SDS 800 W,Herramientas Eléctricas,14,25.0000,27.2145,20.3571,1.1555,1.7500,16.1770,baja,0.6471,random_forest,30
