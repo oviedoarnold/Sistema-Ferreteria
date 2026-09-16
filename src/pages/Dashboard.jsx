@@ -10,6 +10,7 @@ import {
 } from "../utils/salesUtils"
 import { formatMoney as money } from "../utils/format"
 import { ClientsContext } from "../context/contexts"
+import ProyeccionDemanda from "../components/proyeccion/ProyeccionDemanda"
 
 
 function Dashboard() {
@@ -67,6 +68,8 @@ function Dashboard() {
       })}</div></div>
       <div className="chart-wrap"><div className="chart-title">Top productos vendidos</div><div className="dash-mini-list">{topProducts.length ? topProducts.map(([name, qty]) => <div className="dash-mini-row" key={name}><span className="name">{name}</span><span className="val">{qty} u.</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
     </div>
+
+    <ProyeccionDemanda />
 
     <div className="dash-bottom">
       <div className="chart-wrap"><div className="chart-title">Últimas ventas</div><div className="dash-mini-list">{recentSales.length ? recentSales.map((s) => <div className="dash-mini-row" key={s.id}><span className="name">{s.customer || s.clientName || "Consumidor Final"}{esVentaAnulada(s) && <span className="badge badge-void"> Anulada</span>}</span><span className="val">{money(s.total)}</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>

@@ -1,11 +1,12 @@
-import { describe, it, expect, vi } from "vitest"
-import { screen } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { screen, within } from "@testing-library/react"
 
 import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
 import SalesProvider from "../context/SalesContext"
 import ClientsProvider from "../context/ClientsContext"
 import { renderizarPantalla } from "../test/pantallas"
+import { servirProyeccion } from "../test/proyeccionDePrueba"
 import Dashboard from "./Dashboard"
 
 vi.mock("../lib/supabase", () => ({
@@ -37,6 +38,19 @@ const venta = (extra = {}) => ({
   type: "contado",
   status: "pagada",
   ...extra,
+})
+
+/*
+  El Dashboard carga la proyección de demanda por su cuenta. Sin simularla,
+  cada prueba intentaría descargar el archivo de verdad y dejaría el registro
+  lleno de errores de red que no tienen nada que ver con lo que se prueba.
+*/
+beforeEach(() => {
+  servirProyeccion(vi)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 function renderDashboard({ ventas = [], productos = PRODUCTOS, clientes = [] } = {}) {
@@ -206,5 +220,56 @@ describe("Dashboard con ventas anuladas", () => {
 
     expect(recientes).toHaveTextContent("Distribuidora Sur")
     expect(recientes).toHaveTextContent("Anulada")
+  })
+})
+
+
+/*
+  La proyección de demanda carga su propio archivo, aparte de los datos de la
+  operación. Por omisión se sirve bien; las pruebas de falla la rompen a
+  propósito.
+*/
+describe("Dashboard con la proyección de demanda", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+  })
+
+  it("muestra la proyección debajo de los indicadores de la operación", async () => {
+    await renderDashboard({ ventas: [venta()] })
+
+    const seccion = (await screen.findByText("Proyección de demanda e inventario")).closest("section")
+
+    expect(await within(seccion).findByText("Recomendaciones de inventario")).toBeInTheDocument()
+    expect(within(seccion).getByText("Productos en riesgo alto").closest(".stat-card")).toHaveTextContent("28")
+
+    // Los indicadores de la operación siguen fuera de la sección y con sus datos.
+    expect(within(seccion).queryByText("Ventas hoy")).not.toBeInTheDocument()
+    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
+  })
+
+  /*
+    Lo más importante de la integración: si la proyección no carga, la
+    ferretería tiene que poder seguir usando el Dashboard para operar.
+  */
+  it("si la proyección falla, el Dashboard operativo sigue funcionando", async () => {
+    servirProyeccion(vi, { estado: 500 })
+
+    await renderDashboard({ ventas: [venta()] })
+
+    expect(await screen.findByText("No fue posible cargar la proyección de demanda.")).toBeInTheDocument()
+
+    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
+    expect(screen.getByText("Agotados").closest(".stat-card")).toHaveTextContent("1")
+    expect(screen.getByText("Últimas ventas")).toBeInTheDocument()
+    expect(screen.queryByText("Recomendaciones de inventario")).not.toBeInTheDocument()
+  })
+
+  it("si no hay red para la proyección, tampoco se cae la pantalla", async () => {
+    servirProyeccion(vi, { falla: new TypeError("Failed to fetch") })
+
+    await renderDashboard()
+
+    expect(await screen.findByText("No fue posible cargar la proyección de demanda.")).toBeInTheDocument()
+    expect(screen.getByText("Stock bajo").closest(".stat-card")).toHaveTextContent("1")
   })
 })
