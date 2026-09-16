@@ -88,7 +88,8 @@ productos_sinteticos.csv┘   (50)            │          │       │
 | Variables | `src/features.py` | demanda diaria | variables, objetivos y baseline | ✅ |
 | Modelo | `src/train.py` | variables | `models/*.joblib` + `outputs/model/` | ✅ |
 | Recomendación | `src/predict.py` | modelos + stock | `outputs/predictions/` | ✅ |
-| Dashboard | Sistema Ferretería | recomendaciones | pantalla | Fase 6 |
+| Exportación | `src/export_dashboard.py` | recomendaciones + demanda diaria + métricas | `../public/data/predicciones-inventario.json` | ✅ |
+| Dashboard | Sistema Ferretería (React) | JSON publicado | sección del Dashboard | ✅ |
 
 ## Ejecución
 
@@ -102,6 +103,7 @@ python src/etl.py
 python src/eda.py
 python src/train.py      # evaluación completa y modelos finales, ~1 min
 python src/predict.py    # predicción de septiembre y recomendaciones
+python src/export_dashboard.py  # JSON que lee el Dashboard
 ```
 
 Cada script lee lo que produjo el anterior. Se pueden volver a ejecutar en
@@ -249,7 +251,7 @@ parámetros de simulación ni el modelo después de verlos.
 
 El detalle está en
 [`outputs/predictions/resumen_predicciones.md`](outputs/predictions/resumen_predicciones.md).
-El archivo que usará el Dashboard es
+El archivo del que parte el Dashboard es
 [`outputs/predictions/recomendaciones_inventario.csv`](outputs/predictions/recomendaciones_inventario.csv).
 
 Con la información al **31 de agosto de 2026** y los modelos finales, entrenados
@@ -287,6 +289,64 @@ en cada fila.
 
 Riesgo bajo equivale exactamente a recomendación cero, y se verifica en cada
 ejecución.
+
+## Integración con el Dashboard
+
+```
+Python (data-science/) ─→ public/data/predicciones-inventario.json ─→ React: Dashboard
+```
+
+`src/export_dashboard.py` toma las recomendaciones, la demanda diaria y las
+métricas del modelo, y escribe un solo JSON en `public/data/` del Sistema
+Ferretería. Vite lo publica como archivo estático y el Dashboard lo lee con
+`fetch`, en la sección **Proyección de demanda e inventario**.
+
+El JSON contiene:
+
+| Parte | Contenido |
+|---|---|
+| `metadata` | modelo (Random Forest), fecha de corte, período histórico, período proyectado, horizontes, cantidad de productos por origen y la aclaración del escenario académico |
+| `resumen` | demanda total a 7 y 30 días, productos por riesgo, productos con compra, unidades e inversión — calculado a partir del detalle |
+| `serie_mensual` | unidades históricas de enero a agosto y la demanda proyectada de los 30 días siguientes, marcada como `proyeccion` |
+| `productos` | los 50 productos con origen, tipo de stock, demanda prevista, riesgo, recomendación e inversión |
+
+Septiembre es **un solo valor**, la demanda acumulada que predice el modelo: no
+se dibuja una curva diaria que el modelo no produjo.
+
+Antes de escribir, el script **valida el resultado** y se detiene si algo no
+cuadra: 50 productos sin repetir (9 del sistema y 41 simulados), sin negativos
+ni valores no finitos, stock real solo en los productos del sistema, riesgos
+válidos, resumen igual al detalle y la proyección igual a la demanda a 30 días.
+Las pruebas del Sistema Ferretería repiten las comprobaciones esenciales sobre
+el archivo publicado, así que el CI detecta un JSON editado a mano.
+
+El archivo no lleva fecha de generación: dos ejecuciones producen el mismo JSON
+byte a byte.
+
+### Por qué un JSON estático
+
+- **Sin servidor de Python.** El Sistema Ferretería sigue siendo una aplicación
+  estática en Vercel; no hay un proceso más que mantener ni que pueda caerse.
+- **Sin cambios en Supabase.** No se creó una tabla de predicciones ni se
+  insertaron productos, ventas o stock simulados. La base operativa queda
+  intacta.
+- **Lo analítico separado de lo operativo.** Las ventas simuladas nunca se
+  mezclan con las reales, ni con el inventario, el Kardex o las facturas.
+- **Demostración sencilla.** Funciona igual en local y en producción, sin
+  credenciales adicionales.
+- **Reproducible.** El archivo publicado es una salida más del pipeline, con
+  versión en git.
+
+La sección del Dashboard es independiente del resto: si el JSON no carga,
+muestra un aviso y los indicadores operativos siguen funcionando.
+
+### Actualización futura
+
+Con ventas reales, el JSON dejaría de alcanzar: habría que regenerar la
+predicción con cada cierre. Las opciones naturales son un pipeline programado
+que vuelva a entrenar y publicar, una API que sirva la predicción, o una tabla
+analítica en Supabase que llene un proceso periódico. **Nada de esto está
+implementado**; hoy el JSON se regenera a mano ejecutando el pipeline.
 
 ## Limitaciones
 
@@ -366,11 +426,16 @@ data-science/
     ├── eda.py
     ├── features.py
     ├── train.py
-    └── predict.py
+    ├── predict.py
+    └── export_dashboard.py     JSON para el Dashboard
 ```
+
+Fuera de esta carpeta, el pipeline escribe
+`public/data/predicciones-inventario.json`, que publica el Sistema Ferretería.
 
 ## Estado
 
-**Esta fase llega hasta las recomendaciones.** Nada de esto está todavía en el
-Sistema Ferretería ni en Supabase: la integración con el Dashboard es la Fase 6,
-y usará `outputs/predictions/recomendaciones_inventario.csv`.
+Las predicciones y recomendaciones se muestran en el Dashboard del Sistema
+Ferretería a través del JSON publicado. **Nada de esto está en Supabase**, y el
+Dashboard presenta los resultados como un escenario académico con ventas
+simuladas.
