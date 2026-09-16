@@ -1,5 +1,11 @@
 # Versiones fijadas: con otra version de numpy la misma semilla puede
-# producir otra secuencia, y el dataset dejaria de ser reproducible.
+# producir otra secuencia, y con otra de scikit-learn el mismo bosque
+# aleatorio puede dar otras predicciones. Cualquiera de las dos rompe la
+# reproducibilidad del dataset y del modelo.
 numpy==2.2.6
 pandas==2.3.1
 matplotlib==3.10.5
+scikit-learn==1.7.1
+# joblib ya lo instala scikit-learn; se fija aparte porque es con lo que se
+# guardan y se vuelven a cargar los modelos.
+joblib==1.6.0
