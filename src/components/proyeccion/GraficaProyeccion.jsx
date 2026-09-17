@@ -1,4 +1,5 @@
-import { alturaDeBarra, formatearUnidades } from "../../utils/proyeccion"
+import { alturaDeBarra } from "../../utils/graficas"
+import { formatearUnidades } from "../../utils/proyeccion"
 
 /*
   Demanda mensual: lo que ya pasó y lo que se proyecta.

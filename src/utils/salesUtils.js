@@ -139,6 +139,29 @@ export function esVentaDelDia(sale, dia = new Date()) {
   return Boolean(fecha) && fecha.toDateString() === dia.toDateString()
 }
 
+/*
+  Lo vendido en cada uno de los últimos meses, del más antiguo al actual.
+  Usa la misma regla de mes que "Ventas del mes", para que la última barra y
+  esa tarjeta nunca muestren cifras distintas.
+
+  Los meses se construyen desde el día 1: restar meses a un día 31 saltaría
+  los meses cortos.
+*/
+export function totalesDeVentasPorMes(ventas = [], { meses = 6, hoy = new Date() } = {}) {
+  return Array.from({ length: meses }, (_, indice) => {
+    const mes = new Date(hoy.getFullYear(), hoy.getMonth() - (meses - 1 - indice), 1)
+    const total = ventas
+      .filter((venta) => esVentaDelMes(venta, mes))
+      .reduce((suma, venta) => suma + Number(venta.total || 0), 0)
+
+    return {
+      clave: `${mes.getFullYear()}-${mes.getMonth() + 1}`,
+      etiqueta: mes.toLocaleDateString("es-HN", { month: "short" }),
+      total,
+    }
+  })
+}
+
 export function esVentaDelMes(sale, mes = new Date()) {
   const fecha = fechaDeVenta(sale)
 

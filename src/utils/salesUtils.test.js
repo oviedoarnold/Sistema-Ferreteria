@@ -7,6 +7,7 @@ import {
   getSalePaid,
   getSaleBalance,
   applyPayments,
+  totalesDeVentasPorMes,
 } from "./salesUtils"
 
 const credito = (total, payments = []) => ({
@@ -152,5 +153,41 @@ describe("applyPayments", () => {
   it("deja la lista de abonos que se le pasó", () => {
     const nuevos = [abono(100), abono(200)]
     expect(applyPayments(credito(1000), nuevos).payments).toEqual(nuevos)
+  })
+})
+
+describe("totales de ventas por mes", () => {
+  const vendida = (anio, mes, dia, total) => ({ timestamp: new Date(anio, mes, dia, 10).getTime(), total })
+
+  it("devuelve los últimos seis meses, del más antiguo al actual", () => {
+    const meses = totalesDeVentasPorMes([], { hoy: new Date(2026, 8, 16) })
+
+    expect(meses.map((mes) => mes.clave)).toEqual(["2026-4", "2026-5", "2026-6", "2026-7", "2026-8", "2026-9"])
+    expect(meses.map((mes) => mes.etiqueta)).toEqual(["abr", "may", "jun", "jul", "ago", "sept"])
+  })
+
+  it("suma cada venta en su mes", () => {
+    const ventas = [vendida(2026, 8, 1, 100), vendida(2026, 8, 15, 50.5), vendida(2026, 7, 31, 30)]
+
+    const meses = totalesDeVentasPorMes(ventas, { hoy: new Date(2026, 8, 16) })
+
+    expect(meses.at(-1).total).toBe(150.5)
+    expect(meses.at(-2).total).toBe(30)
+    expect(meses[0].total).toBe(0)
+  })
+
+  it("no salta febrero cuando hoy es día 31", () => {
+    const meses = totalesDeVentasPorMes([vendida(2026, 1, 10, 80)], { hoy: new Date(2026, 2, 31) })
+
+    expect(meses.map((mes) => mes.clave)).toEqual(["2025-10", "2025-11", "2025-12", "2026-1", "2026-2", "2026-3"])
+    expect(meses.at(-2).total).toBe(80)
+  })
+
+  it("ignora las ventas sin fecha válida y las de otros años", () => {
+    const ventas = [{ timestamp: "no es fecha", total: 999 }, vendida(2025, 8, 10, 500)]
+
+    const meses = totalesDeVentasPorMes(ventas, { hoy: new Date(2026, 8, 16) })
+
+    expect(meses.every((mes) => mes.total === 0)).toBe(true)
   })
 })

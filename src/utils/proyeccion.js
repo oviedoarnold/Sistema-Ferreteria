@@ -67,17 +67,6 @@ export function formatearUnidades(valor, decimales = 1) {
 }
 
 /*
-  Altura de una barra como porcentaje de la más alta. Nunca menos de 4%: una
-  barra en cero o casi cero tiene que seguir viéndose, porque su ausencia se
-  confundiría con un dato que falta.
-*/
-export function alturaDeBarra(valor, maximo) {
-  if (!(maximo > 0)) return 4
-
-  return Math.max(4, Math.min(100, (Number(valor) / maximo) * 100))
-}
-
-/*
   "enero–agosto 2026". Las fechas del JSON vienen como texto
   ISO y se leen al mediodía: a medianoche, una zona horaria al oeste de
   Greenwich las movería al día anterior.
