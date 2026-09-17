@@ -2,8 +2,13 @@
   Cómo se lee la proyección de demanda.
 
   Son decisiones sobre los datos y no sobre el diseño: qué producto va
-  primero, qué riesgo es cuál, cómo se escribe una cantidad. Viven fuera de
-  los componentes para probarlas solas y dejar el JSX sin condicionales.
+  primero, qué riesgo es cuál, qué productos deja un filtro, cómo se escribe
+  una cantidad. Viven fuera de los componentes para probarlas solas y dejar
+  el JSX sin condicionales.
+
+  Todas las cifras del bloque predictivo salen del detalle de productos. Así
+  un filtro recalcula tarjetas, gráficas y tabla con la misma operación, y
+  sin filtros el resultado es el resumen publicado.
 */
 
 import { roundMoney } from "./salesUtils"
@@ -20,12 +25,11 @@ export const RIESGOS = {
   bajo: { etiqueta: "Bajo", clase: "badge-ok", orden: 2 },
 }
 
-export const FILTROS_DE_RIESGO = [
-  { valor: "todos", etiqueta: "Todos" },
-  { valor: "alto", etiqueta: "Alto" },
-  { valor: "medio", etiqueta: "Medio" },
-  { valor: "bajo", etiqueta: "Bajo" },
-]
+export const TODAS_LAS_CATEGORIAS = "todas"
+
+export const TODOS_LOS_RIESGOS = "todos"
+
+export const FILTROS_INICIALES = { categoria: TODAS_LAS_CATEGORIAS, riesgo: TODOS_LOS_RIESGOS }
 
 /*
   Qué atender primero: lo que corre más riesgo, y entre iguales, lo que más
@@ -44,6 +48,64 @@ export function ordenarPorPrioridad(productos = []) {
 
 function ordenDeRiesgo(riesgo) {
   return RIESGOS[riesgo]?.orden ?? Object.keys(RIESGOS).length
+}
+
+/* La intersección de los filtros: un producto queda si cumple todos. */
+export function filtrarProductos(productos = [], { categoria, riesgo } = FILTROS_INICIALES) {
+  return productos.filter(
+    (producto) =>
+      (categoria === TODAS_LAS_CATEGORIAS || producto.categoria === categoria) &&
+      (riesgo === TODOS_LOS_RIESGOS || producto.riesgo === riesgo)
+  )
+}
+
+export function hayFiltrosActivos({ categoria, riesgo }) {
+  return categoria !== TODAS_LAS_CATEGORIAS || riesgo !== TODOS_LOS_RIESGOS
+}
+
+export function categoriasDe(productos = []) {
+  return [...new Set(productos.map((producto) => producto.categoria))].sort((a, b) => a.localeCompare(b))
+}
+
+const sumar = (productos, campo) => productos.reduce((suma, producto) => suma + Number(producto[campo]), 0)
+
+const contarRiesgo = (productos, riesgo) => productos.filter((producto) => producto.riesgo === riesgo).length
+
+/*
+  Las cifras de las tarjetas para un conjunto de productos. Redondea igual que
+  el pipeline, así que sobre los 50 productos devuelve el resumen publicado.
+*/
+export function resumirProductos(productos = []) {
+  return {
+    productos: productos.length,
+    demanda_total_7d: roundMoney(sumar(productos, "demanda_predicha_7d")),
+    demanda_total_30d: roundMoney(sumar(productos, "demanda_predicha_30d")),
+    productos_riesgo_alto: contarRiesgo(productos, "alto"),
+    productos_riesgo_medio: contarRiesgo(productos, "medio"),
+    productos_riesgo_bajo: contarRiesgo(productos, "bajo"),
+    productos_con_compra: productos.filter((producto) => producto.recomendacion_compra > 0).length,
+    unidades_recomendadas: sumar(productos, "recomendacion_compra"),
+    inversion_estimada: roundMoney(sumar(productos, "inversion_estimada")),
+  }
+}
+
+/*
+  Demanda mensual de un conjunto de productos: cada mes histórico es la suma
+  de lo que vendieron esos productos, y la proyección es la suma de su demanda
+  predicha a 30 días.
+
+  El riesgo es una clasificación del inventario actual, no del pasado. Filtrar
+  por riesgo alto muestra el histórico de los productos que HOY están en
+  riesgo alto; no afirma que estuvieran en riesgo en esos meses.
+*/
+export function serieDeDemanda(productos = [], plantilla = []) {
+  return plantilla.map((mes) => ({
+    ...mes,
+    unidades:
+      mes.tipo === "proyeccion"
+        ? roundMoney(sumar(productos, "demanda_predicha_30d"))
+        : productos.reduce((suma, producto) => suma + Number(producto.historico_mensual?.[mes.mes] ?? 0), 0),
+  }))
 }
 
 /*
@@ -104,18 +166,23 @@ export function contarProductos(cantidad) {
   return `${cantidad} ${cantidad === 1 ? "producto" : "productos"}`
 }
 
-export function filtrarPorRiesgo(productos = [], riesgo = "todos") {
-  if (riesgo === "todos") return productos
-
-  return productos.filter((producto) => producto.riesgo === riesgo)
-}
-
 export function describirRiesgo(riesgo) {
   return RIESGOS[riesgo] ?? { etiqueta: "Sin dato", clase: "badge-void" }
 }
 
-export function esProductoSimulado(producto) {
-  return producto?.origen !== "sistema"
+/*
+  "50 productos" sin filtros; con filtros, qué se eligió y cuánto quedó:
+  "Plomería · Riesgo alto · 4 de 50 productos".
+*/
+export function describirFiltros({ categoria, riesgo }, { mostrados, total }) {
+  if (!hayFiltrosActivos({ categoria, riesgo })) return contarProductos(total)
+
+  const elegidos = [
+    categoria !== TODAS_LAS_CATEGORIAS && categoria,
+    riesgo !== TODOS_LOS_RIESGOS && `Riesgo ${describirRiesgo(riesgo).etiqueta.toLowerCase()}`,
+  ].filter(Boolean)
+
+  return [...elegidos, `${mostrados} de ${contarProductos(total)}`].join(" · ")
 }
 
 export function formatearUnidades(valor, decimales = 1) {
@@ -130,38 +197,21 @@ export function formatearUnidades(valor, decimales = 1) {
 
 /*
   "enero–agosto 2026", o "septiembre 2026" si el período cabe en un mes.
-*/
-export function describirPeriodo(periodo) {
-  const meses = mesesDelPeriodo(periodo)
 
-  if (!meses) return ""
-
-  const { inicio, fin, anio } = meses
-
-  return inicio === fin ? `${fin} ${anio}` : `${inicio}–${fin} ${anio}`
-}
-
-/* "enero a agosto de 2026", para usar dentro de una oración. */
-export function describirPeriodoEnPalabras(periodo) {
-  const meses = mesesDelPeriodo(periodo)
-
-  return meses ? `${meses.inicio} a ${meses.fin} de ${meses.anio}` : ""
-}
-
-/*
   Las fechas del JSON vienen como texto ISO y se leen al mediodía: a
   medianoche, una zona horaria al oeste de Greenwich las movería al día
   anterior.
 */
-function mesesDelPeriodo({ desde, hasta } = {}) {
+export function describirPeriodo({ desde, hasta } = {}) {
   const inicio = new Date(`${desde}T12:00:00`)
   const fin = new Date(`${hasta}T12:00:00`)
 
-  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) return null
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) return ""
 
   const mes = (fecha) => fecha.toLocaleDateString(LOCALE, { month: "long" })
+  const anio = fin.getFullYear()
 
-  return { inicio: mes(inicio), fin: mes(fin), anio: fin.getFullYear() }
+  return mes(inicio) === mes(fin) ? `${mes(fin)} ${anio}` : `${mes(inicio)}–${mes(fin)} ${anio}`
 }
 
 /* Porcentaje entero de una parte sobre el total; 0 si no hay total. */
@@ -171,19 +221,12 @@ export function porcentaje(parte, total) {
   return Math.round((Number(parte) / total) * 100)
 }
 
-export function aclaracionDelEscenario({ productos, productos_sistema: sistema, productos_simulados: simulados }) {
-  return (
-    `Escenario académico de ${productos} productos: ${sistema} del sistema y ${simulados} simulados para análisis. ` +
-    "Las ventas históricas utilizadas para el modelo son simuladas."
-  )
-}
-
 /*
-  "prioritarios" solo describe la vista general, que va en orden de
-  prioridad. Con un filtro de riesgo aplicado, el conteo es neutro.
+  "prioritarios" solo describe la vista general sin filtros, que va en orden
+  de prioridad. Con un filtro aplicado, el conteo es neutro.
 */
-export function describirConteo({ riesgo, mostrados, total }) {
-  if (riesgo === "todos" && mostrados < total) return `${mostrados} prioritarios de ${total} productos`
+export function describirConteo({ hayFiltros, mostrados, total }) {
+  if (!hayFiltros && mostrados < total) return `${mostrados} prioritarios de ${total} productos`
 
   return `Mostrando ${mostrados} de ${total} productos`
 }

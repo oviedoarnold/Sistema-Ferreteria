@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { readFileSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 
-import AnaliticaPredictiva from "./AnaliticaPredictiva"
-import { MENSAJE_SIN_PROYECCION } from "../lib/api/proyeccion"
-import { ORDEN_ESPERADO, PRODUCTOS_DE_PRUEBA, proyeccionDePrueba, servirProyeccion } from "../test/proyeccionDePrueba"
+import AnalisisYProyeccion from "./AnalisisYProyeccion"
+import { MENSAJE_SIN_PROYECCION, RUTA_PROYECCION } from "../../lib/api/proyeccion"
+import { ORDEN_ESPERADO, PRODUCTOS_DE_PRUEBA, proyeccionDePrueba, servirProyeccion } from "../../test/proyeccionDePrueba"
+
+const PUBLICADO = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "public", RUTA_PROYECCION), "utf8")
+)
 
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {})
@@ -13,427 +20,414 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-async function mostrarAnalitica(opciones) {
+async function mostrarProyeccion(opciones) {
   servirProyeccion(vi, opciones)
-  render(<AnaliticaPredictiva />)
+  render(<AnalisisYProyeccion />)
 
   await screen.findByText("Recomendaciones de inventario")
 }
 
-const tarjeta = (etiqueta) => screen.getByText(etiqueta).closest(".stat-card")
+const tarjeta = (etiqueta) => screen.getByText(etiqueta, { selector: ".label" }).closest(".stat-card")
 
-const tabla = () => screen.getByRole("table")
+const selector = (nombre) => screen.getByRole("combobox", { name: nombre })
+
+const elegir = (nombre, valor) => fireEvent.change(selector(nombre), { target: { value: valor } })
+
+const estadoDeFiltros = () => document.querySelector(".filtros-estado")
 
 const codigosEnLaTabla = () =>
-  within(tabla())
+  within(screen.getByRole("table"))
     .getAllByRole("row")
     .slice(1)
     .map((fila) => fila.querySelector(".product-cat").textContent)
 
-describe("encabezado", () => {
-  it("presenta la página y su propósito", async () => {
-    await mostrarAnalitica()
+const ranking = () => screen.getByRole("list", { name: "Top 10 demanda proyectada — 30 días" })
 
-    expect(screen.getByRole("heading", { level: 2, name: "Analítica Predictiva" })).toBeInTheDocument()
-    expect(screen.getByText("Pronóstico de demanda y apoyo a decisiones de inventario")).toBeInTheDocument()
-  })
+const codigosDelRanking = () =>
+  within(ranking())
+    .getAllByRole("listitem")
+    .map((fila) => fila.querySelector(".barra-h-detalle").textContent)
 
-  it("indica el período histórico y el proyectado", async () => {
-    await mostrarAnalitica()
+const categoriasDeInversion = () =>
+  within(screen.getByRole("list", { name: "Inversión recomendada por categoría" }))
+    .getAllByRole("listitem")
+    .map((fila) => [fila.querySelector(".barra-h-nombre").firstChild.textContent, fila.querySelector(".barra-h-valor").textContent])
 
+const leyendaDeRiesgo = () =>
+  within(document.querySelector(".distribucion-riesgo"))
+    .getAllByRole("listitem")
+    .map((fila) => fila.textContent)
+
+const segmentoDeRiesgo = (etiqueta) => screen.getByRole("button", { name: new RegExp(`^Riesgo ${etiqueta}:`) })
+
+const barraDeCategoria = (categoria) => screen.getByRole("button", { name: new RegExp(`^${categoria}`) })
+
+describe("encabezado y lenguaje", () => {
+  it("presenta el bloque con sus períodos", async () => {
+    await mostrarProyeccion()
+
+    expect(screen.getByRole("heading", { name: "Análisis y proyección" })).toBeInTheDocument()
     expect(screen.getByText("Histórico: enero–agosto 2026 · Proyección: septiembre 2026")).toBeInTheDocument()
-  })
-})
-
-describe("indicadores", () => {
-  it("muestra la demanda a 30 días y, como detalle, la de 7", async () => {
-    await mostrarAnalitica()
-
-    const demanda = tarjeta("Demanda 30 días")
-
-    expect(demanda).toHaveTextContent("2,470.9unidades")
-    expect(demanda).toHaveTextContent("570.1 unidades / 7 días")
-  })
-
-  it("muestra los productos en riesgo alto y qué parte del escenario son", async () => {
-    await mostrarAnalitica()
-
-    expect(tarjeta("Riesgo alto")).toHaveTextContent("28productos")
-    expect(tarjeta("Riesgo alto")).toHaveTextContent("56% del escenario analizado")
-  })
-
-  it("muestra cuántos productos reponer y cuántas unidades", async () => {
-    await mostrarAnalitica()
-
-    expect(tarjeta("Reposición")).toHaveTextContent("34productos")
-    expect(tarjeta("Reposición")).toHaveTextContent("1,286 unidades recomendadas")
-  })
-
-  it("muestra la inversión con el formato de moneda del sistema", async () => {
-    await mostrarAnalitica()
-
-    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 119,380.60")
-    expect(tarjeta("Inversión estimada")).toHaveTextContent("A costo de compra")
-  })
-
-  it("muestra cuántos productos se analizaron y de qué origen", async () => {
-    await mostrarAnalitica()
-
-    expect(tarjeta("Productos analizados")).toHaveTextContent("50")
-    expect(tarjeta("Productos analizados")).toHaveTextContent("9 sistema · 41 simulados")
   })
 
   /*
-    Las cifras salen del archivo publicado. Si cambian ahí, cambian aquí: no
-    hay ningún resultado escrito en la página.
+    La interfaz habla de negocio. Que el escenario sea académico se explica en
+    la documentación y en la defensa, no en la pantalla.
   */
-  it("toma las cifras y el porcentaje del archivo, no de valores fijos", async () => {
-    const datos = proyeccionDePrueba()
-    datos.resumen = { ...datos.resumen, productos_riesgo_alto: 3, inversion_estimada: 1500.5 }
-    datos.metadata = { ...datos.metadata, productos: 12, productos_sistema: 3, productos_simulados: 9 }
+  it("no muestra avisos académicos, origen de los productos ni la nota del modelo", async () => {
+    await mostrarProyeccion()
 
-    await mostrarAnalitica({ datos })
-
-    expect(tarjeta("Riesgo alto")).toHaveTextContent("25% del escenario analizado")
-    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 1,500.50")
-    expect(tarjeta("Productos analizados")).toHaveTextContent("3 sistema · 9 simulados")
-  })
-})
-
-describe("transparencia", () => {
-  it("aclara que es un escenario académico con ventas simuladas", async () => {
-    await mostrarAnalitica()
-
-    expect(
-      screen.getByText(
-        "Escenario académico de 50 productos: 9 del sistema y 41 simulados para análisis. " +
-          "Las ventas históricas utilizadas para el modelo son simuladas."
-      )
-    ).toBeInTheDocument()
-  })
-
-  it("describe el modelo y cómo se evaluó sin presentarlo como superior", async () => {
-    await mostrarAnalitica()
-
-    const nota = screen.getByText(/Modelo de predicción: Random Forest/)
-
-    expect(nota).toHaveTextContent(
-      "Entrenado con datos históricos simulados de enero a agosto de 2026 y evaluado mediante " +
-        "backtesting temporal contra una media móvil de 28 días."
-    )
+    expect(document.body).not.toHaveTextContent(/acad[eé]mic|simulad|escenario|Random Forest|backtesting/i)
+    expect(screen.queryByText("Sistema")).not.toBeInTheDocument()
+    expect(document.querySelector(".origen-producto")).not.toBeInTheDocument()
     expect(document.body).not.toHaveTextContent(/precisión|exactitud|superior|tiempo real|garantizad/i)
   })
 })
 
-describe("gráfica de demanda mensual", () => {
-  it("muestra ocho meses históricos y septiembre como proyección", async () => {
-    await mostrarAnalitica()
+/*
+  Con el archivo publicado de verdad: sin filtros, y después de restablecer,
+  la pantalla tiene que mostrar exactamente los resultados aprobados.
+*/
+describe("con el archivo publicado", () => {
+  const cifrasAprobadas = () => {
+    expect(estadoDeFiltros()).toHaveTextContent("50 productos")
+    expect(tarjeta("Demanda 30 días")).toHaveTextContent("2,470.9unidades")
+    expect(tarjeta("Demanda 30 días")).toHaveTextContent("570.1 unidades / 7 días")
+    expect(tarjeta("Riesgo alto")).toHaveTextContent("28productos")
+    expect(tarjeta("Riesgo alto")).toHaveTextContent("56% de 50 productos")
+    expect(tarjeta("Reposición")).toHaveTextContent("34productos")
+    expect(tarjeta("Reposición")).toHaveTextContent("1,286 unidades recomendadas")
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 119,380.60")
+    expect(leyendaDeRiesgo()).toEqual(["Alto2856%", "Medio612%", "Bajo1632%", "Total50"])
+    expect(document.querySelector(".barras-h-pie")).toHaveTextContent("TotalL 119,380.60")
+    expect(screen.getByText("10 prioritarios de 50 productos")).toBeInTheDocument()
+  }
 
-    const historicos = document.querySelectorAll('.bar-col[data-tipo="historico"]')
-    const proyectados = document.querySelectorAll('.bar-col[data-tipo="proyeccion"]')
+  it("muestra los resultados aprobados sin filtros", async () => {
+    await mostrarProyeccion({ datos: PUBLICADO })
 
-    expect(historicos).toHaveLength(8)
-    expect(proyectados).toHaveLength(1)
-    expect(proyectados[0]).toHaveTextContent("sep")
+    cifrasAprobadas()
+  })
+
+  it("'Restablecer filtros' vuelve exactamente a los resultados aprobados", async () => {
+    await mostrarProyeccion({ datos: PUBLICADO })
+
+    elegir("Categoría", "Plomería")
+    elegir("Riesgo", "alto")
+    expect(tarjeta("Inversión estimada")).not.toHaveTextContent("L 119,380.60")
+
+    fireEvent.click(screen.getByRole("button", { name: "Restablecer filtros" }))
+
+    expect(selector("Categoría")).toHaveValue("todas")
+    expect(selector("Riesgo")).toHaveValue("todos")
+    cifrasAprobadas()
+  })
+})
+
+describe("filtro de categoría", () => {
+  it("recalcula las tarjetas con los productos de la categoría", async () => {
+    await mostrarProyeccion()
+
+    elegir("Categoría", "Plomería")
+
+    expect(estadoDeFiltros()).toHaveTextContent("Plomería · 4 de 12 productos")
+    expect(tarjeta("Demanda 30 días")).toHaveTextContent("312.0unidades")
+    expect(tarjeta("Demanda 30 días")).toHaveTextContent("8.0 unidades / 7 días")
+    expect(tarjeta("Riesgo alto")).toHaveTextContent("3productos")
+    expect(tarjeta("Riesgo alto")).toHaveTextContent("75% de 4 productos")
+    expect(tarjeta("Reposición")).toHaveTextContent("3productos")
+    expect(tarjeta("Reposición")).toHaveTextContent("170 unidades recomendadas")
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 3,200.00")
+  })
+
+  it("filtra la distribución de riesgo, el top, el histórico y la tabla", async () => {
+    await mostrarProyeccion()
+
+    elegir("Categoría", "Plomería")
+
+    expect(leyendaDeRiesgo()).toEqual(["Alto375%", "Medio00%", "Bajo125%", "Total4"])
+    expect(codigosDelRanking()).toEqual(["FER-020", "FER-022", "FER-021", "FER-040"])
+    expect(codigosEnLaTabla()).toEqual(["FER-020", "FER-022", "FER-021", "FER-040"])
+    expect(screen.getByText("Mostrando 4 de 4 productos")).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "ene: 260 unidades" })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "ago: 288 unidades" })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "sep: 312 unidades (proyección)" })).toBeInTheDocument()
   })
 
   /*
-    La proyección no puede leerse como un dato observado: además del estilo
-    distinto, lo dice en el texto.
+    Las barras de categoría no se filtran por su propio filtro: siguen
+    mostrando todas las categorías, con la elegida marcada, para poder cambiar
+    de una a otra con un clic.
   */
-  it("marca septiembre como proyección en el texto, no solo en el color", async () => {
-    await mostrarAnalitica()
+  it("marca la categoría elegida en la inversión sin ocultar las demás", async () => {
+    await mostrarProyeccion()
 
-    const septiembre = document.querySelector('.bar-col[data-tipo="proyeccion"]')
+    elegir("Categoría", "Plomería")
 
-    expect(septiembre).toHaveTextContent("proy.")
-    expect(within(septiembre).getByRole("img")).toHaveAccessibleName(/sep: 2,471 unidades \(proyección\)/)
-    expect(septiembre.querySelector(".bar")).toHaveClass("secondary")
-  })
-
-  it("rotula los meses históricos como datos, sin la marca de proyección", async () => {
-    await mostrarAnalitica()
-
-    const agosto = screen.getByRole("img", { name: "ago: 2,470 unidades" })
-    const columna = agosto.closest(".bar-col")
-
-    expect(columna).toHaveAttribute("data-tipo", "historico")
-    expect(columna).not.toHaveTextContent("proy.")
-    expect(agosto).not.toHaveClass("secondary")
-  })
-
-  it("rotula en la leyenda qué es histórico y qué es proyección", async () => {
-    await mostrarAnalitica()
-
-    const leyenda = document.querySelector(".proyeccion-leyenda")
-
-    expect(leyenda).toHaveTextContent("Histórico")
-    expect(leyenda).toHaveTextContent("Proyección")
+    expect(categoriasDeInversion()).toHaveLength(5)
+    expect(barraDeCategoria("Plomería")).toHaveAttribute("aria-pressed", "true")
+    expect(barraDeCategoria("Construcción")).toHaveAttribute("aria-pressed", "false")
   })
 })
 
-describe("eje de la gráfica mensual", () => {
-  it("marca una escala redonda desde cero que cubre el mes más alto", async () => {
-    await mostrarAnalitica()
+describe("filtro de riesgo", () => {
+  it("recalcula tarjetas y tabla con los productos de ese riesgo", async () => {
+    await mostrarProyeccion()
 
-    const marcas = [...document.querySelectorAll(".grafica-eje span")].map((marca) => marca.textContent)
+    elegir("Riesgo", "alto")
 
-    expect(marcas).toEqual(["0", "1,000", "2,000", "3,000"])
-    expect(document.querySelector(".grafica-eje")).toHaveAttribute("aria-hidden", "true")
+    expect(estadoDeFiltros()).toHaveTextContent("Riesgo alto · 6 de 12 productos")
+    expect(tarjeta("Demanda 30 días")).toHaveTextContent("613.9unidades")
+    expect(tarjeta("Riesgo alto")).toHaveTextContent("100% de 6 productos")
+    expect(tarjeta("Reposición")).toHaveTextContent("493 unidades recomendadas")
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 48,458.00")
+    expect(codigosEnLaTabla()).toEqual(ORDEN_ESPERADO.slice(0, 6))
+  })
+
+  it("deja en la inversión solo las categorías con productos de ese riesgo", async () => {
+    await mostrarProyeccion()
+
+    elegir("Riesgo", "alto")
+
+    expect(categoriasDeInversion()).toEqual([
+      ["Construcción", "L 38,808.00"],
+      ["Tornillería", "L 6,300.00"],
+      ["Plomería", "L 3,200.00"],
+      ["Jardinería", "L 150.00"],
+    ])
+    expect(segmentoDeRiesgo("alto")).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("avisa en la inversión cuando ningún producto del filtro necesita reposición", async () => {
+    await mostrarProyeccion()
+
+    elegir("Riesgo", "bajo")
+
+    expect(screen.getByText("Ningún producto de este filtro necesita reposición.")).toBeInTheDocument()
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 0.00")
+  })
+})
+
+describe("categoría y riesgo combinados", () => {
+  it("muestra la intersección de los dos filtros", async () => {
+    await mostrarProyeccion()
+
+    elegir("Categoría", "Plomería")
+    elegir("Riesgo", "alto")
+
+    expect(estadoDeFiltros()).toHaveTextContent("Plomería · Riesgo alto · 3 de 12 productos")
+    expect(codigosEnLaTabla()).toEqual(["FER-020", "FER-022", "FER-021"])
+    expect(codigosDelRanking()).toEqual(["FER-020", "FER-022", "FER-021"])
+    expect(tarjeta("Demanda 30 días")).toHaveTextContent("300.0unidades")
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 3,200.00")
+    expect(screen.getByRole("img", { name: "ene: 250 unidades" })).toBeInTheDocument()
+  })
+
+  it("sin coincidencias lo dice, sin cifras, y permite restablecer", async () => {
+    await mostrarProyeccion()
+
+    elegir("Categoría", "Cerrajería")
+    elegir("Riesgo", "alto")
+
+    expect(screen.getByText("No hay productos que coincidan con los filtros seleccionados.")).toBeInTheDocument()
+    expect(document.querySelector(".stat-card")).not.toBeInTheDocument()
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(screen.queryByRole("list", { name: /Top 10/ })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Restablecer filtros" }))
+
+    expect(codigosEnLaTabla()).toHaveLength(10)
+  })
+})
+
+describe("filtrar desde las gráficas", () => {
+  it("un clic en un segmento de la dona filtra por ese riesgo, y otro lo quita", async () => {
+    await mostrarProyeccion()
+
+    fireEvent.click(segmentoDeRiesgo("medio"))
+
+    expect(selector("Riesgo")).toHaveValue("medio")
+    expect(segmentoDeRiesgo("medio")).toHaveAttribute("aria-pressed", "true")
+    expect(codigosEnLaTabla()).toEqual(["FER-031", "FER-030"])
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 21,000.00")
+
+    fireEvent.click(segmentoDeRiesgo("medio"))
+
+    expect(selector("Riesgo")).toHaveValue("todos")
+    expect(segmentoDeRiesgo("medio")).toHaveAttribute("aria-pressed", "false")
+  })
+
+  it("los segmentos de la dona también se activan con el teclado", async () => {
+    await mostrarProyeccion()
+
+    fireEvent.keyDown(segmentoDeRiesgo("alto"), { key: "Enter" })
+    expect(selector("Riesgo")).toHaveValue("alto")
+
+    fireEvent.keyDown(segmentoDeRiesgo("alto"), { key: " " })
+    expect(selector("Riesgo")).toHaveValue("todos")
+
+    fireEvent.keyDown(segmentoDeRiesgo("alto"), { key: "Tab" })
+    expect(selector("Riesgo")).toHaveValue("todos")
+  })
+
+  it("la dona conserva la categoría elegida y resalta el riesgo", async () => {
+    await mostrarProyeccion()
+
+    elegir("Categoría", "Plomería")
+    fireEvent.click(segmentoDeRiesgo("alto"))
+
+    expect(leyendaDeRiesgo()).toEqual(["Alto375%", "Medio00%", "Bajo125%", "Total4"])
+    expect(document.querySelector('.dona-leyenda li[data-riesgo="alto"]')).toHaveClass("elegido")
+    expect(codigosEnLaTabla()).toEqual(["FER-020", "FER-022", "FER-021"])
+  })
+
+  it("un clic en una categoría de la inversión filtra por ella, y otro lo quita", async () => {
+    await mostrarProyeccion()
+
+    fireEvent.click(barraDeCategoria("Plomería"))
+
+    expect(selector("Categoría")).toHaveValue("Plomería")
+    expect(codigosDelRanking()).toEqual(["FER-020", "FER-022", "FER-021", "FER-040"])
+    expect(tarjeta("Inversión estimada")).toHaveTextContent("L 3,200.00")
+
+    fireEvent.click(barraDeCategoria("Plomería"))
+
+    expect(selector("Categoría")).toHaveValue("todas")
+    expect(estadoDeFiltros()).toHaveTextContent("12 productos")
+  })
+})
+
+describe("detalle al pasar el mouse", () => {
+  it("cada producto del top trae código, demandas, stock, riesgo y recomendación", async () => {
+    await mostrarProyeccion()
+
+    const detalle = within(ranking()).getAllByRole("tooltip")[0]
+
+    expect(detalle).toHaveTextContent("Cemento gris 42.5 kg · CEM-001")
+    expect(detalle).toHaveTextContent("Demanda 7 días: 45.0 u.")
+    expect(detalle).toHaveTextContent("Demanda 30 días: 205.7 u.")
+    expect(detalle).toHaveTextContent("Stock: 60")
+    expect(detalle).toHaveTextContent("Riesgo: Alto")
+    expect(detalle).toHaveTextContent("Recomendación: Comprar 196")
+  })
+
+  it("cada categoría trae inversión y productos con reposición", async () => {
+    await mostrarProyeccion()
+
+    const detalle = within(barraDeCategoria("Plomería")).getByRole("tooltip")
+
+    expect(detalle).toHaveTextContent("Inversión: L 3,200.00")
+    expect(detalle).toHaveTextContent("Con reposición: 3 productos")
+  })
+
+  it("los segmentos de la dona y las barras del histórico describen su valor", async () => {
+    await mostrarProyeccion()
+
+    expect(segmentoDeRiesgo("alto").querySelector("title")).toHaveTextContent("Alto: 6 productos (50%)")
+    expect(document.querySelector('.bar-col[data-tipo="proyeccion"]')).toHaveAttribute(
+      "title",
+      "sep: 690 unidades (proyección)"
+    )
+  })
+})
+
+describe("gráfica de demanda histórica y proyección", () => {
+  it("muestra ocho meses históricos y septiembre como proyección, rotulada en texto", async () => {
+    await mostrarProyeccion()
+
+    const historicos = document.querySelectorAll('.bar-col[data-tipo="historico"]')
+    const septiembre = document.querySelector('.bar-col[data-tipo="proyeccion"]')
+
+    expect(historicos).toHaveLength(8)
+    expect(septiembre).toHaveTextContent("proy.")
+    expect(septiembre.querySelector(".bar")).toHaveClass("secondary")
+    expect(document.querySelector(".proyeccion-leyenda")).toHaveTextContent("HistóricoProyección")
   })
 
   it("mide cada barra contra el tope del eje", async () => {
-    await mostrarAnalitica()
+    await mostrarProyeccion()
 
-    const marzo = screen.getByRole("img", { name: "mar: 2,856 unidades" })
+    const marcas = [...document.querySelectorAll(".grafica-eje span")].map((marca) => marca.textContent)
+    const agosto = screen.getByRole("img", { name: "ago: 698 unidades" })
 
-    expect(parseFloat(marzo.style.height)).toBeCloseTo((2856 / 3000) * 100, 5)
-  })
-})
-
-describe("distribución de riesgo", () => {
-  const dona = () => document.querySelector(".distribucion-riesgo")
-
-  it("resume en texto los tres niveles y el total", async () => {
-    await mostrarAnalitica()
-
-    expect(within(dona()).getByRole("img")).toHaveAccessibleName(
-      "50 productos por nivel de riesgo. Alto: 28 (56%), Medio: 6 (12%), Bajo: 16 (32%)."
-    )
-  })
-
-  it("muestra en la leyenda cantidad y porcentaje de cada riesgo, y el total que suman", async () => {
-    await mostrarAnalitica()
-
-    const filas = within(dona()).getAllByRole("listitem")
-
-    expect(filas.map((fila) => fila.textContent)).toEqual(["Alto2856%", "Medio612%", "Bajo1632%", "Total50"])
-    expect(dona().querySelector(".dona-centro")).toHaveTextContent("50productos")
-  })
-
-  it("dibuja un arco por riesgo, proporcional a su cantidad", async () => {
-    await mostrarAnalitica()
-
-    const largo = (riesgo) =>
-      parseFloat(dona().querySelector(`circle[data-riesgo="${riesgo}"]`).getAttribute("stroke-dasharray"))
-
-    expect(largo("alto")).toBeCloseTo(56 - 0.8, 5)
-    expect(largo("medio")).toBeCloseTo(12 - 0.8, 5)
-    expect(largo("bajo")).toBeCloseTo(32 - 0.8, 5)
-  })
-
-  it("toma los conteos del resumen del archivo", async () => {
-    const datos = proyeccionDePrueba()
-    datos.resumen = { ...datos.resumen, productos_riesgo_alto: 3, productos_riesgo_medio: 1, productos_riesgo_bajo: 1 }
-
-    await mostrarAnalitica({ datos })
-
-    expect(within(dona()).getAllByRole("listitem").map((fila) => fila.textContent)).toEqual([
-      "Alto360%", "Medio120%", "Bajo120%", "Total5",
-    ])
-  })
-})
-
-describe("top 10 demanda proyectada", () => {
-  const ranking = () => screen.getByRole("list", { name: "Top 10 demanda proyectada — 30 días" })
-
-  it("lista los 10 productos con más demanda predicha a 30 días, de mayor a menor", async () => {
-    await mostrarAnalitica()
-
-    const filas = within(ranking()).getAllByRole("listitem")
-
-    expect(filas).toHaveLength(10)
-    expect(filas.map((fila) => fila.querySelector(".barra-h-detalle").textContent)).toEqual([
-      "CEM-001", "FER-020", "TOR-001", "FER-022", "FER-021",
-      "FER-041", "CER-023", "FER-040", "FER-043", "FER-042",
-    ])
-    expect(filas[0]).toHaveTextContent("Cemento gris 42.5 kg")
-    expect(filas[0]).toHaveTextContent("205.7 u.")
-  })
-
-  it("dibuja la barra más larga para el primero, sin exponerla a lectores de pantalla", async () => {
-    await mostrarAnalitica()
-
-    const [primera, segunda] = within(ranking()).getAllByRole("listitem")
-
-    expect(primera.querySelector(".barra-h-relleno").style.width).toBe("100%")
-    expect(parseFloat(segunda.querySelector(".barra-h-relleno").style.width)).toBeCloseTo((180 / 205.74) * 100, 5)
-    expect(primera.querySelector(".barra-h-pista")).toHaveAttribute("aria-hidden", "true")
-  })
-})
-
-describe("inversión recomendada por categoría", () => {
-  const grafica = () => screen.getByRole("list", { name: "Inversión recomendada por categoría" }).closest(".chart-wrap")
-
-  it("agrupa por categoría, de mayor a menor inversión, en lempiras", async () => {
-    await mostrarAnalitica()
-
-    const filas = within(grafica()).getAllByRole("listitem")
-
-    expect(filas.map((fila) => fila.querySelector(".barra-h-nombre").firstChild.textContent)).toEqual([
-      "Construcción", "Herramientas Eléctricas", "Tornillería", "Plomería", "Jardinería",
-    ])
-    expect(filas[0]).toHaveTextContent("3 productos")
-    expect(filas[0]).toHaveTextContent("L 39,008.00")
-    expect(filas[4]).toHaveTextContent("1 producto")
-    expect(filas[4]).toHaveTextContent("L 150.00")
-  })
-
-  it("cierra con el total, que es la suma de las categorías", async () => {
-    await mostrarAnalitica()
-
-    expect(grafica().querySelector(".barras-h-pie")).toHaveTextContent("TotalL 69,458.00")
+    expect(marcas).toEqual(["0", "200", "400", "600", "800"])
+    expect(parseFloat(agosto.style.height)).toBeCloseTo((698 / 800) * 100, 5)
   })
 })
 
 describe("recomendaciones de inventario", () => {
-  it("muestra por omisión solo los 10 productos prioritarios, en orden", async () => {
-    await mostrarAnalitica()
+  it("sin filtros muestra los 10 prioritarios, con riesgo en texto y sin origen", async () => {
+    await mostrarProyeccion()
 
     expect(codigosEnLaTabla()).toEqual(ORDEN_ESPERADO.slice(0, 10))
     expect(screen.getByText("10 prioritarios de 12 productos")).toBeInTheDocument()
+
+    const fila = within(screen.getByRole("table")).getByText("CEM-001").closest("tr")
+
+    expect(fila.querySelector(".badge")).toHaveTextContent("Alto")
+    expect(fila).toHaveTextContent("Comprar 196")
+    expect(fila).not.toHaveTextContent(/Sistema|Simulado/)
   })
 
-  it("muestra el riesgo con texto, no solo con color", async () => {
-    await mostrarAnalitica()
+  it("usa los filtros globales y no tiene botones de riesgo propios", async () => {
+    await mostrarProyeccion()
 
-    const filas = within(tabla()).getAllByRole("row").slice(1)
-    const riesgoDe = (i) => filas[i].querySelector(".badge")
+    const tabla = document.querySelector(".recomendaciones")
 
-    expect(riesgoDe(0)).toHaveTextContent("Alto")
-    expect(riesgoDe(0)).toHaveClass("badge-out")
-    expect(riesgoDe(6)).toHaveTextContent("Medio")
-    expect(riesgoDe(6)).toHaveClass("badge-low")
-    expect(riesgoDe(8)).toHaveTextContent("Bajo")
-    expect(riesgoDe(8)).toHaveClass("badge-ok")
+    expect(within(tabla).queryByRole("button", { name: "Alto" })).not.toBeInTheDocument()
+    expect(within(tabla).queryByRole("group")).not.toBeInTheDocument()
   })
 
-  it("distingue los productos simulados de los del sistema", async () => {
-    await mostrarAnalitica()
-
-    const filaDe = (codigo) => within(tabla()).getByText(codigo).closest("tr")
-
-    expect(within(filaDe("CEM-001")).getByText("Sistema")).toBeInTheDocument()
-    expect(within(filaDe("FER-020")).getByText("Simulado")).toBeInTheDocument()
-    expect(within(filaDe("FER-020")).queryByText("Sistema")).not.toBeInTheDocument()
-  })
-
-  it("dice cuánto comprar, o que no hace falta", async () => {
-    await mostrarAnalitica()
-
-    const filaDe = (codigo) => within(tabla()).getByText(codigo).closest("tr")
-
-    expect(filaDe("CEM-001")).toHaveTextContent("Comprar 196")
-    expect(filaDe("CER-023")).toHaveTextContent("Sin compra")
-  })
-
-  it("muestra stock y demanda con formato de cantidades", async () => {
-    await mostrarAnalitica()
-
-    const celdas = within(within(tabla()).getByText("CEM-001").closest("tr")).getAllByRole("cell")
-
-    expect(celdas[2]).toHaveTextContent("60")
-    expect(celdas[3]).toHaveTextContent("45.0")
-    expect(celdas[4]).toHaveTextContent("205.7")
-  })
-
-  it("'Ver todos' muestra el resto y se puede volver a los prioritarios", async () => {
-    await mostrarAnalitica()
+  it("'Ver todos' muestra el resto sin filtros", async () => {
+    await mostrarProyeccion()
 
     fireEvent.click(screen.getByRole("button", { name: "Ver todos (12)" }))
 
     expect(codigosEnLaTabla()).toEqual(ORDEN_ESPERADO)
     expect(screen.getByText("Mostrando 12 de 12 productos")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Ver solo los 10 prioritarios" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ver solo 10" }))
 
     expect(codigosEnLaTabla()).toHaveLength(10)
   })
 
-  it("filtra por riesgo y marca el filtro activo", async () => {
-    await mostrarAnalitica()
-
-    fireEvent.click(screen.getByRole("button", { name: "Medio" }))
-
-    expect(codigosEnLaTabla()).toEqual(["FER-031", "FER-030"])
-    expect(screen.getByRole("button", { name: "Medio" })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("button", { name: "Todos" })).toHaveAttribute("aria-pressed", "false")
-  })
-
-  it("con pocos productos filtrados no ofrece 'Ver todos'", async () => {
-    await mostrarAnalitica()
-
-    fireEvent.click(screen.getByRole("button", { name: "Bajo" }))
-
-    expect(codigosEnLaTabla()).toEqual(["FER-041", "CER-023", "FER-040", "FER-043"])
-    expect(screen.getByText("Mostrando 4 de 4 productos")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /Ver todos/ })).not.toBeInTheDocument()
-  })
-
-  /*
-    Con un filtro, los diez primeros no son "los prioritarios" del
-    inventario: el conteo lo dice de forma neutra.
-  */
-  it("con un filtro que deja más de diez, cuenta sin llamarlos prioritarios", async () => {
-    const muchosEnRiesgoBajo = Array.from({ length: 16 }, (_, i) => ({
-      ...PRODUCTOS_DE_PRUEBA[0],
-      producto_id: `bajo-${i}`,
-      codigo: `BAJ-${String(i).padStart(3, "0")}`,
-      riesgo: "bajo",
-      recomendacion_compra: 0,
+  it("'Ver todos' se refiere a los productos filtrados", async () => {
+    const plomeria = Array.from({ length: 16 }, (_, i) => ({
+      ...PRODUCTOS_DE_PRUEBA[2],
+      producto_id: `plo-${i}`,
+      codigo: `PLO-${String(i).padStart(3, "0")}`,
     }))
 
-    await mostrarAnalitica({ datos: proyeccionDePrueba({ productos: muchosEnRiesgoBajo }) })
+    await mostrarProyeccion({ datos: proyeccionDePrueba({ productos: [...PRODUCTOS_DE_PRUEBA, ...plomeria] }) })
 
-    fireEvent.click(screen.getByRole("button", { name: "Bajo" }))
+    expect(screen.getByRole("button", { name: "Ver todos (28)" })).toBeInTheDocument()
 
-    expect(screen.getByText("Mostrando 10 de 16 productos")).toBeInTheDocument()
+    elegir("Categoría", "Plomería")
+
+    expect(screen.getByText("Mostrando 10 de 20 productos")).toBeInTheDocument()
     expect(screen.queryByText(/prioritarios/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Ver todos (16)" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ver todos (20)" }))
 
-    expect(screen.getByText("Mostrando 16 de 16 productos")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Ver solo 10" })).toBeInTheDocument()
-  })
-
-  it("vuelve a mostrar todos los riesgos con 'Todos'", async () => {
-    await mostrarAnalitica()
-
-    fireEvent.click(screen.getByRole("button", { name: "Alto" }))
-    expect(codigosEnLaTabla()).toHaveLength(6)
-
-    fireEvent.click(screen.getByRole("button", { name: "Todos" }))
-    expect(codigosEnLaTabla()).toEqual(ORDEN_ESPERADO.slice(0, 10))
-  })
-
-  it("avisa cuando ningún producto tiene el riesgo elegido", async () => {
-    const datos = proyeccionDePrueba({
-      productos: PRODUCTOS_DE_PRUEBA.filter((p) => p.riesgo !== "medio"),
-    })
-
-    await mostrarAnalitica({ datos })
-
-    fireEvent.click(screen.getByRole("button", { name: "Medio" }))
-
-    expect(screen.getByText("Ningún producto con ese nivel de riesgo")).toBeInTheDocument()
-    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(codigosEnLaTabla()).toHaveLength(20)
+    expect(screen.getByText("Mostrando 20 de 20 productos")).toBeInTheDocument()
   })
 })
 
-describe("carga de la información", () => {
+describe("carga de la proyección", () => {
   it("indica que está cargando mientras llega el archivo", async () => {
     let entregar
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise((resolver) => { entregar = resolver }))
 
-    render(<AnaliticaPredictiva />)
+    render(<AnalisisYProyeccion />)
 
-    expect(screen.getByRole("status")).toHaveTextContent("Cargando Analítica Predictiva…")
+    expect(screen.getByRole("status")).toHaveTextContent("Cargando proyección de demanda…")
 
     await act(async () => {
       entregar({ ok: true, status: 200, json: () => Promise.resolve(proyeccionDePrueba()) })
     })
 
-    expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    expect(screen.queryByText("Cargando proyección de demanda…")).not.toBeInTheDocument()
   })
 
   /*
@@ -447,15 +441,12 @@ describe("carga de la información", () => {
   ])("%s muestra el aviso sin cifras", async (_, opciones) => {
     servirProyeccion(vi, opciones)
 
-    render(<AnaliticaPredictiva />)
+    render(<AnalisisYProyeccion />)
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No fue posible cargar la información de Analítica Predictiva."
-    )
+    expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar la proyección de demanda.")
     expect(document.querySelector(".stat-card")).not.toBeInTheDocument()
-    expect(screen.queryByRole("table")).not.toBeInTheDocument()
-    expect(screen.queryByRole("status")).not.toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Analítica Predictiva" })).toBeInTheDocument()
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Análisis y proyección" })).toBeInTheDocument()
   })
 
   it("con un archivo que no es JSON muestra el mismo aviso", async () => {
@@ -465,21 +456,20 @@ describe("carga de la información", () => {
       json: () => Promise.reject(new SyntaxError("Unexpected token <")),
     })
 
-    render(<AnaliticaPredictiva />)
+    render(<AnalisisYProyeccion />)
 
     expect(await screen.findByRole("alert")).toHaveTextContent(MENSAJE_SIN_PROYECCION)
-    expect(document.querySelector(".stat-card")).not.toBeInTheDocument()
   })
 
   /*
-    Si el usuario sale de la página antes de que llegue el archivo, la
+    Si el usuario sale del Dashboard antes de que llegue el archivo, la
     respuesta tardía no debe intentar actualizar una pantalla que ya no existe.
   */
-  it("ignora una respuesta que llega después de salir de la página", async () => {
+  it("ignora una respuesta que llega después de salir", async () => {
     let entregar
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise((resolver) => { entregar = resolver }))
 
-    const { unmount } = render(<AnaliticaPredictiva />)
+    const { unmount } = render(<AnalisisYProyeccion />)
     unmount()
 
     await act(async () => {
@@ -489,11 +479,11 @@ describe("carga de la información", () => {
     await waitFor(() => expect(console.error).not.toHaveBeenCalled())
   })
 
-  it("ignora un error que llega después de salir de la página", async () => {
+  it("ignora un error que llega después de salir", async () => {
     let fallar
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise((_, rechazar) => { fallar = rechazar }))
 
-    const { unmount } = render(<AnaliticaPredictiva />)
+    const { unmount } = render(<AnalisisYProyeccion />)
     unmount()
 
     await act(async () => {

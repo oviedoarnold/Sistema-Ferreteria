@@ -11,8 +11,8 @@ import { config as middleware } from "../../middleware.js"
   aplicación ya cargó; si alguien entra directo o recarga la página, es Vercel
   quien decide qué servir.
 
-  /kardex y /analytics quedaron fuera de vercel.json: navegando dentro de la
-  aplicación funcionaban, pero al recargar respondían 404. Esta prueba
+  /kardex quedó fuera de vercel.json: navegando dentro de la aplicación
+  funcionaba, pero al recargar respondía 404. Esta prueba
   compara las dos listas para que una ruta nueva no vuelva a quedar a medias.
 */
 
@@ -39,7 +39,7 @@ const reescrituraQueSirve = (ruta) =>
 describe("rutas del despliegue", () => {
   it("encuentra las rutas del mapa, para no pasar sin revisar nada", () => {
     expect(rutasDeLaAplicacion.map(({ ruta }) => ruta)).toEqual(
-      expect.arrayContaining(["/dashboard", "/analytics", "/kardex"])
+      expect.arrayContaining(["/dashboard", "/kardex"])
     )
   })
 

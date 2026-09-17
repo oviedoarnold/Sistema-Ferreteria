@@ -4,7 +4,15 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { RUTA_PROYECCION } from "./proyeccion"
-import { inversionPorCategoria, mayorDemandaProyectada } from "../../utils/proyeccion"
+import {
+  categoriasDe,
+  distribucionDeRiesgo,
+  filtrarProductos,
+  inversionPorCategoria,
+  mayorDemandaProyectada,
+  resumirProductos,
+  serieDeDemanda,
+} from "../../utils/proyeccion"
 
 /*
   Revisa el archivo que de verdad se publica, no un doble.
@@ -100,6 +108,56 @@ describe("el archivo de proyección publicado", () => {
 
     expect(top).toHaveLength(10)
     expect(top[0].demanda_predicha_30d).toBe(Math.max(...productos.map((p) => p.demanda_predicha_30d)))
+  })
+
+  it("sin filtros, las cifras que calcula el Dashboard son el resumen publicado", () => {
+    const { productos: cantidad, ...calculado } = resumirProductos(productos)
+
+    expect(cantidad).toBe(50)
+    expect(calculado).toEqual(resumen)
+  })
+
+  it("el histórico por producto suma la serie mensual publicada", () => {
+    expect(serieDeDemanda(productos, serie)).toEqual(serie)
+  })
+
+  /*
+    Todas las combinaciones de categoría y riesgo que ofrece el Dashboard,
+    comprobadas con cuentas hechas aquí, aparte de las funciones de la página.
+  */
+  describe("en cada combinación de filtros", () => {
+    const combinaciones = ["todas", ...categoriasDe(productos)].flatMap((categoria) =>
+      ["todos", "alto", "medio", "bajo"].map((riesgo) => ({ categoria, riesgo }))
+    )
+
+    const sumaDe = (lista, campo) => Math.round(lista.reduce((total, p) => total + p[campo], 0) * 100) / 100
+
+    it.each(combinaciones)("$categoria · $riesgo", (filtros) => {
+      const esperados = productos.filter(
+        (p) =>
+          (filtros.categoria === "todas" || p.categoria === filtros.categoria) &&
+          (filtros.riesgo === "todos" || p.riesgo === filtros.riesgo)
+      )
+      const filtrados = filtrarProductos(productos, filtros)
+      const cifras = resumirProductos(filtrados)
+
+      expect(filtrados).toEqual(esperados)
+      expect(cifras.demanda_total_30d).toBe(sumaDe(esperados, "demanda_predicha_30d"))
+      expect(cifras.demanda_total_7d).toBe(sumaDe(esperados, "demanda_predicha_7d"))
+      expect(cifras.inversion_estimada).toBe(sumaDe(esperados, "inversion_estimada"))
+      expect(cifras.unidades_recomendadas).toBe(sumaDe(esperados, "recomendacion_compra"))
+
+      expect(distribucionDeRiesgo(cifras).total).toBe(esperados.length)
+      expect(inversionPorCategoria(filtrados).reduce((total, c) => total + c.inversion, 0)).toBeCloseTo(
+        cifras.inversion_estimada,
+        2
+      )
+      expect(mayorDemandaProyectada(filtrados).length).toBe(Math.min(10, esperados.length))
+
+      const historico = serieDeDemanda(filtrados, serie)
+      expect(historico[0].unidades).toBe(esperados.reduce((total, p) => total + p.historico_mensual["2026-01"], 0))
+      expect(historico.at(-1).unidades).toBe(cifras.demanda_total_30d)
+    })
   })
 
   it("el histórico va de enero a agosto y septiembre es la única proyección", () => {

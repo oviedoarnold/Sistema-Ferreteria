@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest"
-import { screen } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { fireEvent, screen, within } from "@testing-library/react"
 
 import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
@@ -7,6 +7,7 @@ import SalesProvider from "../context/SalesContext"
 import ClientsProvider from "../context/ClientsContext"
 import { renderizarPantalla } from "../test/pantallas"
 import { RUTA_PROYECCION } from "../lib/api/proyeccion"
+import { servirProyeccion } from "../test/proyeccionDePrueba"
 import Dashboard from "./Dashboard"
 
 vi.mock("../lib/supabase", () => ({
@@ -38,6 +39,15 @@ const venta = (extra = {}) => ({
   type: "contado",
   status: "pagada",
   ...extra,
+})
+
+/*
+  El Dashboard carga la proyección por su cuenta. Sin simularla, cada prueba
+  intentaría descargar el archivo de verdad y dejaría el registro lleno de
+  errores de red que no tienen nada que ver con lo que se prueba.
+*/
+beforeEach(() => {
+  servirProyeccion(vi)
 })
 
 afterEach(() => {
@@ -251,19 +261,19 @@ describe("Dashboard con ventas anuladas", () => {
 
 
 /*
-  El Dashboard responde qué está pasando en la ferretería. Lo que se espera
-  que ocurra vive en Analítica Predictiva: aquí no se descarga ni se muestra.
+  Un solo Dashboard: la operación de la ferretería y, debajo, el análisis y la
+  proyección. Son fuentes distintas y así se presentan.
 */
-describe("Dashboard operativo", () => {
-  it("no carga ni muestra la analítica predictiva", async () => {
-    const fetch = vi.spyOn(globalThis, "fetch")
+describe("Dashboard ejecutivo", () => {
+  const seccionDeProyeccion = async () =>
+    (await screen.findByRole("heading", { name: "Análisis y proyección" })).closest("section")
 
-    await renderDashboard({ ventas: [venta()] })
+  it("presenta el resumen operativo, de inventario y de proyección", async () => {
+    await renderDashboard()
 
-    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
-    expect(fetch).not.toHaveBeenCalledWith(RUTA_PROYECCION)
-    expect(screen.queryByText("Recomendaciones de inventario")).not.toBeInTheDocument()
-    expect(screen.queryByText(/proyecci[oó]n|Random Forest/i)).not.toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 2, name: "Dashboard" })).toBeInTheDocument()
+    expect(screen.getByText(/Resumen operativo, inventario y proyección de demanda/)).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Operación actual" })).toBeInTheDocument()
   })
 
   it("conserva todas sus secciones operativas", async () => {
@@ -273,8 +283,67 @@ describe("Dashboard operativo", () => {
       expect(screen.getByText(etiqueta, { selector: ".label" })).toBeInTheDocument()
     }
 
-    for (const titulo of ["Ventas por mes", "Top productos vendidos", "Últimas ventas", "Clientes"]) {
+    for (const titulo of ["Ventas registradas por mes", "Top productos vendidos", "Últimas ventas", "Clientes"]) {
       expect(screen.getByText(titulo, { selector: ".chart-title" })).toBeInTheDocument()
     }
+  })
+
+  it("integra la proyección con sus indicadores, gráficas y recomendaciones", async () => {
+    await renderDashboard({ ventas: [venta()] })
+
+    const seccion = await seccionDeProyeccion()
+
+    expect(await within(seccion).findByText("Recomendaciones de inventario")).toBeInTheDocument()
+    expect(within(seccion).getByText("Demanda histórica y proyección")).toBeInTheDocument()
+    expect(within(seccion).getByText("Distribución de riesgo")).toBeInTheDocument()
+    expect(within(seccion).getByRole("combobox", { name: "Categoría" })).toBeInTheDocument()
+    expect(globalThis.fetch).toHaveBeenCalledWith(RUTA_PROYECCION)
+  })
+
+  /*
+    Ventas registradas y demanda del modelo son fuentes distintas: filtrar la
+    proyección no toca las cifras de la operación.
+  */
+  it("los filtros de la proyección no cambian las cifras de la operación", async () => {
+    await renderDashboard({ ventas: [venta()] })
+
+    const seccion = await seccionDeProyeccion()
+    await within(seccion).findByText("Recomendaciones de inventario")
+
+    fireEvent.change(within(seccion).getByRole("combobox", { name: "Categoría" }), { target: { value: "Plomería" } })
+
+    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
+    expect(screen.getByText("Productos", { selector: ".label" }).closest(".stat-card")).toHaveTextContent("3")
+    expect(within(seccion).getByText("Mostrando 4 de 4 productos")).toBeInTheDocument()
+  })
+
+  it("no muestra avisos académicos ni el origen de los productos", async () => {
+    await renderDashboard({ ventas: [venta()] })
+
+    await within(await seccionDeProyeccion()).findByText("Recomendaciones de inventario")
+
+    expect(document.body).not.toHaveTextContent(/acad[eé]mic|simulad|Random Forest/i)
+    expect(screen.queryByText("Simulado")).not.toBeInTheDocument()
+    expect(screen.queryByText("Sistema")).not.toBeInTheDocument()
+  })
+
+  /*
+    Si la proyección no carga, la ferretería tiene que poder seguir usando el
+    Dashboard para operar.
+  */
+  it.each([
+    ["el archivo responde con error", { estado: 500 }],
+    ["no hay red", { falla: new TypeError("Failed to fetch") }],
+  ])("si %s, solo el bloque de proyección lo avisa", async (_, falla) => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    servirProyeccion(vi, falla)
+
+    await renderDashboard({ ventas: [venta()] })
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar la proyección de demanda.")
+    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
+    expect(screen.getByText("Agotados").closest(".stat-card")).toHaveTextContent("1")
+    expect(screen.getByText("Últimas ventas")).toBeInTheDocument()
+    expect(screen.queryByText("Recomendaciones de inventario")).not.toBeInTheDocument()
   })
 })

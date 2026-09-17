@@ -10,6 +10,7 @@ import {
   totalesDeVentasPorMes,
 } from "../utils/salesUtils"
 import { largoDeBarra } from "../utils/graficas"
+import AnalisisYProyeccion from "../components/proyeccion/AnalisisYProyeccion"
 import { formatMoney as money } from "../utils/format"
 import { ClientsContext } from "../context/contexts"
 
@@ -53,7 +54,8 @@ function Dashboard() {
   const recentSales = [...sales].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 5)
 
   return <div className="view active">
-    <div className="view-header"><div><h2>Dashboard</h2><p className="sub">{new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p></div></div>
+    <div className="view-header"><div><h2>Dashboard</h2><p className="sub">Resumen operativo, inventario y proyección de demanda · {new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p></div></div>
+    <div className="seccion-dashboard"><h3>Operación actual</h3></div>
     <div className="dash-grid dash-grid-wide">
       <div className="stat-card orange"><div className="icon">🧾</div><div className="label">Ventas hoy</div><div className="value">{money(stats.todaySales)}</div><div className="sub-val">Total del día</div></div>
       <div className="stat-card blue"><div className="icon">🛒</div><div className="label">Ventas del mes</div><div className="value">{money(stats.monthSales)}</div><div className="sub-val">Mes actual</div></div>
@@ -64,12 +66,14 @@ function Dashboard() {
     </div>
 
     <div className="dash-row">
-      <div className="chart-wrap"><div className="chart-title">Ventas por mes</div><div className="bar-chart">{ventasPorMes.map((mes) => {
+      <div className="chart-wrap"><div className="chart-title">Ventas registradas por mes</div><div className="bar-chart">{ventasPorMes.map((mes) => {
         const monto = mes.total ? money(mes.total) : "—"
         return <div className="bar-col" key={mes.clave} data-mes={mes.clave}><div className="bar-val">{monto}</div><div className="bar-pista"><div className="bar" style={{ height: `${largoDeBarra(mes.total, mayorVentaMensual)}%` }} role="img" aria-label={`${mes.etiqueta}: ${mes.total ? monto : "sin ventas"}`}></div></div><div className="bar-label">{mes.etiqueta}</div></div>
       })}</div></div>
       <div className="chart-wrap"><div className="chart-title">Top productos vendidos</div><div className="dash-mini-list">{topProducts.length ? topProducts.map(([name, qty]) => <div className="dash-mini-row" key={name}><span className="name">{name}</span><span className="val">{qty} u.</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
     </div>
+
+    <AnalisisYProyeccion />
 
     <div className="dash-bottom">
       <div className="chart-wrap"><div className="chart-title">Últimas ventas</div><div className="dash-mini-list">{recentSales.length ? recentSales.map((s) => <div className="dash-mini-row" key={s.id}><span className="name">{s.customer || s.clientName || "Consumidor Final"}{esVentaAnulada(s) && <span className="badge badge-void"> Anulada</span>}</span><span className="val">{money(s.total)}</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
