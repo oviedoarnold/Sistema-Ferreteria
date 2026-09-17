@@ -109,6 +109,60 @@ export function serieDeDemanda(productos = [], plantilla = []) {
 }
 
 /*
+  Todo lo que el Dashboard muestra de la proyección para unos filtros.
+
+  La dona y las barras de categoría funcionan como en un tablero de BI: cada
+  una se calcula sin su propio filtro, para mostrar las demás opciones con la
+  elegida resaltada. La dona respeta la categoría y las barras respetan el
+  riesgo; tarjetas, histórico, top y tabla respetan ambos.
+*/
+export function analizarProyeccion({ productos = [], serie_mensual: plantilla = [] }, filtros = FILTROS_INICIALES) {
+  const filtrados = filtrarProductos(productos, filtros)
+
+  return {
+    total: productos.length,
+    categorias: categoriasDe(productos),
+    filtrados,
+    resumen: resumirProductos(filtrados),
+    resumenSinFiltroDeRiesgo: resumirProductos(filtrarProductos(productos, { ...filtros, riesgo: TODOS_LOS_RIESGOS })),
+    sinFiltroDeCategoria: filtrarProductos(productos, { ...filtros, categoria: TODAS_LAS_CATEGORIAS }),
+    serie: serieDeDemanda(filtrados, plantilla),
+  }
+}
+
+/* En qué punto está la proyección: cargando, con error, sin coincidencias o lista para mostrar. */
+export function estadoDeProyeccion({ datos, error }, analisis) {
+  if (error) return "error"
+  if (!datos) return "cargando"
+  return analisis.filtrados.length === 0 ? "vacio" : "listo"
+}
+
+/* Los que hay que comprar, en orden de prioridad. */
+export function productosParaReponer(productos = [], limite = PRODUCTOS_PRIORITARIOS) {
+  return ordenarPorPrioridad(productos)
+    .filter((producto) => producto.recomendacion_compra > 0)
+    .slice(0, limite)
+}
+
+export function describirCompra(producto) {
+  return producto.recomendacion_compra > 0
+    ? `Comprar ${formatearUnidades(producto.recomendacion_compra, 0)}`
+    : "Sin compra"
+}
+
+/* Las líneas del detalle flotante de un producto. */
+export function detalleDeProducto(producto) {
+  return [
+    `${producto.producto} · ${producto.codigo}`,
+    `Demanda 7 días: ${formatearUnidades(producto.demanda_predicha_7d)} u.`,
+    `Demanda 30 días: ${formatearUnidades(producto.demanda_predicha_30d)} u.`,
+    `Stock: ${formatearUnidades(producto.stock_actual, 0)}`,
+    `Riesgo: ${describirRiesgo(producto.riesgo).etiqueta}`,
+    `Recomendación: ${describirCompra(producto)}`,
+  ]
+}
+
+/*
   Los que más se espera vender a 30 días según el modelo. Es la demanda
   predicha, no la histórica: responde qué se va a mover, no qué se movió.
 */
@@ -162,8 +216,12 @@ export function distribucionDeRiesgo(resumen = {}) {
   }
 }
 
+export function palabraProductos(cantidad) {
+  return cantidad === 1 ? "producto" : "productos"
+}
+
 export function contarProductos(cantidad) {
-  return `${cantidad} ${cantidad === 1 ? "producto" : "productos"}`
+  return `${cantidad} ${palabraProductos(cantidad)}`
 }
 
 export function describirRiesgo(riesgo) {

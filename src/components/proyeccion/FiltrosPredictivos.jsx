@@ -1,10 +1,10 @@
 import { RIESGOS, TODAS_LAS_CATEGORIAS, TODOS_LOS_RIESGOS } from "../../utils/proyeccion"
 
 /*
-  Los filtros del bloque de proyección. Son la vía de teclado para todo lo
-  que también se puede elegir con un clic en la dona o en las barras de
-  categoría. Solo afectan la proyección: las cifras de la operación vienen de
-  otra fuente y no se recalculan.
+  Los filtros de la proyección, en una franja compacta. Son la vía de teclado
+  para todo lo que también se puede elegir con un clic en la dona o en las
+  barras de categoría. Solo afectan la proyección: las cifras de la operación
+  vienen de otra fuente y no se recalculan.
 */
 function FiltrosPredictivos({ filtros, categorias, estado, onCambiar, onRestablecer }) {
   return (
@@ -33,13 +33,13 @@ function FiltrosPredictivos({ filtros, categorias, estado, onCambiar, onRestable
         </select>
       </label>
 
+      <button type="button" className="filtros-restablecer" aria-label="Restablecer filtros" onClick={onRestablecer}>
+        <span aria-hidden="true">↻</span> Restablecer
+      </button>
+
       <p className="filtros-estado" aria-live="polite">
         {estado}
       </p>
-
-      <button type="button" className="btn btn-secondary btn-sm" onClick={onRestablecer}>
-        Restablecer filtros
-      </button>
     </div>
   )
 }
