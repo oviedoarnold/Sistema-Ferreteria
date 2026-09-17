@@ -4,6 +4,7 @@ import {
   FILTROS_INICIALES,
   categoriasDe,
   contarProductos,
+  palabraProductos,
   describirConteo,
   describirFiltros,
   describirPeriodo,
@@ -326,6 +327,7 @@ describe("distribución de riesgo", () => {
 describe("conteo de productos", () => {
   it("usa singular y plural", () => {
     expect(contarProductos(1)).toBe("1 producto")
+    expect(palabraProductos(0)).toBe("productos")
     expect(contarProductos(3)).toBe("3 productos")
   })
 })

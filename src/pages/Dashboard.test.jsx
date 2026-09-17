@@ -69,50 +69,52 @@ function renderDashboard({ ventas = [], productos = PRODUCTOS, clientes = [] } =
   )
 }
 
+
+const abrirVista = (nombre) => fireEvent.click(screen.getByRole("tab", { name: nombre }))
+
+const kpi = (etiqueta) => screen.getByText(etiqueta, { selector: ".kpi-etiqueta" }).closest(".kpi")
+
+const valorDe = (etiqueta) => kpi(etiqueta).querySelector(".kpi-valor").textContent
+
 describe("Dashboard", () => {
   it("muestra el encabezado", async () => {
     await renderDashboard()
-    expect(screen.getByText("Dashboard")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 2, name: "Dashboard" })).toBeInTheDocument()
   })
 
   it("cuenta como stock bajo solo lo que aun tiene existencias", async () => {
     await renderDashboard()
 
-    const tarjeta = screen.getByText("Stock bajo").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("1")
+    expect(valorDe("Stock bajo")).toBe("1producto")
+    expect(kpi("Stock bajo")).toHaveTextContent("1 agotado")
   })
 
   it("cuenta los productos agotados", async () => {
     await renderDashboard()
 
-    const tarjeta = screen.getByText("Agotados").closest(".stat-card")
+    abrirVista("Inventario")
 
-    expect(tarjeta).toHaveTextContent("1")
+    expect(valorDe("Agotados")).toBe("1producto")
   })
 
   it("informa cuántos productos hay", async () => {
     await renderDashboard()
 
-    const tarjeta = screen.getByText("Productos").closest(".stat-card")
+    abrirVista("Inventario")
 
-    expect(tarjeta).toHaveTextContent("3")
+    expect(valorDe("Productos")).toBe("3")
   })
 
   it("suma las ventas del día", async () => {
     await renderDashboard({ ventas: [venta()] })
 
-    const tarjeta = screen.getByText("Ventas hoy").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("207.00")
+    expect(valorDe("Ventas hoy")).toBe("L 207.00")
   })
 
   it("deja el saldo por cobrar en cero si todo es de contado", async () => {
     await renderDashboard({ ventas: [venta()] })
 
-    const tarjeta = screen.getByText("Por cobrar").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("0.00")
+    expect(valorDe("Por cobrar")).toBe("L 0.00")
   })
 
   it("suma al por cobrar solo el saldo pendiente de las ventas a crédito", async () => {
@@ -127,9 +129,7 @@ describe("Dashboard", () => {
 
     await renderDashboard({ ventas: [aCredito] })
 
-    const tarjeta = screen.getByText("Por cobrar").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("600.00")
+    expect(valorDe("Por cobrar")).toBe("L 600.00")
   })
 
   it("avisa cuando todavía no hay ventas", async () => {
@@ -142,6 +142,15 @@ describe("Dashboard", () => {
 
     expect(screen.getByText("Top productos vendidos")).toBeInTheDocument()
     expect(screen.getByText("Martillo")).toBeInTheDocument()
+  })
+
+  it("cuenta los clientes en la vista de ventas", async () => {
+    await renderDashboard({ clientes: [{ id: "c1", name: "Ferremax", phone: "9999-0000" }] })
+
+    abrirVista("Ventas")
+
+    expect(valorDe("Clientes")).toBe("1")
+    expect(screen.getByText("Ferremax")).toBeInTheDocument()
   })
 })
 
@@ -202,18 +211,13 @@ describe("Dashboard con ventas anuladas", () => {
   it("no la suma a las ventas de hoy", async () => {
     await renderDashboard({ ventas: [venta(), anulada()] })
 
-    const tarjeta = screen.getByText("Ventas hoy").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("L 207.00")
-    expect(tarjeta).not.toHaveTextContent("5,207.00")
+    expect(valorDe("Ventas hoy")).toBe("L 207.00")
   })
 
   it("no la suma a las ventas del mes", async () => {
     await renderDashboard({ ventas: [venta(), anulada()] })
 
-    const tarjeta = screen.getByText("Ventas del mes").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("L 207.00")
+    expect(valorDe("Ventas del mes")).toBe("L 207.00")
   })
 
   it("no la deja en las cuentas por cobrar", async () => {
@@ -227,9 +231,7 @@ describe("Dashboard con ventas anuladas", () => {
       ],
     })
 
-    const tarjeta = screen.getByText("Por cobrar").closest(".stat-card")
-
-    expect(tarjeta).toHaveTextContent("L 0.00")
+    expect(valorDe("Por cobrar")).toBe("L 0.00")
   })
 
   /*
@@ -250,6 +252,8 @@ describe("Dashboard con ventas anuladas", () => {
   it("la conserva en la actividad reciente, marcada", async () => {
     await renderDashboard({ ventas: [venta(), anulada()] })
 
+    abrirVista("Ventas")
+
     const recientes = screen
       .getByText("Últimas ventas")
       .closest(".chart-wrap")
@@ -259,45 +263,33 @@ describe("Dashboard con ventas anuladas", () => {
   })
 })
 
-
 /*
-  Un solo Dashboard: la operación de la ferretería y, debajo, el análisis y la
-  proyección. Son fuentes distintas y así se presentan.
+  Con los datos de la base de verdad (el doble de Supabase) y la proyección:
+  cada vista reúne lo suyo, y las fuentes no se mezclan.
 */
-describe("Dashboard ejecutivo", () => {
-  const seccionDeProyeccion = async () =>
-    (await screen.findByRole("heading", { name: "Análisis y proyección" })).closest("section")
-
-  it("presenta el resumen operativo, de inventario y de proyección", async () => {
-    await renderDashboard()
-
-    expect(screen.getByRole("heading", { level: 2, name: "Dashboard" })).toBeInTheDocument()
-    expect(screen.getByText(/Resumen operativo, inventario y proyección de demanda/)).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Operación actual" })).toBeInTheDocument()
-  })
-
-  it("conserva todas sus secciones operativas", async () => {
+describe("Dashboard ejecutivo con la operación real", () => {
+  it("abre en el Resumen con la operación y la proyección juntas", async () => {
     await renderDashboard({ ventas: [venta()] })
 
-    for (const etiqueta of ["Ventas hoy", "Ventas del mes", "Stock bajo", "Agotados", "Por cobrar", "Productos"]) {
-      expect(screen.getByText(etiqueta, { selector: ".label" })).toBeInTheDocument()
-    }
+    expect(screen.getByRole("tab", { name: "Resumen" })).toHaveAttribute("aria-selected", "true")
+    expect(valorDe("Ventas hoy")).toBe("L 207.00")
+    expect(await screen.findByText("Distribución de riesgo")).toBeInTheDocument()
+    expect(screen.getByText("Demanda histórica y proyección")).toBeInTheDocument()
+    expect(globalThis.fetch).toHaveBeenCalledWith(RUTA_PROYECCION)
+  })
 
+  it("la vista de ventas reúne las cifras y listas de la operación", async () => {
+    await renderDashboard({ ventas: [venta()] })
+
+    abrirVista("Ventas")
+
+    for (const etiqueta of ["Ventas hoy", "Ventas del mes", "Por cobrar", "Clientes"]) {
+      expect(kpi(etiqueta)).toBeInTheDocument()
+    }
     for (const titulo of ["Ventas registradas por mes", "Top productos vendidos", "Últimas ventas", "Clientes"]) {
       expect(screen.getByText(titulo, { selector: ".chart-title" })).toBeInTheDocument()
     }
-  })
-
-  it("integra la proyección con sus indicadores, gráficas y recomendaciones", async () => {
-    await renderDashboard({ ventas: [venta()] })
-
-    const seccion = await seccionDeProyeccion()
-
-    expect(await within(seccion).findByText("Recomendaciones de inventario")).toBeInTheDocument()
-    expect(within(seccion).getByText("Demanda histórica y proyección")).toBeInTheDocument()
-    expect(within(seccion).getByText("Distribución de riesgo")).toBeInTheDocument()
-    expect(within(seccion).getByRole("combobox", { name: "Categoría" })).toBeInTheDocument()
-    expect(globalThis.fetch).toHaveBeenCalledWith(RUTA_PROYECCION)
+    expect(screen.queryByRole("combobox", { name: "Categoría" })).not.toBeInTheDocument()
   })
 
   /*
@@ -306,25 +298,29 @@ describe("Dashboard ejecutivo", () => {
   */
   it("los filtros de la proyección no cambian las cifras de la operación", async () => {
     await renderDashboard({ ventas: [venta()] })
+    await screen.findByText("Distribución de riesgo")
 
-    const seccion = await seccionDeProyeccion()
-    await within(seccion).findByText("Recomendaciones de inventario")
+    fireEvent.change(screen.getByRole("combobox", { name: "Categoría" }), { target: { value: "Plomería" } })
 
-    fireEvent.change(within(seccion).getByRole("combobox", { name: "Categoría" }), { target: { value: "Plomería" } })
+    expect(valorDe("Ventas hoy")).toBe("L 207.00")
+    expect(valorDe("Stock bajo")).toBe("1producto")
 
-    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
-    expect(screen.getByText("Productos", { selector: ".label" }).closest(".stat-card")).toHaveTextContent("3")
-    expect(within(seccion).getByText("Mostrando 4 de 4 productos")).toBeInTheDocument()
+    abrirVista("Inventario")
+
+    expect(valorDe("Productos")).toBe("3")
+    expect(valorDe("Con reposición")).toBe("3productos")
   })
 
-  it("no muestra avisos académicos ni el origen de los productos", async () => {
+  it("no muestra avisos académicos ni el origen de los productos en ninguna vista", async () => {
     await renderDashboard({ ventas: [venta()] })
+    await screen.findByText("Distribución de riesgo")
 
-    await within(await seccionDeProyeccion()).findByText("Recomendaciones de inventario")
+    for (const vista of ["Resumen", "Inventario", "Proyección", "Detalle"]) {
+      abrirVista(vista)
 
-    expect(document.body).not.toHaveTextContent(/acad[eé]mic|simulad|Random Forest/i)
-    expect(screen.queryByText("Simulado")).not.toBeInTheDocument()
-    expect(screen.queryByText("Sistema")).not.toBeInTheDocument()
+      expect(document.body).not.toHaveTextContent(/acad[eé]mic|simulad|Random Forest/i)
+      expect(screen.queryByText("Simulado")).not.toBeInTheDocument()
+    }
   })
 
   /*
@@ -334,16 +330,25 @@ describe("Dashboard ejecutivo", () => {
   it.each([
     ["el archivo responde con error", { estado: 500 }],
     ["no hay red", { falla: new TypeError("Failed to fetch") }],
-  ])("si %s, solo el bloque de proyección lo avisa", async (_, falla) => {
+  ])("si %s, solo lo predictivo lo avisa", async (_, falla) => {
     vi.spyOn(console, "error").mockImplementation(() => {})
     servirProyeccion(vi, falla)
 
     await renderDashboard({ ventas: [venta()] })
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar la proyección de demanda.")
-    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
-    expect(screen.getByText("Agotados").closest(".stat-card")).toHaveTextContent("1")
+    expect(valorDe("Ventas hoy")).toBe("L 207.00")
+    expect(kpi("Demanda 30 días")).toHaveTextContent("—No disponible")
+
+    abrirVista("Ventas")
+
     expect(screen.getByText("Últimas ventas")).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+
+    abrirVista("Detalle")
+
+    expect(screen.getByRole("alert")).toBeInTheDocument()
     expect(screen.queryByText("Recomendaciones de inventario")).not.toBeInTheDocument()
+    expect(within(screen.getByRole("tabpanel")).queryByRole("table")).not.toBeInTheDocument()
   })
 })

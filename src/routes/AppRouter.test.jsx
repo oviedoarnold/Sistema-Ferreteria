@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 import { AuthProvider } from "../context/AuthContext"
 import { ClientsContext, ProductContext, SalesContext } from "../context/contexts"
@@ -145,8 +145,11 @@ describe("Dashboard ejecutivo en el mapa de rutas", () => {
 
     montarConDatosVacios()
 
-    expect(await screen.findByRole("heading", { name: "Análisis y proyección" })).toBeInTheDocument()
-    expect(await screen.findByText("Recomendaciones de inventario")).toBeInTheDocument()
+    expect(await screen.findByText("Distribución de riesgo")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("tab", { name: "Detalle" }))
+
+    expect(screen.getByText("Recomendaciones de inventario")).toBeInTheDocument()
     expect(window.location.pathname).toBe("/dashboard")
   })
 
