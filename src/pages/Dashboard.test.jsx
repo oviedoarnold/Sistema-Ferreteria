@@ -176,7 +176,9 @@ describe("gráfica de ventas por mes", () => {
 
     expect(barraDel(hoy).style.height).toBe("100%")
     expect(parseFloat(barraDel(mesAnterior).style.height)).toBeCloseTo((300 / 414) * 100, 5)
-    expect(barraDel(hoy).closest(".bar-col")).toHaveTextContent("L 414.00")
+    expect(barraDel(hoy).closest(".bar-col")).toHaveTextContent("L 414")
+    expect(barraDel(hoy).closest(".bar-col")).toHaveAttribute("title", `${barraDel(hoy).closest(".bar-col").querySelector(".bar-label").textContent}: L 414.00`)
+    expect(barraDel(hoy)).toHaveAccessibleName(/L 414\.00$/)
   })
 
   it("deja visible pero mínima la barra de un mes sin ventas, y lo dice", async () => {

@@ -2,9 +2,13 @@ import { Children } from "react"
 
 import { esVentaAnulada } from "../../utils/salesUtils"
 import { largoDeBarra } from "../../utils/graficas"
-import { formatMoney as money } from "../../utils/format"
+import { formatMoney as money, formatMoneyCompacto } from "../../utils/format"
 
-/* Lo facturado en cada uno de los últimos meses, medido contra el mes que más vendió. */
+/*
+  Lo facturado en cada uno de los últimos meses, medido contra el mes que más
+  vendió. Sobre cada barra va el monto abreviado, que cabe aunque la columna
+  sea angosta; el exacto está en el nombre accesible y al pasar el mouse.
+*/
 export function GraficaVentasPorMes({ ventasPorMes }) {
   const mayorVentaMensual = Math.max(0, ...ventasPorMes.map((mes) => mes.total))
 
@@ -13,17 +17,17 @@ export function GraficaVentasPorMes({ ventasPorMes }) {
       <div className="chart-title">Ventas registradas por mes</div>
       <div className="bar-chart">
         {ventasPorMes.map((mes) => {
-          const monto = mes.total ? money(mes.total) : "—"
+          const descripcion = `${mes.etiqueta}: ${mes.total ? money(mes.total) : "sin ventas"}`
 
           return (
-            <div className="bar-col" key={mes.clave} data-mes={mes.clave}>
-              <div className="bar-val">{monto}</div>
+            <div className="bar-col" key={mes.clave} data-mes={mes.clave} title={descripcion}>
+              <div className="bar-val" aria-hidden="true">{mes.total ? formatMoneyCompacto(mes.total) : "—"}</div>
               <div className="bar-pista">
                 <div
                   className="bar"
                   style={{ height: `${largoDeBarra(mes.total, mayorVentaMensual)}%` }}
                   role="img"
-                  aria-label={`${mes.etiqueta}: ${mes.total ? monto : "sin ventas"}`}
+                  aria-label={descripcion}
                 />
               </div>
               <div className="bar-label">{mes.etiqueta}</div>

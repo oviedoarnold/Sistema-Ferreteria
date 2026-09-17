@@ -2,11 +2,36 @@ import { describe, it, expect } from "vitest"
 
 import {
   formatMoney,
+  formatMoneyCompacto,
   toISODate,
   toISODateInDays,
   formatDateForDisplay,
   MONEDA_POR_DEFECTO,
 } from "./format"
+
+describe("formatMoneyCompacto", () => {
+  it("abrevia miles con una decimal", () => {
+    expect(formatMoneyCompacto(1771)).toBe("L 1.8K")
+    expect(formatMoneyCompacto(12594.8)).toBe("L 12.6K")
+    expect(formatMoneyCompacto(1892.9)).toBe("L 1.9K")
+  })
+
+  it("abrevia millones y deja entero lo que no llega a mil", () => {
+    expect(formatMoneyCompacto(2450000)).toBe("L 2.5M")
+    expect(formatMoneyCompacto(414)).toBe("L 414")
+    expect(formatMoneyCompacto(999.4)).toBe("L 999")
+  })
+
+  it("en el borde, sube a la unidad siguiente en vez de escribir L 1000", () => {
+    expect(formatMoneyCompacto(999.6)).toBe("L 1.0K")
+    expect(formatMoneyCompacto(999960)).toBe("L 1.0M")
+  })
+
+  it("acepta otra moneda y valores que no son número", () => {
+    expect(formatMoneyCompacto(1500, "$")).toBe("$ 1.5K")
+    expect(formatMoneyCompacto("no es número")).toBe("L 0")
+  })
+})
 
 describe("formatMoney", () => {
   it("usa lempiras por defecto y dos decimales", () => {
