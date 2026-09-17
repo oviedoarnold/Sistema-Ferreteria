@@ -298,8 +298,9 @@ Python (data-science/) ─→ public/data/predicciones-inventario.json ─→ Re
 
 `src/export_dashboard.py` toma las recomendaciones, la demanda diaria y las
 métricas del modelo, y escribe un solo JSON en `public/data/` del Sistema
-Ferretería. Vite lo publica como archivo estático y el Dashboard lo lee con
-`fetch`, en la sección **Proyección de demanda e inventario**.
+Ferretería. Vite lo publica como archivo estático y el Dashboard (`/dashboard`)
+lo lee con `fetch`, en el bloque **Análisis y proyección**, debajo de los
+indicadores de la operación.
 
 El JSON contiene:
 
@@ -308,7 +309,7 @@ El JSON contiene:
 | `metadata` | modelo (Random Forest), fecha de corte, período histórico, período proyectado, horizontes, cantidad de productos por origen y la aclaración del escenario académico |
 | `resumen` | demanda total a 7 y 30 días, productos por riesgo, productos con compra, unidades e inversión — calculado a partir del detalle |
 | `serie_mensual` | unidades históricas de enero a agosto y la demanda proyectada de los 30 días siguientes, marcada como `proyeccion` |
-| `productos` | los 50 productos con origen, tipo de stock, demanda prevista, riesgo, recomendación e inversión |
+| `productos` | los 50 productos con origen, tipo de stock, demanda prevista, riesgo, recomendación, inversión y `historico_mensual`: sus unidades vendidas en cada mes de enero a agosto |
 
 Septiembre es **un solo valor**, la demanda acumulada que predice el modelo: no
 se dibuja una curva diaria que el modelo no produjo.
@@ -316,7 +317,8 @@ se dibuja una curva diaria que el modelo no produjo.
 Antes de escribir, el script **valida el resultado** y se detiene si algo no
 cuadra: 50 productos sin repetir (9 del sistema y 41 simulados), sin negativos
 ni valores no finitos, stock real solo en los productos del sistema, riesgos
-válidos, resumen igual al detalle y la proyección igual a la demanda a 30 días.
+válidos, resumen igual al detalle, la proyección igual a la demanda a 30 días,
+y el histórico de cada producto sumando exactamente la serie mensual.
 Las pruebas del Sistema Ferretería repiten las comprobaciones esenciales sobre
 el archivo publicado, así que el CI detecta un JSON editado a mano.
 
@@ -337,8 +339,31 @@ byte a byte.
 - **Reproducible.** El archivo publicado es una salida más del pipeline, con
   versión en git.
 
-La sección del Dashboard es independiente del resto: si el JSON no carga,
-muestra un aviso y los indicadores operativos siguen funcionando.
+### Cómo lo usa el Dashboard
+
+- **Filtros de categoría y riesgo**, combinables. Todo se recalcula en el
+  navegador sobre el detalle ya cargado: sin otra petición, sin Python y sin
+  volver a ejecutar el modelo. Sin filtros, las cifras son exactamente el
+  `resumen` publicado; una prueba lo comprueba en cada combinación posible.
+- **Histórico filtrado.** Cada mes es la suma de `historico_mensual` de los
+  productos filtrados, y septiembre la suma de su demanda predicha a 30 días.
+  El riesgo es una clasificación del inventario actual: filtrar por riesgo alto
+  muestra el histórico de los productos que hoy están en riesgo alto.
+- **Filtrar desde las gráficas.** Un clic en la dona de riesgo o en una barra de
+  inversión por categoría aplica ese filtro; los selectores hacen lo mismo con
+  el teclado.
+- **Fuentes separadas.** Los filtros solo afectan la proyección. Las ventas
+  registradas, el stock y los clientes vienen de Supabase y no se recalculan.
+
+El bloque es independiente del resto: si el JSON no carga, muestra un aviso y
+los indicadores operativos siguen funcionando. Es visible para quien puede
+entrar al Dashboard, sin un permiso aparte.
+
+La interfaz no muestra que el escenario es académico ni qué productos son
+simulados: eso se explica en esta documentación y en la defensa. Los datos
+siguen marcados en el JSON (`origen`, `tipo_stock`, `metadata.escenario`),
+y los componentes no dependen de esas marcas: con datos reales solo cambiaría
+el pipeline que genera el archivo.
 
 ### Actualización futura
 
@@ -347,6 +372,11 @@ predicción con cada cierre. Las opciones naturales son un pipeline programado
 que vuelva a entrenar y publicar, una API que sirva la predicción, o una tabla
 analítica en Supabase que llene un proceso periódico. **Nada de esto está
 implementado**; hoy el JSON se regenera a mano ejecutando el pipeline.
+
+**Deuda técnica: el JSON es público.** Cualquiera puede descargar
+`/data/predicciones-inventario.json` sin iniciar sesión. Con el escenario
+académico no expone datos del negocio, pero con ventas y costos reales habría
+que servirlo con autenticación, por ejemplo desde Supabase con sus políticas.
 
 ## Limitaciones
 
