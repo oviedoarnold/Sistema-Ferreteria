@@ -19,7 +19,7 @@ describe("cargar la proyección", () => {
 
     expect(fetch).toHaveBeenCalledWith(RUTA_PROYECCION)
     expect(datos.productos).toHaveLength(12)
-    expect(datos.resumen.demanda_total_30d).toBe(2470.87)
+    expect(datos.resumen.demanda_total_30d).toBe(689.98)
   })
 
   it("puede leer otra ruta", async () => {

@@ -92,14 +92,12 @@ describe("mapa de rutas", () => {
     )
   })
 
-  it("Analítica Predictiva tampoco", async () => {
+  it("/analytics ya no es una pantalla: cae en la de 404", async () => {
     irA("/analytics")
 
     montarRouter()
 
-    await waitFor(() =>
-      expect(window.location.pathname).toBe("/login")
-    )
+    expect(await screen.findByText(/404/)).toBeInTheDocument()
   })
 })
 
@@ -108,7 +106,7 @@ describe("mapa de rutas", () => {
   mapa real. Los datos de la operación se simulan vacíos: aquí no se prueban
   las pantallas.
 */
-describe("Analítica Predictiva en el mapa de rutas", () => {
+describe("Dashboard ejecutivo en el mapa de rutas", () => {
   const conSesion = (secciones) =>
     montarSupabaseFalso({
       usuarios: [usuarioDePrueba()],
@@ -137,25 +135,27 @@ describe("Analítica Predictiva en el mapa de rutas", () => {
     vi.restoreAllMocks()
   })
 
-  it("abre para quien tiene permiso de inventario", async () => {
-    conSesion([PERMISSIONS.PRODUCTS])
-    irA("/analytics")
+  /*
+    La proyección es parte del Dashboard: un vendedor con solo el permiso de
+    Dashboard, como la cuenta de demostración, lo ve completo.
+  */
+  it("con solo el permiso de Dashboard muestra también la proyección", async () => {
+    conSesion([PERMISSIONS.DASHBOARD])
+    irA("/dashboard")
 
     montarConDatosVacios()
 
-    expect(await screen.findByRole("heading", { name: "Analítica Predictiva" })).toBeInTheDocument()
-    expect(window.location.pathname).toBe("/analytics")
+    expect(await screen.findByRole("heading", { name: "Análisis y proyección" })).toBeInTheDocument()
+    expect(await screen.findByText("Recomendaciones de inventario")).toBeInTheDocument()
+    expect(window.location.pathname).toBe("/dashboard")
   })
 
-  it("no abre para quien solo puede ver el Dashboard", async () => {
-    conSesion([PERMISSIONS.DASHBOARD])
+  it("con sesión, /analytics tampoco existe", async () => {
+    conSesion([PERMISSIONS.DASHBOARD, PERMISSIONS.PRODUCTS])
     irA("/analytics")
 
     montarConDatosVacios()
 
-    await waitFor(() =>
-      expect(window.location.pathname).toBe("/dashboard")
-    )
-    expect(screen.queryByRole("heading", { name: "Analítica Predictiva" })).not.toBeInTheDocument()
+    expect(await screen.findByText(/404/)).toBeInTheDocument()
   })
 })

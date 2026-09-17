@@ -17,7 +17,6 @@
 export const config = {
   matcher: [
     "/dashboard",
-    "/analytics",
     "/pos",
     "/products",
     "/kardex",

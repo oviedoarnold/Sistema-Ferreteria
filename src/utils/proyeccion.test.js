@@ -1,22 +1,27 @@
 import { describe, it, expect } from "vitest"
 
 import {
-  aclaracionDelEscenario,
+  FILTROS_INICIALES,
+  categoriasDe,
   contarProductos,
   describirConteo,
+  describirFiltros,
   describirPeriodo,
-  describirPeriodoEnPalabras,
   describirRiesgo,
   distribucionDeRiesgo,
-  esProductoSimulado,
-  filtrarPorRiesgo,
+  filtrarProductos,
   formatearUnidades,
+  hayFiltrosActivos,
   inversionPorCategoria,
   mayorDemandaProyectada,
   ordenarPorPrioridad,
   porcentaje,
+  resumirProductos,
+  serieDeDemanda,
 } from "./proyeccion"
-import { ORDEN_ESPERADO, PRODUCTOS_DE_PRUEBA } from "../test/proyeccionDePrueba"
+import { ORDEN_ESPERADO, PRODUCTOS_DE_PRUEBA, proyeccionDePrueba } from "../test/proyeccionDePrueba"
+
+const codigos = (productos) => productos.map((producto) => producto.codigo)
 
 describe("prioridad de las recomendaciones", () => {
   it("pone primero el riesgo alto, luego medio y al final bajo", () => {
@@ -67,20 +72,121 @@ describe("prioridad de las recomendaciones", () => {
   })
 })
 
-describe("filtro por riesgo", () => {
-  it("con 'todos' devuelve la lista completa", () => {
-    expect(filtrarPorRiesgo(PRODUCTOS_DE_PRUEBA, "todos")).toHaveLength(12)
+describe("filtros de la proyección", () => {
+  it("sin filtros devuelve todos los productos", () => {
+    expect(filtrarProductos(PRODUCTOS_DE_PRUEBA, FILTROS_INICIALES)).toHaveLength(12)
+    expect(filtrarProductos(PRODUCTOS_DE_PRUEBA)).toHaveLength(12)
+    expect(filtrarProductos()).toEqual([])
   })
 
-  it("deja solo el riesgo pedido", () => {
-    expect(filtrarPorRiesgo(PRODUCTOS_DE_PRUEBA, "medio").map((p) => p.codigo)).toEqual([
+  it("filtra por categoría", () => {
+    expect(codigos(filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "Plomería", riesgo: "todos" }))).toEqual([
+      "FER-020", "FER-021", "FER-022", "FER-040",
+    ])
+  })
+
+  it("filtra por riesgo", () => {
+    expect(codigos(filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "todas", riesgo: "medio" }))).toEqual([
       "FER-030", "FER-031",
     ])
   })
 
-  it("usa 'todos' si no se indica riesgo", () => {
-    expect(filtrarPorRiesgo(PRODUCTOS_DE_PRUEBA)).toHaveLength(12)
-    expect(filtrarPorRiesgo()).toEqual([])
+  it("combina categoría y riesgo como intersección", () => {
+    const plomeriaEnRiesgoAlto = filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "Plomería", riesgo: "alto" })
+
+    expect(codigos(plomeriaEnRiesgoAlto)).toEqual(["FER-020", "FER-021", "FER-022"])
+    expect(filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "Cerrajería", riesgo: "alto" })).toEqual([])
+  })
+
+  it("sabe si hay algún filtro aplicado", () => {
+    expect(hayFiltrosActivos(FILTROS_INICIALES)).toBe(false)
+    expect(hayFiltrosActivos({ categoria: "Plomería", riesgo: "todos" })).toBe(true)
+    expect(hayFiltrosActivos({ categoria: "todas", riesgo: "bajo" })).toBe(true)
+  })
+
+  it("lista las categorías sin repetir y en orden alfabético", () => {
+    expect(categoriasDe(PRODUCTOS_DE_PRUEBA)).toEqual([
+      "Cerrajería", "Construcción", "Herramientas Eléctricas", "Jardinería", "Plomería", "Tornillería",
+    ])
+    expect(categoriasDe()).toEqual([])
+  })
+
+  it("describe qué se eligió y cuántos productos quedan", () => {
+    expect(describirFiltros(FILTROS_INICIALES, { mostrados: 12, total: 12 })).toBe("12 productos")
+    expect(describirFiltros({ categoria: "Plomería", riesgo: "alto" }, { mostrados: 3, total: 50 })).toBe(
+      "Plomería · Riesgo alto · 3 de 50 productos"
+    )
+    expect(describirFiltros({ categoria: "todas", riesgo: "medio" }, { mostrados: 6, total: 50 })).toBe(
+      "Riesgo medio · 6 de 50 productos"
+    )
+    expect(describirFiltros({ categoria: "Plomería", riesgo: "todos" }, { mostrados: 1, total: 50 })).toBe(
+      "Plomería · 1 de 50 productos"
+    )
+  })
+})
+
+describe("resumen de un conjunto de productos", () => {
+  it("sin filtros reproduce el resumen del archivo", () => {
+    const { productos, ...resumen } = resumirProductos(PRODUCTOS_DE_PRUEBA)
+
+    expect(productos).toBe(12)
+    expect(resumen).toEqual(proyeccionDePrueba().resumen)
+  })
+
+  it("recalcula las cifras para los productos filtrados", () => {
+    const plomeria = filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "Plomería", riesgo: "todos" })
+
+    expect(resumirProductos(plomeria)).toEqual({
+      productos: 4,
+      demanda_total_7d: 8,
+      demanda_total_30d: 312,
+      productos_riesgo_alto: 3,
+      productos_riesgo_medio: 0,
+      productos_riesgo_bajo: 1,
+      productos_con_compra: 3,
+      unidades_recomendadas: 170,
+      inversion_estimada: 3200,
+    })
+  })
+
+  it("con ningún producto todo queda en cero", () => {
+    expect(resumirProductos()).toMatchObject({ productos: 0, demanda_total_30d: 0, inversion_estimada: 0 })
+  })
+})
+
+describe("serie de demanda de un conjunto de productos", () => {
+  const plantilla = proyeccionDePrueba().serie_mensual
+
+  it("sin filtros reproduce la serie del archivo", () => {
+    expect(serieDeDemanda(PRODUCTOS_DE_PRUEBA, plantilla)).toEqual(plantilla)
+  })
+
+  it("suma el histórico de los productos filtrados y proyecta su demanda a 30 días", () => {
+    const plomeria = filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "Plomería", riesgo: "todos" })
+    const serie = serieDeDemanda(plomeria, plantilla)
+
+    expect(serie.map((mes) => mes.unidades)).toEqual([260, 264, 268, 272, 276, 280, 284, 288, 312])
+    expect(serie.map((mes) => mes.tipo)).toEqual([...Array(8).fill("historico"), "proyeccion"])
+    expect(serie[0]).toMatchObject({ mes: "2026-01", etiqueta: "ene" })
+  })
+
+  /*
+    El riesgo es del inventario de hoy: el histórico filtrado por riesgo es el
+    de los productos que hoy están en ese riesgo.
+  */
+  it("con un filtro de riesgo suma el histórico de los productos que hoy tienen ese riesgo", () => {
+    const enRiesgoMedio = filtrarProductos(PRODUCTOS_DE_PRUEBA, { categoria: "todas", riesgo: "medio" })
+
+    expect(serieDeDemanda(enRiesgoMedio, plantilla).map((mes) => mes.unidades)).toEqual([
+      2, 4, 6, 8, 10, 12, 14, 16, 2.7,
+    ])
+  })
+
+  it("trata un mes sin dato como cero", () => {
+    const sinHistorico = [{ demanda_predicha_30d: 5 }]
+
+    expect(serieDeDemanda(sinHistorico, plantilla).map((mes) => mes.unidades)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 5])
+    expect(serieDeDemanda()).toEqual([])
   })
 })
 
@@ -93,13 +199,6 @@ describe("cómo se muestra el riesgo", () => {
 
   it("un riesgo desconocido se muestra como tal y no como bajo", () => {
     expect(describirRiesgo("otro")).toEqual({ etiqueta: "Sin dato", clase: "badge-void" })
-  })
-})
-
-describe("origen del producto", () => {
-  it("solo los productos del sistema no son simulados", () => {
-    expect(esProductoSimulado({ origen: "sistema" })).toBe(false)
-    expect(esProductoSimulado({ origen: "sintetico" })).toBe(true)
   })
 })
 
@@ -132,11 +231,6 @@ describe("descripción del período", () => {
     expect(describirPeriodo({ desde: "x", hasta: "y" })).toBe("")
     expect(describirPeriodo()).toBe("")
   })
-
-  it("se puede escribir dentro de una oración", () => {
-    expect(describirPeriodoEnPalabras({ desde: "2026-01-01", hasta: "2026-08-31" })).toBe("enero a agosto de 2026")
-    expect(describirPeriodoEnPalabras({ desde: "x", hasta: "2026-08-31" })).toBe("")
-  })
 })
 
 describe("mayor demanda proyectada", () => {
@@ -168,10 +262,10 @@ describe("mayor demanda proyectada", () => {
 describe("inversión por categoría", () => {
   it("agrupa la inversión de los productos con compra, de mayor a menor", () => {
     expect(inversionPorCategoria(PRODUCTOS_DE_PRUEBA)).toEqual([
-      { categoria: "Construcción", inversion: 39008, productos: 3 },
+      { categoria: "Construcción", inversion: 38808, productos: 1 },
       { categoria: "Herramientas Eléctricas", inversion: 21000, productos: 2 },
       { categoria: "Tornillería", inversion: 6300, productos: 1 },
-      { categoria: "Plomería", inversion: 3000, productos: 1 },
+      { categoria: "Plomería", inversion: 3200, productos: 3 },
       { categoria: "Jardinería", inversion: 150, productos: 1 },
     ])
   })
@@ -248,25 +342,16 @@ describe("porcentaje", () => {
   })
 })
 
-describe("aclaración del escenario", () => {
-  it("cuenta los productos con los números del archivo", () => {
-    expect(aclaracionDelEscenario({ productos: 12, productos_sistema: 3, productos_simulados: 9 })).toBe(
-      "Escenario académico de 12 productos: 3 del sistema y 9 simulados para análisis. " +
-        "Las ventas históricas utilizadas para el modelo son simuladas."
-    )
-  })
-})
-
 describe("conteo de la tabla", () => {
   it("llama prioritarios a los primeros de la vista general", () => {
-    expect(describirConteo({ riesgo: "todos", mostrados: 10, total: 50 })).toBe("10 prioritarios de 50 productos")
+    expect(describirConteo({ hayFiltros: false, mostrados: 10, total: 50 })).toBe("10 prioritarios de 50 productos")
   })
 
-  it("es neutro con un filtro de riesgo", () => {
-    expect(describirConteo({ riesgo: "bajo", mostrados: 10, total: 16 })).toBe("Mostrando 10 de 16 productos")
+  it("es neutro con filtros", () => {
+    expect(describirConteo({ hayFiltros: true, mostrados: 10, total: 16 })).toBe("Mostrando 10 de 16 productos")
   })
 
   it("es neutro cuando ya se ven todos", () => {
-    expect(describirConteo({ riesgo: "todos", mostrados: 50, total: 50 })).toBe("Mostrando 50 de 50 productos")
+    expect(describirConteo({ hayFiltros: false, mostrados: 50, total: 50 })).toBe("Mostrando 50 de 50 productos")
   })
 })

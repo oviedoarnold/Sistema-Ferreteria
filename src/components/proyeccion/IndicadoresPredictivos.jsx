@@ -1,5 +1,5 @@
 import { formatMoney } from "../../utils/format"
-import { formatearUnidades, porcentaje } from "../../utils/proyeccion"
+import { contarProductos, formatearUnidades, porcentaje } from "../../utils/proyeccion"
 
 function Indicador({ tono, etiqueta, valor, unidad, detalle }) {
   return (
@@ -15,12 +15,13 @@ function Indicador({ tono, etiqueta, valor, unidad, detalle }) {
 }
 
 /*
-  Las cinco cifras que resumen el escenario. Todas salen del archivo
-  publicado: si el pipeline cambia un resultado, cambia aquí.
+  Las cuatro cifras de la proyección para los productos que dejan los
+  filtros. Se calculan del detalle publicado: sin filtros, son el resumen del
+  pipeline.
 */
-function IndicadoresPredictivos({ metadata, resumen }) {
+function IndicadoresPredictivos({ resumen }) {
   return (
-    <div className="dash-grid dash-grid-cinco">
+    <div className="dash-grid dash-grid-cuatro">
       <Indicador
         tono="blue"
         etiqueta="Demanda 30 días"
@@ -33,7 +34,7 @@ function IndicadoresPredictivos({ metadata, resumen }) {
         etiqueta="Riesgo alto"
         valor={formatearUnidades(resumen.productos_riesgo_alto, 0)}
         unidad="productos"
-        detalle={`${porcentaje(resumen.productos_riesgo_alto, metadata.productos)}% del escenario analizado`}
+        detalle={`${porcentaje(resumen.productos_riesgo_alto, resumen.productos)}% de ${contarProductos(resumen.productos)}`}
       />
       <Indicador
         tono="warn"
@@ -47,12 +48,6 @@ function IndicadoresPredictivos({ metadata, resumen }) {
         etiqueta="Inversión estimada"
         valor={formatMoney(resumen.inversion_estimada)}
         detalle="A costo de compra"
-      />
-      <Indicador
-        tono="neutral"
-        etiqueta="Productos analizados"
-        valor={formatearUnidades(metadata.productos, 0)}
-        detalle={`${metadata.productos_sistema} sistema · ${metadata.productos_simulados} simulados`}
       />
     </div>
   )

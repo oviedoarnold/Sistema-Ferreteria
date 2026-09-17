@@ -126,21 +126,15 @@ describe("Navbar", () => {
   })
 
   /*
-    Analítica Predictiva muestra costos de compra y recomendaciones de
-    reposición: va con el permiso de inventario, no con el del Dashboard.
+    El análisis y la proyección viven dentro del Dashboard: no hay una
+    pestaña aparte, ni siquiera para quien tiene todos los permisos.
   */
-  it("ofrece Analítica Predictiva a quien tiene permiso de inventario", async () => {
-    await renderNavbar({ secciones: [PERMISSIONS.PRODUCTS] })
+  it("no ofrece una pestaña de Analítica Predictiva", async () => {
+    await renderNavbar({ rol: "admin" })
 
-    expect(enlaces()).toContain("/analytics")
-    expect(screen.getByText("Analítica Predictiva")).toBeInTheDocument()
-  })
-
-  it("no ofrece Analítica Predictiva a quien solo ve el Dashboard", async () => {
-    await renderNavbar({ secciones: [PERMISSIONS.DASHBOARD, PERMISSIONS.POS] })
-
+    expect(enlaces()).toContain("/dashboard")
     expect(enlaces()).not.toContain("/analytics")
-    expect(screen.queryByText("Analítica Predictiva")).not.toBeInTheDocument()
+    expect(screen.queryByText(/Analítica/)).not.toBeInTheDocument()
   })
 
   it("no muestra ninguna sección a un usuario sin permisos", async () => {

@@ -18,7 +18,8 @@ function GraficaProyeccion({ serie = [] }) {
 
   return (
     <div className="chart-wrap grafica-mensual">
-      <div className="chart-title">Demanda mensual en unidades</div>
+      <div className="chart-title">Demanda histórica y proyección</div>
+      <p className="chart-subtitulo">Unidades por mes · pasa el mouse sobre una barra para ver el detalle</p>
 
       <div className="proyeccion-leyenda">
         <span><i className="muestra muestra-historico" />Histórico</span>

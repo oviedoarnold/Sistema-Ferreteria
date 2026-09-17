@@ -8,7 +8,6 @@ import { PERMISSIONS } from "../context/permissions"
 
 import {
   FaHome,
-  FaChartLine,
   FaCashRegister,
   FaBox,
   FaClipboardList,
@@ -37,12 +36,6 @@ function Navbar() {
     label: "Dashboard",
     Icon: FaHome,
     permission: PERMISSIONS.DASHBOARD,
-  },
-  {
-    to: "/analytics",
-    label: "Analítica Predictiva",
-    Icon: FaChartLine,
-    permission: PERMISSIONS.PRODUCTS,
   },
   {
     to: "/pos",
