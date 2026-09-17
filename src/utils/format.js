@@ -2,6 +2,22 @@ const LOCALE = "es-HN"
 
 export const MONEDA_POR_DEFECTO = "L"
 
+/*
+  Monto corto para un rótulo sin espacio: "L 1.8K", "L 12.6K". Es solo para
+  leer de un vistazo; donde se usa, el monto exacto va en el nombre accesible
+  y en el detalle al pasar el mouse.
+*/
+export function formatMoneyCompacto(value, currency = MONEDA_POR_DEFECTO) {
+  const amount = Number(value)
+  const safeAmount = Number.isFinite(amount) ? amount : 0
+  const absoluto = Math.abs(safeAmount)
+
+  if (absoluto >= 999_950) return `${currency} ${(safeAmount / 1_000_000).toFixed(1)}M`
+  if (absoluto >= 999.5) return `${currency} ${(safeAmount / 1_000).toFixed(1)}K`
+
+  return `${currency} ${Math.round(safeAmount)}`
+}
+
 export function formatMoney(value, currency = MONEDA_POR_DEFECTO) {
   const amount = Number(value)
   const safeAmount = Number.isFinite(amount) ? amount : 0
