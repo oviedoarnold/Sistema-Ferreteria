@@ -6,9 +6,13 @@
   los componentes para probarlas solas y dejar el JSX sin condicionales.
 */
 
+import { roundMoney } from "./salesUtils"
+
 const LOCALE = "es-HN"
 
 export const PRODUCTOS_PRIORITARIOS = 10
+
+export const PRODUCTOS_EN_TOP_DEMANDA = 10
 
 export const RIESGOS = {
   alto: { etiqueta: "Alto", clase: "badge-out", orden: 0 },
@@ -40,6 +44,64 @@ export function ordenarPorPrioridad(productos = []) {
 
 function ordenDeRiesgo(riesgo) {
   return RIESGOS[riesgo]?.orden ?? Object.keys(RIESGOS).length
+}
+
+/*
+  Los que más se espera vender a 30 días según el modelo. Es la demanda
+  predicha, no la histórica: responde qué se va a mover, no qué se movió.
+*/
+export function mayorDemandaProyectada(productos = [], limite = PRODUCTOS_EN_TOP_DEMANDA) {
+  return [...productos]
+    .sort(
+      (a, b) =>
+        b.demanda_predicha_30d - a.demanda_predicha_30d || String(a.codigo).localeCompare(String(b.codigo))
+    )
+    .slice(0, limite)
+}
+
+/*
+  Inversión recomendada agrupada por categoría, de mayor a menor. Solo cuentan
+  los productos con reposición: el resto no suma inversión ni aparece como
+  categoría vacía.
+*/
+export function inversionPorCategoria(productos = []) {
+  const grupos = new Map()
+
+  for (const producto of productos) {
+    if (!(producto.recomendacion_compra > 0)) continue
+
+    const grupo = grupos.get(producto.categoria) ?? { categoria: producto.categoria, inversion: 0, productos: 0 }
+
+    grupo.inversion += Number(producto.inversion_estimada)
+    grupo.productos += 1
+    grupos.set(producto.categoria, grupo)
+  }
+
+  return [...grupos.values()]
+    .map((grupo) => ({ ...grupo, inversion: roundMoney(grupo.inversion) }))
+    .sort((a, b) => b.inversion - a.inversion || a.categoria.localeCompare(b.categoria))
+}
+
+/*
+  Cuántos productos hay en cada riesgo, en el orden alto, medio, bajo. El
+  total es la suma de los tres: así la dona y su leyenda siempre cuadran.
+*/
+export function distribucionDeRiesgo(resumen = {}) {
+  const segmentos = Object.entries(RIESGOS).map(([riesgo, { etiqueta }]) => ({
+    riesgo,
+    etiqueta,
+    cantidad: Number(resumen[`productos_riesgo_${riesgo}`]) || 0,
+  }))
+  const total = segmentos.reduce((suma, segmento) => suma + segmento.cantidad, 0)
+
+  return {
+    total,
+    segmentos: segmentos.map((segmento) => ({ ...segmento, porcentaje: porcentaje(segmento.cantidad, total) })),
+  }
+}
+
+export function contarProductos(cantidad) {
+  return `${cantidad} ${cantidad === 1 ? "producto" : "productos"}`
 }
 
 export function filtrarPorRiesgo(productos = [], riesgo = "todos") {

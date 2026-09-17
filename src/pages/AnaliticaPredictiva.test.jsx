@@ -172,6 +172,120 @@ describe("gráfica de demanda mensual", () => {
   })
 })
 
+describe("eje de la gráfica mensual", () => {
+  it("marca una escala redonda desde cero que cubre el mes más alto", async () => {
+    await mostrarAnalitica()
+
+    const marcas = [...document.querySelectorAll(".grafica-eje span")].map((marca) => marca.textContent)
+
+    expect(marcas).toEqual(["0", "1,000", "2,000", "3,000"])
+    expect(document.querySelector(".grafica-eje")).toHaveAttribute("aria-hidden", "true")
+  })
+
+  it("mide cada barra contra el tope del eje", async () => {
+    await mostrarAnalitica()
+
+    const marzo = screen.getByRole("img", { name: "mar: 2,856 unidades" })
+
+    expect(parseFloat(marzo.style.height)).toBeCloseTo((2856 / 3000) * 100, 5)
+  })
+})
+
+describe("distribución de riesgo", () => {
+  const dona = () => document.querySelector(".distribucion-riesgo")
+
+  it("resume en texto los tres niveles y el total", async () => {
+    await mostrarAnalitica()
+
+    expect(within(dona()).getByRole("img")).toHaveAccessibleName(
+      "50 productos por nivel de riesgo. Alto: 28 (56%), Medio: 6 (12%), Bajo: 16 (32%)."
+    )
+  })
+
+  it("muestra en la leyenda cantidad y porcentaje de cada riesgo, y el total que suman", async () => {
+    await mostrarAnalitica()
+
+    const filas = within(dona()).getAllByRole("listitem")
+
+    expect(filas.map((fila) => fila.textContent)).toEqual(["Alto2856%", "Medio612%", "Bajo1632%", "Total50"])
+    expect(dona().querySelector(".dona-centro")).toHaveTextContent("50productos")
+  })
+
+  it("dibuja un arco por riesgo, proporcional a su cantidad", async () => {
+    await mostrarAnalitica()
+
+    const largo = (riesgo) =>
+      parseFloat(dona().querySelector(`circle[data-riesgo="${riesgo}"]`).getAttribute("stroke-dasharray"))
+
+    expect(largo("alto")).toBeCloseTo(56 - 0.8, 5)
+    expect(largo("medio")).toBeCloseTo(12 - 0.8, 5)
+    expect(largo("bajo")).toBeCloseTo(32 - 0.8, 5)
+  })
+
+  it("toma los conteos del resumen del archivo", async () => {
+    const datos = proyeccionDePrueba()
+    datos.resumen = { ...datos.resumen, productos_riesgo_alto: 3, productos_riesgo_medio: 1, productos_riesgo_bajo: 1 }
+
+    await mostrarAnalitica({ datos })
+
+    expect(within(dona()).getAllByRole("listitem").map((fila) => fila.textContent)).toEqual([
+      "Alto360%", "Medio120%", "Bajo120%", "Total5",
+    ])
+  })
+})
+
+describe("top 10 demanda proyectada", () => {
+  const ranking = () => screen.getByRole("list", { name: "Top 10 demanda proyectada — 30 días" })
+
+  it("lista los 10 productos con más demanda predicha a 30 días, de mayor a menor", async () => {
+    await mostrarAnalitica()
+
+    const filas = within(ranking()).getAllByRole("listitem")
+
+    expect(filas).toHaveLength(10)
+    expect(filas.map((fila) => fila.querySelector(".barra-h-detalle").textContent)).toEqual([
+      "CEM-001", "FER-020", "TOR-001", "FER-022", "FER-021",
+      "FER-041", "CER-023", "FER-040", "FER-043", "FER-042",
+    ])
+    expect(filas[0]).toHaveTextContent("Cemento gris 42.5 kg")
+    expect(filas[0]).toHaveTextContent("205.7 u.")
+  })
+
+  it("dibuja la barra más larga para el primero, sin exponerla a lectores de pantalla", async () => {
+    await mostrarAnalitica()
+
+    const [primera, segunda] = within(ranking()).getAllByRole("listitem")
+
+    expect(primera.querySelector(".barra-h-relleno").style.width).toBe("100%")
+    expect(parseFloat(segunda.querySelector(".barra-h-relleno").style.width)).toBeCloseTo((180 / 205.74) * 100, 5)
+    expect(primera.querySelector(".barra-h-pista")).toHaveAttribute("aria-hidden", "true")
+  })
+})
+
+describe("inversión recomendada por categoría", () => {
+  const grafica = () => screen.getByRole("list", { name: "Inversión recomendada por categoría" }).closest(".chart-wrap")
+
+  it("agrupa por categoría, de mayor a menor inversión, en lempiras", async () => {
+    await mostrarAnalitica()
+
+    const filas = within(grafica()).getAllByRole("listitem")
+
+    expect(filas.map((fila) => fila.querySelector(".barra-h-nombre").firstChild.textContent)).toEqual([
+      "Construcción", "Herramientas Eléctricas", "Tornillería", "Plomería", "Jardinería",
+    ])
+    expect(filas[0]).toHaveTextContent("3 productos")
+    expect(filas[0]).toHaveTextContent("L 39,008.00")
+    expect(filas[4]).toHaveTextContent("1 producto")
+    expect(filas[4]).toHaveTextContent("L 150.00")
+  })
+
+  it("cierra con el total, que es la suma de las categorías", async () => {
+    await mostrarAnalitica()
+
+    expect(grafica().querySelector(".barras-h-pie")).toHaveTextContent("TotalL 69,458.00")
+  })
+})
+
 describe("recomendaciones de inventario", () => {
   it("muestra por omisión solo los 10 productos prioritarios, en orden", async () => {
     await mostrarAnalitica()

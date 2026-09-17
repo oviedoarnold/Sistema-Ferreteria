@@ -2,13 +2,17 @@ import { describe, it, expect } from "vitest"
 
 import {
   aclaracionDelEscenario,
+  contarProductos,
   describirConteo,
   describirPeriodo,
   describirPeriodoEnPalabras,
   describirRiesgo,
+  distribucionDeRiesgo,
   esProductoSimulado,
   filtrarPorRiesgo,
   formatearUnidades,
+  inversionPorCategoria,
+  mayorDemandaProyectada,
   ordenarPorPrioridad,
   porcentaje,
 } from "./proyeccion"
@@ -132,6 +136,103 @@ describe("descripción del período", () => {
   it("se puede escribir dentro de una oración", () => {
     expect(describirPeriodoEnPalabras({ desde: "2026-01-01", hasta: "2026-08-31" })).toBe("enero a agosto de 2026")
     expect(describirPeriodoEnPalabras({ desde: "x", hasta: "2026-08-31" })).toBe("")
+  })
+})
+
+describe("mayor demanda proyectada", () => {
+  it("ordena por la demanda predicha a 30 días, de mayor a menor, y se queda con 10", () => {
+    const top = mayorDemandaProyectada(PRODUCTOS_DE_PRUEBA)
+
+    expect(top.map((p) => p.codigo)).toEqual([
+      "CEM-001", "FER-020", "TOR-001", "FER-022", "FER-021",
+      "FER-041", "CER-023", "FER-040", "FER-043", "FER-042",
+    ])
+  })
+
+  it("desempata por código y no altera la lista original", () => {
+    const empatados = [
+      { codigo: "B", demanda_predicha_30d: 5 },
+      { codigo: "A", demanda_predicha_30d: 5 },
+    ]
+
+    expect(mayorDemandaProyectada(empatados).map((p) => p.codigo)).toEqual(["A", "B"])
+    expect(empatados[0].codigo).toBe("B")
+  })
+
+  it("acepta otro límite y una lista vacía", () => {
+    expect(mayorDemandaProyectada(PRODUCTOS_DE_PRUEBA, 3)).toHaveLength(3)
+    expect(mayorDemandaProyectada()).toEqual([])
+  })
+})
+
+describe("inversión por categoría", () => {
+  it("agrupa la inversión de los productos con compra, de mayor a menor", () => {
+    expect(inversionPorCategoria(PRODUCTOS_DE_PRUEBA)).toEqual([
+      { categoria: "Construcción", inversion: 39008, productos: 3 },
+      { categoria: "Herramientas Eléctricas", inversion: 21000, productos: 2 },
+      { categoria: "Tornillería", inversion: 6300, productos: 1 },
+      { categoria: "Plomería", inversion: 3000, productos: 1 },
+      { categoria: "Jardinería", inversion: 150, productos: 1 },
+    ])
+  })
+
+  it("suma lo mismo que la inversión de todos los productos con compra", () => {
+    const porCategorias = inversionPorCategoria(PRODUCTOS_DE_PRUEBA).reduce((s, c) => s + c.inversion, 0)
+    const porProductos = PRODUCTOS_DE_PRUEBA.reduce((s, p) => s + p.inversion_estimada, 0)
+
+    expect(porCategorias).toBe(porProductos)
+  })
+
+  it("deja fuera las categorías sin reposición", () => {
+    const categorias = inversionPorCategoria(PRODUCTOS_DE_PRUEBA).map((c) => c.categoria)
+
+    expect(categorias).not.toContain("Cerrajería")
+  })
+
+  it("redondea a centavos y desempata por nombre", () => {
+    const productos = [
+      { categoria: "B", recomendacion_compra: 1, inversion_estimada: 0.1 },
+      { categoria: "B", recomendacion_compra: 1, inversion_estimada: 0.2 },
+      { categoria: "A", recomendacion_compra: 1, inversion_estimada: 0.3 },
+    ]
+
+    expect(inversionPorCategoria(productos)).toEqual([
+      { categoria: "A", inversion: 0.3, productos: 1 },
+      { categoria: "B", inversion: 0.3, productos: 2 },
+    ])
+    expect(inversionPorCategoria()).toEqual([])
+  })
+})
+
+describe("distribución de riesgo", () => {
+  it("cuenta alto, medio y bajo con su porcentaje y el total como suma", () => {
+    const { segmentos, total } = distribucionDeRiesgo({
+      productos_riesgo_alto: 28,
+      productos_riesgo_medio: 6,
+      productos_riesgo_bajo: 16,
+    })
+
+    expect(total).toBe(50)
+    expect(segmentos).toEqual([
+      { riesgo: "alto", etiqueta: "Alto", cantidad: 28, porcentaje: 56 },
+      { riesgo: "medio", etiqueta: "Medio", cantidad: 6, porcentaje: 12 },
+      { riesgo: "bajo", etiqueta: "Bajo", cantidad: 16, porcentaje: 32 },
+    ])
+  })
+
+  it("trata un conteo ausente como cero", () => {
+    const { segmentos, total } = distribucionDeRiesgo({ productos_riesgo_alto: 2 })
+
+    expect(total).toBe(2)
+    expect(segmentos.map((s) => s.cantidad)).toEqual([2, 0, 0])
+    expect(distribucionDeRiesgo().total).toBe(0)
+  })
+})
+
+describe("conteo de productos", () => {
+  it("usa singular y plural", () => {
+    expect(contarProductos(1)).toBe("1 producto")
+    expect(contarProductos(3)).toBe("3 productos")
   })
 })
 

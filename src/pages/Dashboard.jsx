@@ -9,7 +9,7 @@ import {
   getSaleBalance,
   totalesDeVentasPorMes,
 } from "../utils/salesUtils"
-import { alturaDeBarra } from "../utils/graficas"
+import { largoDeBarra } from "../utils/graficas"
 import { formatMoney as money } from "../utils/format"
 import { ClientsContext } from "../context/contexts"
 
@@ -66,7 +66,7 @@ function Dashboard() {
     <div className="dash-row">
       <div className="chart-wrap"><div className="chart-title">Ventas por mes</div><div className="bar-chart">{ventasPorMes.map((mes) => {
         const monto = mes.total ? money(mes.total) : "—"
-        return <div className="bar-col" key={mes.clave} data-mes={mes.clave}><div className="bar-val">{monto}</div><div className="bar-pista"><div className="bar" style={{ height: `${alturaDeBarra(mes.total, mayorVentaMensual)}%` }} role="img" aria-label={`${mes.etiqueta}: ${mes.total ? monto : "sin ventas"}`}></div></div><div className="bar-label">{mes.etiqueta}</div></div>
+        return <div className="bar-col" key={mes.clave} data-mes={mes.clave}><div className="bar-val">{monto}</div><div className="bar-pista"><div className="bar" style={{ height: `${largoDeBarra(mes.total, mayorVentaMensual)}%` }} role="img" aria-label={`${mes.etiqueta}: ${mes.total ? monto : "sin ventas"}`}></div></div><div className="bar-label">{mes.etiqueta}</div></div>
       })}</div></div>
       <div className="chart-wrap"><div className="chart-title">Top productos vendidos</div><div className="dash-mini-list">{topProducts.length ? topProducts.map(([name, qty]) => <div className="dash-mini-row" key={name}><span className="name">{name}</span><span className="val">{qty} u.</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
     </div>
