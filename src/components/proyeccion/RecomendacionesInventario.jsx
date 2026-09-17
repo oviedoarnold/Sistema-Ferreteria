@@ -3,6 +3,7 @@ import { useMemo, useState } from "react"
 import {
   FILTROS_DE_RIESGO,
   PRODUCTOS_PRIORITARIOS,
+  describirConteo,
   describirRiesgo,
   esProductoSimulado,
   filtrarPorRiesgo,
@@ -44,6 +45,12 @@ function FilaDeRecomendacion({ producto }) {
   )
 }
 
+function textoParaVolver(riesgo) {
+  return riesgo === "todos"
+    ? `Ver solo los ${PRODUCTOS_PRIORITARIOS} prioritarios`
+    : `Ver solo ${PRODUCTOS_PRIORITARIOS}`
+}
+
 /*
   Por omisión, solo los diez que más urge atender. Cincuenta filas de golpe
   entierran justo lo importante; el resto queda a un clic.
@@ -81,9 +88,7 @@ function RecomendacionesInventario({ productos = [] }) {
       </div>
 
       <p className="recomendaciones-conteo">
-        {verTodos || !hayMas
-          ? `${filtrados.length} productos`
-          : `${PRODUCTOS_PRIORITARIOS} prioritarios de ${filtrados.length}`}
+        {describirConteo({ riesgo, mostrados: visibles.length, total: filtrados.length })}
       </p>
 
       {filtrados.length === 0 ? (
@@ -113,7 +118,7 @@ function RecomendacionesInventario({ productos = [] }) {
 
       {hayMas && (
         <button type="button" className="btn btn-secondary btn-sm ver-todos" onClick={() => setVerTodos((actual) => !actual)}>
-          {verTodos ? `Ver solo los ${PRODUCTOS_PRIORITARIOS} prioritarios` : `Ver todos (${filtrados.length})`}
+          {verTodos ? textoParaVolver(riesgo) : `Ver todos (${filtrados.length})`}
         </button>
       )}
     </div>

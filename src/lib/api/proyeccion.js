@@ -8,7 +8,7 @@
 
 export const RUTA_PROYECCION = "/data/predicciones-inventario.json"
 
-export const MENSAJE_SIN_PROYECCION = "No fue posible cargar la proyección de demanda."
+export const MENSAJE_SIN_PROYECCION = "No fue posible cargar la información de Analítica Predictiva."
 
 /*
   Se comprueba la forma antes de entregarla. Un archivo a medio escribir o de

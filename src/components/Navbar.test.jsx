@@ -125,6 +125,24 @@ describe("Navbar", () => {
     expect(screen.queryByText("Kardex")).not.toBeInTheDocument()
   })
 
+  /*
+    Analítica Predictiva muestra costos de compra y recomendaciones de
+    reposición: va con el permiso de inventario, no con el del Dashboard.
+  */
+  it("ofrece Analítica Predictiva a quien tiene permiso de inventario", async () => {
+    await renderNavbar({ secciones: [PERMISSIONS.PRODUCTS] })
+
+    expect(enlaces()).toContain("/analytics")
+    expect(screen.getByText("Analítica Predictiva")).toBeInTheDocument()
+  })
+
+  it("no ofrece Analítica Predictiva a quien solo ve el Dashboard", async () => {
+    await renderNavbar({ secciones: [PERMISSIONS.DASHBOARD, PERMISSIONS.POS] })
+
+    expect(enlaces()).not.toContain("/analytics")
+    expect(screen.queryByText("Analítica Predictiva")).not.toBeInTheDocument()
+  })
+
   it("no muestra ninguna sección a un usuario sin permisos", async () => {
     await renderNavbar({ secciones: [] })
 
