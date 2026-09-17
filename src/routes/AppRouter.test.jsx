@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 
 import { AuthProvider } from "../context/AuthContext"
+import { ClientsContext, ProductContext, SalesContext } from "../context/contexts"
+import { PERMISSIONS } from "../context/permissions"
 import { crearSupabaseFalso } from "../test/supabaseFalso"
+import { montarSupabaseFalso, permisosDe, sesionDe, usuarioDePrueba } from "../test/auth"
+import { servirProyeccion } from "../test/proyeccionDePrueba"
 import AppRouter from "./AppRouter"
 
 vi.mock("../lib/supabase", () => ({
@@ -86,5 +90,72 @@ describe("mapa de rutas", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe("/login")
     )
+  })
+
+  it("Analítica Predictiva tampoco", async () => {
+    irA("/analytics")
+
+    montarRouter()
+
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/login")
+    )
+  })
+})
+
+/*
+  Con sesión, lo que importa es con qué permiso quedó protegida la ruta en el
+  mapa real. Los datos de la operación se simulan vacíos: aquí no se prueban
+  las pantallas.
+*/
+describe("Analítica Predictiva en el mapa de rutas", () => {
+  const conSesion = (secciones) =>
+    montarSupabaseFalso({
+      usuarios: [usuarioDePrueba()],
+      permisos: permisosDe("u-1", secciones),
+      sesionInicial: sesionDe("auth-1"),
+    })
+
+  const montarConDatosVacios = () =>
+    render(
+      <AuthProvider>
+        <ProductContext.Provider value={{ products: [], company: { name: "Ferretería de prueba" } }}>
+          <ClientsContext.Provider value={{ clients: [] }}>
+            <SalesContext.Provider value={{ sales: [] }}>
+              <AppRouter />
+            </SalesContext.Provider>
+          </ClientsContext.Provider>
+        </ProductContext.Provider>
+      </AuthProvider>
+    )
+
+  beforeEach(() => {
+    servirProyeccion(vi)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("abre para quien tiene permiso de inventario", async () => {
+    conSesion([PERMISSIONS.PRODUCTS])
+    irA("/analytics")
+
+    montarConDatosVacios()
+
+    expect(await screen.findByRole("heading", { name: "Analítica Predictiva" })).toBeInTheDocument()
+    expect(window.location.pathname).toBe("/analytics")
+  })
+
+  it("no abre para quien solo puede ver el Dashboard", async () => {
+    conSesion([PERMISSIONS.DASHBOARD])
+    irA("/analytics")
+
+    montarConDatosVacios()
+
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/dashboard")
+    )
+    expect(screen.queryByRole("heading", { name: "Analítica Predictiva" })).not.toBeInTheDocument()
   })
 })

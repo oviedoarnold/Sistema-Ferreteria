@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { screen, within } from "@testing-library/react"
+import { describe, it, expect, vi, afterEach } from "vitest"
+import { screen } from "@testing-library/react"
 
 import { AuthProvider } from "../context/AuthContext"
 import ProductProvider from "../context/ProductContext"
 import SalesProvider from "../context/SalesContext"
 import ClientsProvider from "../context/ClientsContext"
 import { renderizarPantalla } from "../test/pantallas"
-import { servirProyeccion } from "../test/proyeccionDePrueba"
+import { RUTA_PROYECCION } from "../lib/api/proyeccion"
 import Dashboard from "./Dashboard"
 
 vi.mock("../lib/supabase", () => ({
@@ -38,15 +38,6 @@ const venta = (extra = {}) => ({
   type: "contado",
   status: "pagada",
   ...extra,
-})
-
-/*
-  El Dashboard carga la proyección de demanda por su cuenta. Sin simularla,
-  cada prueba intentaría descargar el archivo de verdad y dejaría el registro
-  lleno de errores de red que no tienen nada que ver con lo que se prueba.
-*/
-beforeEach(() => {
-  servirProyeccion(vi)
 })
 
 afterEach(() => {
@@ -260,51 +251,30 @@ describe("Dashboard con ventas anuladas", () => {
 
 
 /*
-  La proyección de demanda carga su propio archivo, aparte de los datos de la
-  operación. Por omisión se sirve bien; las pruebas de falla la rompen a
-  propósito.
+  El Dashboard responde qué está pasando en la ferretería. Lo que se espera
+  que ocurra vive en Analítica Predictiva: aquí no se descarga ni se muestra.
 */
-describe("Dashboard con la proyección de demanda", () => {
-  beforeEach(() => {
-    vi.spyOn(console, "error").mockImplementation(() => {})
-  })
-
-  it("muestra la proyección debajo de los indicadores de la operación", async () => {
-    await renderDashboard({ ventas: [venta()] })
-
-    const seccion = (await screen.findByText("Proyección de demanda e inventario")).closest("section")
-
-    expect(await within(seccion).findByText("Recomendaciones de inventario")).toBeInTheDocument()
-    expect(within(seccion).getByText("Productos en riesgo alto").closest(".stat-card")).toHaveTextContent("28")
-
-    // Los indicadores de la operación siguen fuera de la sección y con sus datos.
-    expect(within(seccion).queryByText("Ventas hoy")).not.toBeInTheDocument()
-    expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
-  })
-
-  /*
-    Lo más importante de la integración: si la proyección no carga, la
-    ferretería tiene que poder seguir usando el Dashboard para operar.
-  */
-  it("si la proyección falla, el Dashboard operativo sigue funcionando", async () => {
-    servirProyeccion(vi, { estado: 500 })
+describe("Dashboard operativo", () => {
+  it("no carga ni muestra la analítica predictiva", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch")
 
     await renderDashboard({ ventas: [venta()] })
 
-    expect(await screen.findByText("No fue posible cargar la proyección de demanda.")).toBeInTheDocument()
-
     expect(screen.getByText("Ventas hoy").closest(".stat-card")).toHaveTextContent("L 207.00")
-    expect(screen.getByText("Agotados").closest(".stat-card")).toHaveTextContent("1")
-    expect(screen.getByText("Últimas ventas")).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalledWith(RUTA_PROYECCION)
     expect(screen.queryByText("Recomendaciones de inventario")).not.toBeInTheDocument()
+    expect(screen.queryByText(/proyecci[oó]n|Random Forest/i)).not.toBeInTheDocument()
   })
 
-  it("si no hay red para la proyección, tampoco se cae la pantalla", async () => {
-    servirProyeccion(vi, { falla: new TypeError("Failed to fetch") })
+  it("conserva todas sus secciones operativas", async () => {
+    await renderDashboard({ ventas: [venta()] })
 
-    await renderDashboard()
+    for (const etiqueta of ["Ventas hoy", "Ventas del mes", "Stock bajo", "Agotados", "Por cobrar", "Productos"]) {
+      expect(screen.getByText(etiqueta, { selector: ".label" })).toBeInTheDocument()
+    }
 
-    expect(await screen.findByText("No fue posible cargar la proyección de demanda.")).toBeInTheDocument()
-    expect(screen.getByText("Stock bajo").closest(".stat-card")).toHaveTextContent("1")
+    for (const titulo of ["Ventas por mes", "Top productos vendidos", "Últimas ventas", "Clientes"]) {
+      expect(screen.getByText(titulo, { selector: ".chart-title" })).toBeInTheDocument()
+    }
   })
 })

@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest"
 
 import {
+  aclaracionDelEscenario,
+  describirConteo,
   describirPeriodo,
+  describirPeriodoEnPalabras,
   describirRiesgo,
   esProductoSimulado,
   filtrarPorRiesgo,
   formatearUnidades,
   ordenarPorPrioridad,
+  porcentaje,
 } from "./proyeccion"
 import { ORDEN_ESPERADO, PRODUCTOS_DE_PRUEBA } from "../test/proyeccionDePrueba"
 
@@ -116,8 +120,52 @@ describe("descripción del período", () => {
     expect(describirPeriodo({ desde: "2026-01-01", hasta: "2026-08-31" })).toBe("enero–agosto 2026")
   })
 
+  it("nombra un solo mes cuando el período no pasa de un mes", () => {
+    expect(describirPeriodo({ desde: "2026-09-01", hasta: "2026-09-30" })).toBe("septiembre 2026")
+  })
+
   it("devuelve texto vacío si las fechas no son válidas", () => {
     expect(describirPeriodo({ desde: "x", hasta: "y" })).toBe("")
     expect(describirPeriodo()).toBe("")
+  })
+
+  it("se puede escribir dentro de una oración", () => {
+    expect(describirPeriodoEnPalabras({ desde: "2026-01-01", hasta: "2026-08-31" })).toBe("enero a agosto de 2026")
+    expect(describirPeriodoEnPalabras({ desde: "x", hasta: "2026-08-31" })).toBe("")
+  })
+})
+
+describe("porcentaje", () => {
+  it("redondea a entero la parte sobre el total", () => {
+    expect(porcentaje(28, 50)).toBe(56)
+    expect(porcentaje(1, 3)).toBe(33)
+  })
+
+  it("devuelve 0 si no hay total", () => {
+    expect(porcentaje(5, 0)).toBe(0)
+    expect(porcentaje(5, undefined)).toBe(0)
+  })
+})
+
+describe("aclaración del escenario", () => {
+  it("cuenta los productos con los números del archivo", () => {
+    expect(aclaracionDelEscenario({ productos: 12, productos_sistema: 3, productos_simulados: 9 })).toBe(
+      "Escenario académico de 12 productos: 3 del sistema y 9 simulados para análisis. " +
+        "Las ventas históricas utilizadas para el modelo son simuladas."
+    )
+  })
+})
+
+describe("conteo de la tabla", () => {
+  it("llama prioritarios a los primeros de la vista general", () => {
+    expect(describirConteo({ riesgo: "todos", mostrados: 10, total: 50 })).toBe("10 prioritarios de 50 productos")
+  })
+
+  it("es neutro con un filtro de riesgo", () => {
+    expect(describirConteo({ riesgo: "bajo", mostrados: 10, total: 16 })).toBe("Mostrando 10 de 16 productos")
+  })
+
+  it("es neutro cuando ya se ven todos", () => {
+    expect(describirConteo({ riesgo: "todos", mostrados: 50, total: 50 })).toBe("Mostrando 50 de 50 productos")
   })
 })

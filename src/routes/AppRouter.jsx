@@ -9,6 +9,7 @@ import NotFound from "../pages/NotFound"
 import Demo from "../pages/Demo"
 import Login from "../pages/Login"
 import Dashboard from "../pages/Dashboard"
+import AnaliticaPredictiva from "../pages/AnaliticaPredictiva"
 import Products from "../pages/Products"
 import Kardex from "../pages/Kardex"
 import POS from "../pages/POS"
@@ -50,6 +51,22 @@ function AppRouter() {
             <ProtectedRoute permission={PERMISSIONS.DASHBOARD}>
               <MainLayout>
                 <Dashboard />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/*
+          ANALÍTICA PREDICTIVA
+          Bajo el permiso de inventario: muestra costos de compra y
+          recomendaciones de reposición, que un vendedor no ve.
+        */}
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute permission={PERMISSIONS.PRODUCTS}>
+              <MainLayout>
+                <AnaliticaPredictiva />
               </MainLayout>
             </ProtectedRoute>
           }
