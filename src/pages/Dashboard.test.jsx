@@ -145,6 +145,41 @@ describe("Dashboard", () => {
 })
 
 /*
+  Cada barra se mide contra el mes que más vendió, no contra la venta más
+  grande: un mes con varias ventas chicas supera a cualquiera de ellas, y
+  medido así todas las barras quedaban al tope.
+*/
+describe("gráfica de ventas por mes", () => {
+  const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 10, 12)
+
+  const barraDel = (fecha) =>
+    document.querySelector(`[data-mes="${fecha.getFullYear()}-${fecha.getMonth() + 1}"] .bar`)
+
+  it("dibuja cada mes en proporción al mes que más vendió", async () => {
+    await renderDashboard({
+      ventas: [
+        venta({ id: "F-1" }),
+        venta({ id: "F-2" }),
+        venta({ id: "F-3", total: 300, timestamp: mesAnterior.getTime(), date: mesAnterior.toLocaleDateString("es-HN") }),
+      ],
+    })
+
+    expect(barraDel(hoy).style.height).toBe("100%")
+    expect(parseFloat(barraDel(mesAnterior).style.height)).toBeCloseTo((300 / 414) * 100, 5)
+    expect(barraDel(hoy).closest(".bar-col")).toHaveTextContent("L 414.00")
+  })
+
+  it("deja visible pero mínima la barra de un mes sin ventas, y lo dice", async () => {
+    await renderDashboard({ ventas: [venta()] })
+
+    const mesesSinVentas = screen.getAllByRole("img", { name: /sin ventas/ })
+
+    expect(mesesSinVentas).toHaveLength(5)
+    expect(mesesSinVentas[0].style.height).toBe("4%")
+  })
+})
+
+/*
   El tablero mide el negocio. Una factura anulada se deshizo, así que no es
   ingreso ni mercadería vendida, pero sigue siendo algo que pasó: por eso
   aparece en la actividad reciente y en ninguna cifra.

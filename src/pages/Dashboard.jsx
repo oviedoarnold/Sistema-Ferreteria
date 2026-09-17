@@ -7,7 +7,9 @@ import {
   esVentaVigente,
   esVentaAnulada,
   getSaleBalance,
+  totalesDeVentasPorMes,
 } from "../utils/salesUtils"
+import { alturaDeBarra } from "../utils/graficas"
 import { formatMoney as money } from "../utils/format"
 import { ClientsContext } from "../context/contexts"
 import ProyeccionDemanda from "../components/proyeccion/ProyeccionDemanda"
@@ -46,6 +48,9 @@ function Dashboard() {
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
   }, [ventasVigentes])
 
+  const ventasPorMes = useMemo(() => totalesDeVentasPorMes(ventasVigentes), [ventasVigentes])
+  const mayorVentaMensual = Math.max(0, ...ventasPorMes.map((mes) => mes.total))
+
   const recentSales = [...sales].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 5)
 
   return <div className="view active">
@@ -60,11 +65,9 @@ function Dashboard() {
     </div>
 
     <div className="dash-row">
-      <div className="chart-wrap"><div className="chart-title">Ventas por mes</div><div className="bar-chart">{Array.from({ length: 6 }, (_, idx) => {
-        const d = new Date(); d.setMonth(d.getMonth() - (5 - idx));
-        const total = ventasVigentes.filter((s) => { const sd = new Date(s.timestamp || s.date); return !Number.isNaN(sd.getTime()) && sd.getMonth() === d.getMonth() && sd.getFullYear() === d.getFullYear() }).reduce((a, s) => a + Number(s.total || 0), 0)
-        const max = Math.max(1, ...ventasVigentes.map((s) => Number(s.total || 0)))
-        return <div className="bar-col" key={idx}><div className="bar-val">{total ? money(total) : "—"}</div><div className="bar" style={{ height: `${Math.max(4, Math.min(100, (total / max) * 100))}%` }}></div><div className="bar-label">{d.toLocaleDateString("es-HN", { month: "short" })}</div></div>
+      <div className="chart-wrap"><div className="chart-title">Ventas por mes</div><div className="bar-chart">{ventasPorMes.map((mes) => {
+        const monto = mes.total ? money(mes.total) : "—"
+        return <div className="bar-col" key={mes.clave} data-mes={mes.clave}><div className="bar-val">{monto}</div><div className="bar-pista"><div className="bar" style={{ height: `${alturaDeBarra(mes.total, mayorVentaMensual)}%` }} role="img" aria-label={`${mes.etiqueta}: ${mes.total ? monto : "sin ventas"}`}></div></div><div className="bar-label">{mes.etiqueta}</div></div>
       })}</div></div>
       <div className="chart-wrap"><div className="chart-title">Top productos vendidos</div><div className="dash-mini-list">{topProducts.length ? topProducts.map(([name, qty]) => <div className="dash-mini-row" key={name}><span className="name">{name}</span><span className="val">{qty} u.</span></div>) : <div className="empty-state">Sin ventas todavía</div>}</div></div>
     </div>
