@@ -52,8 +52,30 @@ def configurar_consola() -> None:
         sys.stdout.reconfigure(encoding="utf-8")
 
 
+def historico_por_producto() -> dict[str, dict[str, int]]:
+    """
+    Unidades vendidas por producto en cada mes del histórico.
+
+    Es la misma demanda diaria que usó el modelo, solo sumada por mes. Con ella
+    el Dashboard puede mostrar el histórico de cualquier conjunto de productos
+    —una categoría, un nivel de riesgo o ambos— sumando exactamente los
+    productos filtrados, sin estimar nada.
+    """
+    demanda = pd.read_csv(
+        DEMANDA, encoding="utf-8", usecols=["fecha", "producto_id", "cantidad_vendida"], parse_dates=["fecha"]
+    )
+    por_mes = demanda.groupby([demanda["producto_id"], demanda["fecha"].dt.to_period("M")])["cantidad_vendida"].sum()
+
+    historico: dict[str, dict[str, int]] = {}
+    for (producto_id, periodo), unidades in por_mes.items():
+        historico.setdefault(producto_id, {})[str(periodo)] = int(unidades)
+
+    return historico
+
+
 def leer_productos() -> list[dict]:
     recomendaciones = pd.read_csv(RECOMENDACIONES, encoding="utf-8")
+    historico = historico_por_producto()
 
     return [
         {
@@ -71,6 +93,7 @@ def leer_productos() -> list[dict]:
             "recomendacion_compra": int(f.recomendacion_compra),
             "costo": round(float(f.costo), 2),
             "inversion_estimada": round(float(f.inversion_estimada), 2),
+            "historico_mensual": historico[f.producto_id],
         }
         for f in recomendaciones.sort_values("codigo").itertuples(index=False)
     ]
@@ -172,6 +195,7 @@ def validar(publicacion: dict) -> None:
     meta = publicacion["metadata"]
 
     ids = [p["producto_id"] for p in productos]
+    meses_historicos = [m["mes"] for m in serie if m["tipo"] == "historico"]
 
     comprobaciones = {
         "50 productos": len(productos) == 50,
@@ -198,6 +222,14 @@ def validar(publicacion: dict) -> None:
         "septiembre es la única proyección": [m["mes"] for m in serie if m["tipo"] == "proyeccion"]
         == ["2026-09"],
         "la proyección es la demanda a 30 días": serie[-1]["unidades"] == resumen["demanda_total_30d"],
+        "cada producto tiene los meses del histórico": all(
+            list(p["historico_mensual"]) == meses_historicos for p in productos
+        ),
+        "el histórico por producto suma la serie mensual": all(
+            sum(p["historico_mensual"][m["mes"]] for p in productos) == m["unidades"]
+            for m in serie
+            if m["tipo"] == "historico"
+        ),
     }
 
     fallidas = [nombre for nombre, ok in comprobaciones.items() if not ok]
