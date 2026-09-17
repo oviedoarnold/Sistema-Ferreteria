@@ -4,6 +4,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { RUTA_PROYECCION } from "./proyeccion"
+import { inversionPorCategoria, mayorDemandaProyectada } from "../../utils/proyeccion"
 
 /*
   Revisa el archivo que de verdad se publica, no un doble.
@@ -82,6 +83,23 @@ describe("el archivo de proyección publicado", () => {
     for (const riesgo of ["alto", "medio", "bajo"]) {
       expect(resumen[`productos_riesgo_${riesgo}`]).toBe(productos.filter((p) => p.riesgo === riesgo).length)
     }
+  })
+
+  /*
+    La gráfica de categorías se calcula en la página a partir del detalle.
+    Su total tiene que coincidir con la inversión de las tarjetas.
+  */
+  it("la inversión por categoría suma la inversión total", () => {
+    const porCategorias = inversionPorCategoria(productos).reduce((suma, c) => suma + c.inversion, 0)
+
+    expect(porCategorias).toBeCloseTo(resumen.inversion_estimada, 2)
+  })
+
+  it("el top de demanda proyectada son 10 productos con demanda a 30 días", () => {
+    const top = mayorDemandaProyectada(productos)
+
+    expect(top).toHaveLength(10)
+    expect(top[0].demanda_predicha_30d).toBe(Math.max(...productos.map((p) => p.demanda_predicha_30d)))
   })
 
   it("el histórico va de enero a agosto y septiembre es la única proyección", () => {

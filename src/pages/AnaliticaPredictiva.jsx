@@ -6,9 +6,12 @@ import {
   describirPeriodo,
   describirPeriodoEnPalabras,
 } from "../utils/proyeccion"
+import DistribucionRiesgo from "../components/proyeccion/DistribucionRiesgo"
 import GraficaProyeccion from "../components/proyeccion/GraficaProyeccion"
 import IndicadoresPredictivos from "../components/proyeccion/IndicadoresPredictivos"
+import InversionPorCategoria from "../components/proyeccion/InversionPorCategoria"
 import RecomendacionesInventario from "../components/proyeccion/RecomendacionesInventario"
+import TopDemandaProyectada from "../components/proyeccion/TopDemandaProyectada"
 
 /*
   Qué esperamos que ocurra y qué conviene reponer.
@@ -76,6 +79,9 @@ function ContenidoAnalitico({ datos }) {
 
       <div className="analitica-graficas">
         <GraficaProyeccion serie={serie} />
+        <DistribucionRiesgo resumen={resumen} />
+        <TopDemandaProyectada productos={productos} />
+        <InversionPorCategoria productos={productos} />
       </div>
 
       <RecomendacionesInventario productos={productos} />

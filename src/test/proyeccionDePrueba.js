@@ -10,6 +10,10 @@
            FER-022 (10, demanda 70)  FER-021 (10, demanda 50)  FER-042 (1)
     medio  FER-031 (5)  FER-030 (3)
     bajo   FER-041 (demanda 30)  CER-023 (26.38)  FER-040 (12)  FER-043 (5)
+
+  Inversión de los que llevan compra, por categoría:
+    Construcción 39,008 (3)  Herramientas Eléctricas 21,000 (2)
+    Tornillería 6,300 (1)  Plomería 3,000 (1)  Jardinería 150 (1)
 */
 
 const producto = (codigo, nombre, cambios) => ({
@@ -38,21 +42,35 @@ export const PRODUCTOS_DE_PRUEBA = [
   }),
   producto("TOR-001", "Tornillo para madera", {
     origen: "sistema", tipo_stock: "real", categoria: "Tornillería",
-    demanda_predicha_30d: 105.16, riesgo: "alto", recomendacion_compra: 126,
+    demanda_predicha_30d: 105.16, riesgo: "alto", recomendacion_compra: 126, costo: 50, inversion_estimada: 6300,
   }),
   producto("FER-020", "Codo PVC", {
     categoria: "Plomería", demanda_predicha_30d: 180, riesgo: "alto", recomendacion_compra: 150,
+    costo: 20, inversion_estimada: 3000,
   }),
-  producto("FER-021", "Tee PVC", { demanda_predicha_30d: 50, riesgo: "alto", recomendacion_compra: 10 }),
-  producto("FER-022", "Pegamento PVC", { demanda_predicha_30d: 70, riesgo: "alto", recomendacion_compra: 10 }),
+  producto("FER-021", "Tee PVC", {
+    demanda_predicha_30d: 50, riesgo: "alto", recomendacion_compra: 10, costo: 10, inversion_estimada: 100,
+  }),
+  producto("FER-022", "Pegamento PVC", {
+    demanda_predicha_30d: 70, riesgo: "alto", recomendacion_compra: 10, costo: 10, inversion_estimada: 100,
+  }),
   producto("CER-023", "Candado de bronce", {
     origen: "sistema", tipo_stock: "real", categoria: "Cerrajería", demanda_predicha_30d: 26.38,
   }),
-  producto("FER-030", "Sierra circular", { demanda_predicha_30d: 1.5, riesgo: "medio", recomendacion_compra: 3 }),
-  producto("FER-031", "Rotomartillo", { demanda_predicha_30d: 1.2, riesgo: "medio", recomendacion_compra: 5 }),
+  producto("FER-030", "Sierra circular", {
+    categoria: "Herramientas Eléctricas", demanda_predicha_30d: 1.5, riesgo: "medio",
+    recomendacion_compra: 3, costo: 2000, inversion_estimada: 6000,
+  }),
+  producto("FER-031", "Rotomartillo", {
+    categoria: "Herramientas Eléctricas", demanda_predicha_30d: 1.2, riesgo: "medio",
+    recomendacion_compra: 5, costo: 3000, inversion_estimada: 15000,
+  }),
   producto("FER-040", "Cerradura de pomo", { demanda_predicha_30d: 12 }),
   producto("FER-041", "Pala cuadrada", { demanda_predicha_30d: 30 }),
-  producto("FER-042", "Machete", { demanda_predicha_30d: 3, riesgo: "alto", recomendacion_compra: 1 }),
+  producto("FER-042", "Machete", {
+    categoria: "Jardinería", demanda_predicha_30d: 3, riesgo: "alto", recomendacion_compra: 1,
+    costo: 150, inversion_estimada: 150,
+  }),
   producto("FER-043", "Rastrillo", { demanda_predicha_30d: 5 }),
 ]
 
